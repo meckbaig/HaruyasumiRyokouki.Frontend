@@ -1,0 +1,172 @@
+{
+  "app": {
+    "title": "Spring Break",
+    "subtitle": "Three months across Japan"
+  },
+  "nav": {
+    "home": "Home",
+    "map": "Map",
+    "admin": "Pending",
+    "login": "Sign in",
+    "logout": "Sign out",
+    "skipToContent": "Skip to content"
+  },
+  "search": {
+    "placeholder": "Search notes and photos…",
+    "submit": "Search",
+    "clear": "Clear",
+    "heading": "Results for “{query}”",
+    "tabs": {
+      "media": "Media",
+      "notes": "Notes"
+    },
+    "empty": "Nothing found. Try a different query.",
+    "emptyMedia": "No photos or videos match this query.",
+    "emptyNotes": "No notes match this query.",
+    "daysFound": "{count} day found | {count} days found",
+    "mediaFound": "{count} match | {count} matches",
+    "expandDay": "Show the rest of this day",
+    "collapseDay": "Hide the rest",
+    "openDay": "Open the day",
+    "expandNote": "Expand note",
+    "collapseNote": "Collapse note"
+  },
+  "day": {
+    "note": "Note of the day",
+    "noNote": "No note has been written for this day yet.",
+    "noMedia": "No media for this day.",
+    "mediaCount": "{count} file | {count} files",
+    "onMap": "On the map",
+    "noCoordinates": "None of this day's files have coordinates.",
+    "prev": "Previous day",
+    "next": "Next day",
+    "notReady": "Draft",
+    "notFound": "This day is not part of the timeline."
+  },
+  "calendar": {
+    "title": "Calendar",
+    "hasMedia": "has media",
+    "ready": "note ready",
+    "draft": "draft",
+    "empty": "no data"
+  },
+  "map": {
+    "title": "Trip map",
+    "rangeFrom": "From",
+    "rangeTo": "to",
+    "reset": "Whole route",
+    "noPoints": "No media with coordinates in the selected range.",
+    "showRoute": "Show route",
+    "pointsCount": "{count} point | {count} points",
+    "zoomHint": "Ctrl + scroll to zoom"
+  },
+  "media": {
+    "video": "Video",
+    "untitled": "Untitled",
+    "openOriginal": "Open the original",
+    "prev": "Previous file",
+    "next": "Next file",
+    "close": "Close",
+    "showMore": "Show more",
+    "shownOf": "Showing {shown} of {total}"
+  },
+  "language": {
+    "label": "Language",
+    "fallbackNotice": "No translation for the selected language — showing the original."
+  },
+  "theme": {
+    "label": "Theme",
+    "system": "Match system",
+    "light": "Light",
+    "dark": "Dark",
+    "black": "Black (OLED)"
+  },
+  "menu": {
+    "open": "Menu",
+    "close": "Close menu"
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry": "Retry",
+    "share": "Share",
+    "shareCopied": "Link copied",
+    "shareFailed": "Could not copy the link",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "selected": "{count} selected",
+    "selectAll": "Select all",
+    "clearSelection": "Clear selection"
+  },
+  "login": {
+    "title": "Editor sign-in",
+    "login": "Login",
+    "password": "Password",
+    "remember": "Remember me",
+    "submit": "Sign in",
+    "submitting": "Checking…",
+    "failed": "Wrong login or password.",
+    "success": "Signed in as editor."
+  },
+  "admin": {
+    "title": "Pending",
+    "mediaSection": "Media without a description",
+    "daysSection": "Unfinished notes",
+    "allDone": "Everything is filled in — nothing here.",
+    "sync": "Sync storage",
+    "syncing": "Syncing…",
+    "syncDone": "Storage rescanned",
+    "saved": "Saved",
+    "deleted": "Media deleted",
+    "deleteConfirm": "Delete “{name}”? This cannot be undone.",
+    "markReady": "Ready — remove from pending"
+  },
+  "editor": {
+    "editMedia": "Edit media",
+    "editBulk": "Bulk edit ({count})",
+    "editDay": "Edit day",
+    "bulkHint": "Fields are prefilled from the first selected file with content. Saving overwrites them on every selected file; empty fields are left untouched.",
+    "title": "Title",
+    "description": "Description",
+    "tags": "Tags",
+    "tagsHint": "Comma separated",
+    "note": "Note",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "coordinates": "Coordinates",
+    "coordinatesHint": "Click the map to drop a pin",
+    "approved": "Approved",
+    "isReady": "Note is ready",
+    "selectMore": "Press and drag across files to select several",
+    "partialFailure": "Saved {ok} of {total}",
+    "autoTranslate": "Translate to the other languages",
+    "autoTranslateHint": "On save the backend fills the empty languages by translating the one you wrote.",
+    "translationReview": "Machine translation filled in — review the other languages before leaving.",
+    "setOnMap": "Set on the map",
+    "mapHint": "Click the map to drop a pin. The marker can be dragged.",
+    "expandMap": "Expand map",
+    "collapseMap": "Collapse map",
+    "clearPoint": "Clear pin",
+    "neighborPoints": "Points from neighbouring days",
+    "dayThumbs": "Photos of this day"
+  },
+  "footer": {
+    "about": "About",
+    "aboutText": "A personal timeline of a three-month trip across Japan: notes, photos and points on the map.",
+    "developer": "Author"
+  },
+  "errors": {
+    "generic": "Something went wrong.",
+    "network": "The server is unreachable. Check your connection and try again.",
+    "notFound": "Page not found.",
+    "unauthorized": "You need to sign in as editor.",
+    "forbidden": "Not enough permissions."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "back": "Go home"
+  }
+}

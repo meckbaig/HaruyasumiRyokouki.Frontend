@@ -1,0 +1,172 @@
+{
+  "app": {
+    "title": "春休み旅行記",
+    "subtitle": "日本を巡る三か月"
+  },
+  "nav": {
+    "home": "ホーム",
+    "map": "地図",
+    "admin": "未入力",
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "skipToContent": "本文へスキップ"
+  },
+  "search": {
+    "placeholder": "メモや写真を検索…",
+    "submit": "検索",
+    "clear": "クリア",
+    "heading": "「{query}」の検索結果",
+    "tabs": {
+      "media": "メディア",
+      "notes": "メモ"
+    },
+    "empty": "見つかりませんでした。別のキーワードでお試しください。",
+    "emptyMedia": "この検索に一致する写真・動画はありません。",
+    "emptyNotes": "この検索に一致するメモはありません。",
+    "daysFound": "{count}日が見つかりました",
+    "mediaFound": "{count}件の一致",
+    "expandDay": "この日の残りを表示",
+    "collapseDay": "残りを隠す",
+    "openDay": "この日を開く",
+    "expandNote": "メモを展開",
+    "collapseNote": "メモを折りたたむ"
+  },
+  "day": {
+    "note": "その日のメモ",
+    "noNote": "この日のメモはまだ書かれていません。",
+    "noMedia": "この日のメディアはありません。",
+    "mediaCount": "{count}件",
+    "onMap": "地図で見る",
+    "noCoordinates": "この日のファイルに位置情報はありません。",
+    "prev": "前の日",
+    "next": "次の日",
+    "notReady": "下書き",
+    "notFound": "この日は記録にありません。"
+  },
+  "calendar": {
+    "title": "カレンダー",
+    "hasMedia": "メディアあり",
+    "ready": "メモ完成",
+    "draft": "下書き",
+    "empty": "データなし"
+  },
+  "map": {
+    "title": "旅の地図",
+    "rangeFrom": "開始",
+    "rangeTo": "終了",
+    "reset": "全行程",
+    "noPoints": "選択した期間に位置情報付きのメディアはありません。",
+    "showRoute": "ルートを表示",
+    "pointsCount": "{count}地点",
+    "zoomHint": "Ctrl + ホイールで拡大縮小"
+  },
+  "media": {
+    "video": "動画",
+    "untitled": "無題",
+    "openOriginal": "オリジナルを開く",
+    "prev": "前のファイル",
+    "next": "次のファイル",
+    "close": "閉じる",
+    "showMore": "もっと見る",
+    "shownOf": "{total}件中{shown}件を表示"
+  },
+  "language": {
+    "label": "言語",
+    "fallbackNotice": "選択した言語の翻訳がないため、原文を表示しています。"
+  },
+  "theme": {
+    "label": "テーマ",
+    "system": "システムに合わせる",
+    "light": "ライト",
+    "dark": "ダーク",
+    "black": "ブラック（OLED）"
+  },
+  "menu": {
+    "open": "メニュー",
+    "close": "メニューを閉じる"
+  },
+  "common": {
+    "loading": "読み込み中…",
+    "retry": "再試行",
+    "share": "共有",
+    "shareCopied": "リンクをコピーしました",
+    "shareFailed": "リンクをコピーできませんでした",
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "close": "閉じる",
+    "selected": "{count}件選択中",
+    "selectAll": "すべて選択",
+    "clearSelection": "選択を解除"
+  },
+  "login": {
+    "title": "編集者ログイン",
+    "login": "ログイン名",
+    "password": "パスワード",
+    "remember": "ログイン状態を保持",
+    "submit": "ログイン",
+    "submitting": "確認中…",
+    "failed": "ログイン名またはパスワードが違います。",
+    "success": "編集者としてログインしました。"
+  },
+  "admin": {
+    "title": "未入力一覧",
+    "mediaSection": "説明のないメディア",
+    "daysSection": "未完成のメモ",
+    "allDone": "すべて入力済みです。",
+    "sync": "ストレージを同期",
+    "syncing": "同期中…",
+    "syncDone": "ストレージを再スキャンしました",
+    "saved": "保存しました",
+    "deleted": "メディアを削除しました",
+    "deleteConfirm": "「{name}」を削除しますか？元に戻せません。",
+    "markReady": "完成 — 一覧から外す"
+  },
+  "editor": {
+    "editMedia": "メディアを編集",
+    "editBulk": "一括編集（{count}件）",
+    "editDay": "その日を編集",
+    "bulkHint": "項目は最初にデータがある選択ファイルから事前入力されます。保存すると選択したすべてのファイルを上書きします。空欄の項目は変更されません。",
+    "title": "タイトル",
+    "description": "説明",
+    "tags": "タグ",
+    "tagsHint": "カンマ区切り",
+    "note": "メモ",
+    "latitude": "緯度",
+    "longitude": "経度",
+    "coordinates": "位置情報",
+    "coordinatesHint": "地図をクリックしてピンを置きます",
+    "approved": "承認済み",
+    "isReady": "メモ完成",
+    "selectMore": "長押ししてなぞると複数選択できます",
+    "partialFailure": "{total}件中{ok}件を保存しました",
+    "autoTranslate": "他の言語に翻訳する",
+    "autoTranslateHint": "保存時に、入力した言語から空の言語へ翻訳して埋めます。",
+    "translationReview": "自動翻訳を入力しました。退出前に他の言語を確認してください。",
+    "setOnMap": "地図で指定",
+    "mapHint": "地図をクリックしてピンを置きます。マーカーはドラッグできます。",
+    "expandMap": "地図を拡大",
+    "collapseMap": "地図を縮小",
+    "clearPoint": "ピンを削除",
+    "neighborPoints": "前後の日の地点",
+    "dayThumbs": "この日の写真"
+  },
+  "footer": {
+    "about": "このサイトについて",
+    "aboutText": "日本を巡る三か月の個人的な記録。メモ、写真、そして地図上の足跡。",
+    "developer": "著者"
+  },
+  "errors": {
+    "generic": "問題が発生しました。",
+    "network": "サーバーに接続できません。接続を確認して再試行してください。",
+    "notFound": "ページが見つかりません。",
+    "unauthorized": "編集者としてログインしてください。",
+    "forbidden": "権限がありません。"
+  },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "back": "ホームへ"
+  }
+}

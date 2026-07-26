@@ -1,0 +1,216 @@
+@import 'tailwindcss';
+
+/*
+  Design tokens. The palette is intentionally quiet: photos are the content,
+  the chrome around them should not compete for attention.
+*/
+@theme {
+  --color-ink: #17151f;
+  --color-ink-soft: #4a4658;
+  --color-ink-faint: #8b8798;
+  --color-paper: #faf8f5;
+  --color-paper-raised: #ffffff;
+  --color-edge: #e5e0d8;
+  --color-accent: #b3403f;
+  --color-accent-soft: #f2dede;
+
+  --font-sans: 'Inter', 'Noto Sans JP', ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+  Theme overrides. Tailwind v4 utilities compile to `var(--color-*)`, so
+  overriding these variables under a scope re-themes every utility at once.
+  `data-theme` is stamped on <html> by the UI store:
+    - absent / "light" -> the @theme defaults above
+    - "dark"           -> soft dark grey, easy on the eyes
+    - "black"          -> pure black for OLED panels
+*/
+:root[data-theme='dark'] {
+  --color-ink: #ededed;
+  --color-ink-soft: #b2b2b2;
+  --color-ink-faint: #7d7d7d;
+  --color-paper: #141414;
+  --color-paper-raised: #282828;
+  --color-edge: #3a3a3a;
+  --color-accent: #e8807f;
+  --color-accent-soft: #3a2726;
+}
+
+:root[data-theme='black'] {
+  --color-ink: #ededed;
+  --color-ink-soft: #a8a8a8;
+  --color-ink-faint: #6f6f6f;
+  --color-paper: #000000;
+  --color-paper-raised: #0c0c0c;
+  --color-edge: #262626;
+  --color-accent: #e8807f;
+  --color-accent-soft: #2a1c1c;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Native form controls and scrollbars follow the active theme. */
+    color-scheme: light;
+  }
+
+  :root[data-theme='dark'] html,
+  :root[data-theme='black'] html,
+  html[data-theme='dark'],
+  html[data-theme='black'] {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Keyboard users must always be able to see where they are. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Native cursor for buttons is a text/arrow; make every control feel clickable. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  select:not(:disabled),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  label:has(> input[type='checkbox']),
+  label:has(> input[type='radio']) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* Horizontal ribbons scroll without a visible scrollbar; edge arrows hint instead. */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .field-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-ink-soft);
+  }
+
+  .field-input {
+    display: block;
+    width: 100%;
+    border-radius: 0.375rem;
+    border: 1px solid var(--color-edge);
+    background-color: var(--color-paper-raised);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+  }
+
+  .field-input:focus {
+    border-color: var(--color-ink-faint);
+    outline: none;
+  }
+
+  .field-hint {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-ink-faint);
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.375rem;
+    background-color: var(--color-ink);
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-paper);
+    transition: opacity 150ms;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--color-edge);
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    color: var(--color-ink-soft);
+    transition:
+      border-color 150ms,
+      color 150ms;
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--color-ink-faint);
+    color: var(--color-ink);
+  }
+
+  .btn-ghost:disabled {
+    opacity: 0.5;
+  }
+
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    color: var(--color-accent);
+    transition: background-color 150ms;
+  }
+
+  .btn-danger:hover {
+    background-color: var(--color-accent-soft);
+  }
+}
+
+/* Muted map pins for reference points that belong to other days. */
+.marker-grey {
+  filter: grayscale(1) opacity(0.65);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
