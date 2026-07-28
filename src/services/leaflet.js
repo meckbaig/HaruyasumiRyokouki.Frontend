@@ -23,24 +23,55 @@ export const FALLBACK_CENTER = [36.2, 138.25]
 export const FALLBACK_ZOOM = 5
 
 /**
- * Leaflet resolves its default icon paths relative to the CSS, which the bundler
- * breaks. Point both the normal and the muted (neighbouring-day) pins at the
- * bundled images.
+ * Teardrop pins drawn as inline SVG, so a single marker and a cluster share one
+ * silhouette (the cluster is the same drop with a count in its head), and both
+ * theme cleanly without shipping PNGs.
  */
-const ICON_BASE = {
-  iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
-  iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
-  shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
+const PIN_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z'
+
+export const PIN_COLOR = '#b3403f'
+export const NEIGHBOR_COLOR = '#8b8798'
+
+function pinSvg(inner, size, color) {
+  return (
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">` +
+    `<path d="${PIN_PATH}" fill="${color}" stroke="#fff" stroke-width="1.2"/>${inner}</svg>`
+  )
 }
 
-export const pinIcon = L.icon(ICON_BASE)
+/** A single-media drop with a small white dot in the head. */
+export function pinIconOf(color = PIN_COLOR, size = 30) {
+  const html = pinSvg('<circle cx="12" cy="9" r="3" fill="#fff"/>', size, color)
+  return L.divIcon({
+    html,
+    className: 'trip-pin',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size * 0.92],
+    popupAnchor: [0, -size * 0.85],
+  })
+}
 
-/** Same pin, desaturated via CSS — used for reference points from other days. */
-export const neighborIcon = L.icon({ ...ICON_BASE, className: 'marker-grey' })
+/** The same drop, larger, with the child count inside the head. */
+export function clusterIconOf(count, color = PIN_COLOR) {
+  const size = 42
+  const fontSize = count >= 1000 ? 6 : count >= 100 ? 7 : 8
+  const inner =
+    `<text x="12" y="9" text-anchor="middle" dominant-baseline="central" fill="#fff" ` +
+    `font-family="inherit" font-weight="700" font-size="${fontSize}">${count}</text>`
+  return L.divIcon({
+    html: pinSvg(inner, size, color),
+    className: 'trip-pin',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size * 0.92],
+    popupAnchor: [0, -size * 0.85],
+  })
+}
+
+/** Single-media pin, accent colour. */
+export const pinIcon = pinIconOf(PIN_COLOR)
+
+/** Muted drop for reference points from neighbouring days. */
+export const neighborIcon = pinIconOf(NEIGHBOR_COLOR, 26)
 
 /**
  * Creates a base map with CARTO tiles and ctrl-to-zoom on the wheel.

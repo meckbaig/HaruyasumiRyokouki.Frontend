@@ -1,94 +1,61 @@
 import { ref, shallowRef } from 'vue'
-import { useDaysStore } from '@/stores/days'
+import { fetchMediaLocations } from '@/api/media'
 
 /**
- * Collects the media of a set of days for the map.
+ * Loads the located media for a date range in a single request.
  *
- * There is no endpoint that returns coordinates for the whole trip, so the map
- * has to assemble them from `GET /v1/days/{date}` one day at a time. Requests
- * run a few at a time and results land incrementally, so pins appear while the
- * rest is still loading rather than after a long blank wait. Everything goes
- * through the days store, so a range that was opened once is free afterwards.
+ * Backed by `GET /v1/media/locations`, which returns only media that have
+ * coordinates — no more walking the trip day by day. Each item is a
+ * MediaFileLocationDto: `{ id, created, latitude, longitude, fileName, title }`.
  */
-const CONCURRENCY = 6
-
 export function useTripMedia() {
-  const days = useDaysStore()
-
   const media = shallowRef([])
   const loading = ref(false)
-  const loaded = ref(0)
-  const total = ref(0)
 
-  let runId = 0
+  let activeController = null
 
   /**
-   * @param {string[]} dates ISO dates to pull, in the order they should appear.
+   * @param {string} from Inclusive ISO start date.
+   * @param {string} to   Inclusive ISO end date.
    */
-  async function load(dates) {
-    const currentRun = (runId += 1)
-    const queue = [...dates]
-
-    media.value = []
-    loaded.value = 0
-    total.value = queue.length
-    loading.value = queue.length > 0
-    if (queue.length === 0) return
-
-    const collected = new Map()
-
-    async function worker() {
-      for (;;) {
-        const date = queue.shift()
-        if (date === undefined) return
-        // A newer range was requested; abandon this pass.
-        if (currentRun !== runId) return
-
-        try {
-          const day = await days.loadDay(date)
-          const located = (day?.media ?? [])
-            .filter((item) => Number.isFinite(item?.latitude) && Number.isFinite(item?.longitude))
-            .map((item) => ({ ...item, date }))
-          if (located.length) collected.set(date, located)
-        } catch {
-          // A single unreachable day should not blank out the whole map.
-        }
-
-        if (currentRun !== runId) return
-        loaded.value += 1
-        // Re-sort by date so pins and the route stay chronological regardless
-        // of the order the responses came back in.
-        media.value = [...collected.keys()].sort().flatMap((key) => collected.get(key))
-      }
+  async function load(from, to) {
+    if (!from || !to) {
+      media.value = []
+      return
     }
 
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker))
+    // A quick range change (dragging the calendar) can outrun the network.
+    activeController?.abort()
+    const controller = new AbortController()
+    activeController = controller
 
-    if (currentRun === runId) loading.value = false
+    loading.value = true
+    try {
+      const items = await fetchMediaLocations(from, to, controller.signal)
+      media.value = items.filter(
+        (item) => Number.isFinite(item?.latitude) && Number.isFinite(item?.longitude),
+      )
+    } catch (error) {
+      if (error.name === 'AbortError') return
+      media.value = []
+    } finally {
+      if (activeController === controller) {
+        activeController = null
+        loading.value = false
+      }
+    }
   }
 
-  return { media, loading, loaded, total, load }
+  return { media, loading, load }
 }
 
 /**
- * One representative point per day, chronologically — the shape the route line
- * is drawn from. Averaging the day's pins keeps a single stray photo from
- * dragging the line across the country.
+ * The route line: every located media in chronological order by capture time.
+ * Points are connected in the order the photos were taken.
  */
 export function routeFromMedia(media) {
-  const byDate = new Map()
-
-  for (const item of media) {
-    if (!byDate.has(item.date)) byDate.set(item.date, [])
-    byDate.get(item.date).push(item)
-  }
-
-  return [...byDate.keys()]
-    .sort()
-    .map((date) => {
-      const items = byDate.get(date)
-      const lat = items.reduce((sum, item) => sum + item.latitude, 0) / items.length
-      const lng = items.reduce((sum, item) => sum + item.longitude, 0) / items.length
-      return [lat, lng]
-    })
+  return [...media]
+    .filter((item) => item?.created)
+    .sort((a, b) => String(a.created).localeCompare(String(b.created)))
+    .map((item) => [item.latitude, item.longitude])
 }

@@ -6,9 +6,8 @@ import LanguageTabs from './LanguageTabs.vue'
 // Lazy so Leaflet is not pulled into the main bundle — this dialog is mounted
 // app-wide via the selection toolbar, and the map only loads when it opens.
 const MediaLocationPicker = defineAsyncComponent(() => import('./MediaLocationPicker.vue'))
-import { editMedia, fetchMediaEdit } from '@/api/media'
+import { editMedia, fetchMediaEdit, fetchMediaLocations } from '@/api/media'
 import { useUiStore } from '@/stores/ui'
-import { useDaysStore } from '@/stores/days'
 import { squareUrl } from '@/services/mediaUrl'
 import { parseTags, formatTags } from '@/services/translations'
 import { SUPPORTED_LOCALES } from '@/i18n'
@@ -30,7 +29,6 @@ const emit = defineEmits(['close', 'saved', 'delete'])
 
 const { t } = useI18n()
 const ui = useUiStore()
-const days = useDaysStore()
 
 // The two entry points share one dialog: single edit prefills every field, bulk
 // leaves them blank and only writes the ones actually filled in.
@@ -155,8 +153,10 @@ function ownDate() {
 }
 
 /**
- * Points from the day itself and its immediate neighbours, so a photo can be
- * placed by eye. Only for single edits — a bulk selection has no single day.
+ * Reference points from the day itself and its immediate neighbours, so a photo
+ * can be placed by eye. One `/media/locations` request over the three-day window
+ * rather than fetching whole days. Single edits only — a bulk selection has no
+ * single day.
  */
 async function loadNeighborPoints() {
   neighborPoints.value = []
@@ -164,22 +164,18 @@ async function loadNeighborPoints() {
   const base = parseIsoDate(ownDate())
   if (!base) return
 
-  const collected = []
-  for (const offset of [-1, 0, 1]) {
-    const iso = toIsoDate(addDays(base, offset))
-    try {
-      const day = await days.loadDay(iso)
-      for (const item of day?.media ?? []) {
-        if (item.id === single.value?.id) continue
-        if (Number.isFinite(item.latitude) && Number.isFinite(item.longitude)) {
-          collected.push({ lat: item.latitude, lng: item.longitude })
-        }
-      }
-    } catch {
-      // A missing neighbour day just means fewer reference points.
-    }
+  try {
+    const items = await fetchMediaLocations(
+      toIsoDate(addDays(base, -1)),
+      toIsoDate(addDays(base, 1)),
+    )
+    neighborPoints.value = items
+      .filter((item) => item.id !== single.value?.id)
+      .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+      .map((item) => ({ lat: item.latitude, lng: item.longitude }))
+  } catch {
+    // No reference points is fine; the picker still works.
   }
-  neighborPoints.value = collected
 }
 
 /**

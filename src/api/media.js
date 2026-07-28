@@ -19,6 +19,19 @@ export async function fetchMediaEdit(ids, signal) {
 }
 
 /**
+ * GET /v1/media/locations?from=&to= -> MediaFileLocationDto[].
+ *
+ * Only media that carry coordinates, as `{ id, created, latitude, longitude,
+ * fileName, title, languageCode }`. One request draws the whole map for a range;
+ * the route line is the points ordered by `created`. Both `from` and `to` are
+ * required (inclusive ISO dates). Public.
+ */
+export async function fetchMediaLocations(from, to, signal) {
+  const data = await request('/media/locations', { query: { from, to }, signal })
+  return data?.items ?? []
+}
+
+/**
  * PATCH /v1/media — applies one set of changes to every id at once.
  *
  * `changes.translations` entries deliberately omit the translation `id`: in a

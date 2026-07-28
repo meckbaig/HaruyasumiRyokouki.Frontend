@@ -9,6 +9,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import {
   createBaseMap,
   pinIcon,
+  clusterIconOf,
   FALLBACK_CENTER,
   FALLBACK_ZOOM,
 } from '@/services/leaflet'
@@ -71,7 +72,7 @@ function buildPopup(item) {
   caption.textContent = item.title || item.fileName || t('media.untitled')
   root.append(caption)
 
-  const date = item.date ?? props.date
+  const date = (item.created ? String(item.created).slice(0, 10) : null) ?? item.date ?? props.date
   if (date) {
     const when = document.createElement('p')
     when.className = 'text-[11px] text-ink-faint'
@@ -131,7 +132,12 @@ onMounted(() => {
   map.value = instance
   routeLayer.value = markRaw(L.layerGroup().addTo(instance))
   clusterLayer.value = markRaw(
-    L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50 }),
+    L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 50,
+      // Cluster looks like a single drop but carries the count in its head.
+      iconCreateFunction: (cluster) => clusterIconOf(cluster.getChildCount()),
+    }),
   )
   instance.addLayer(clusterLayer.value)
 

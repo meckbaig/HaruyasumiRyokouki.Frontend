@@ -16,19 +16,19 @@ const router = useRouter()
 const days = useDaysStore()
 const ui = useUiStore()
 
-const { media, loading, loaded, total, load } = useTripMedia()
+const { media, loading, load } = useTripMedia()
 
 // Range lives in the URL, so a link shares the exact stretch being looked at.
 const from = computed(() => String(route.query.from ?? ''))
 const to = computed(() => String(route.query.to ?? ''))
 
-/** Dates inside the range, or the whole trip when no range is set. */
-const datesInRange = computed(() => {
+/** Effective range: the picked one, or the whole trip when nothing is picked. */
+const effectiveRange = computed(() => {
   const all = days.orderedDates
-  if (!from.value && !to.value) return all
-  const start = from.value || all[0]
-  const end = to.value || all[all.length - 1]
-  return all.filter((date) => date >= start && date <= end)
+  return {
+    from: from.value || all[0] || '',
+    to: to.value || all[all.length - 1] || '',
+  }
 })
 
 const routeLine = computed(() => routeFromMedia(media.value))
@@ -47,13 +47,19 @@ function reset() {
   router.replace({ name: 'map' })
 }
 
+function reload() {
+  const range = effectiveRange.value
+  load(range.from, range.to)
+}
+
 async function refresh() {
   await days.loadList()
-  load(datesInRange.value)
+  reload()
 }
 
 onMounted(refresh)
-watch([from, to], () => load(datesInRange.value))
+// The range comes from the trip bounds, so react once the day list has loaded too.
+watch([from, to, () => days.orderedDates.length], reload)
 watch(() => ui.locale, refresh)
 </script>
 
@@ -63,7 +69,7 @@ watch(() => ui.locale, refresh)
       <div>
         <h1 class="text-xl font-semibold tracking-tight text-ink">{{ t('map.title') }}</h1>
         <p class="mt-1 text-sm text-ink-faint">
-          <span v-if="loading">{{ t('common.loading') }} {{ loaded }}/{{ total }}</span>
+          <span v-if="loading">{{ t('common.loading') }}</span>
           <span v-else>{{ t('map.pointsCount', { count: media.length }, media.length) }}</span>
         </p>
       </div>

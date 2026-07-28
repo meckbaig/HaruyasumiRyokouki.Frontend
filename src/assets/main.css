@@ -196,9 +196,15 @@
   }
 }
 
-/* Muted map pins for reference points that belong to other days. */
-.marker-grey {
-  filter: grayscale(1) opacity(0.65);
+/* SVG teardrop pins: strip Leaflet's default white divIcon box. */
+.trip-pin {
+  background: none;
+  border: 0;
+}
+
+.trip-pin svg {
+  display: block;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3));
 }
 
 @media (prefers-reduced-motion: reduce) {
