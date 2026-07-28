@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MediaGrid from '@/components/media/MediaGrid.vue'
@@ -28,11 +28,26 @@ const days = useDaysStore()
 const auth = useAuthStore()
 const ui = useUiStore()
 
+const MAP_HIDDEN_KEY = 'haruyasumi.dayMapHidden'
+
 const loading = ref(false)
 const error = ref(null)
 const lightboxIndex = ref(null)
 const editing = ref(null)
 const editingNote = ref(false)
+
+// Persisted preference: some visitors find the day map distracting, so it can be
+// hidden by default. When on, the map starts collapsed and a show/hide button
+// takes the place of the plain heading.
+const mapHiddenByDefault = ref(localStorage.getItem(MAP_HIDDEN_KEY) === '1')
+const mapShown = ref(!mapHiddenByDefault.value)
+
+function toggleMapDefault() {
+  mapHiddenByDefault.value = !mapHiddenByDefault.value
+  localStorage.setItem(MAP_HIDDEN_KEY, mapHiddenByDefault.value ? '1' : '0')
+  // Reflect the new default in the current view immediately.
+  mapShown.value = !mapHiddenByDefault.value
+}
 
 const day = computed(() => days.getDay(props.date))
 const media = computed(() => day.value?.media ?? [])
@@ -65,7 +80,14 @@ onMounted(() => {
 })
 
 // Navigating between days reuses this component, so react to the param itself.
-watch(() => props.date, () => load())
+watch(
+  () => props.date,
+  () => {
+    load()
+    // Each day starts from the persisted default.
+    mapShown.value = !mapHiddenByDefault.value
+  },
+)
 
 // A locale switch clears the cache; refetch the day the visitor is looking at.
 watch(() => ui.locale, () => load(true))
@@ -73,6 +95,28 @@ watch(() => ui.locale, () => load(true))
 function openDay(date) {
   router.push({ name: 'day', params: { date } })
 }
+
+/**
+ * Left/right arrows step to the previous/next day. Ignored while typing, while
+ * the lightbox is open (it owns the arrows there), or while editing the note.
+ */
+function onKeydown(event) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  if (lightboxIndex.value !== null || editingNote.value) return
+
+  const el = document.activeElement
+  const tag = el?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable) return
+
+  const target = event.key === 'ArrowLeft' ? neighbours.value.prev : neighbours.value.next
+  if (target) {
+    event.preventDefault()
+    router.push({ name: 'day', params: { date: target } })
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
 function onMediaSaved() {
   editing.value = null
@@ -177,8 +221,39 @@ function onNoteSaved() {
       </section>
 
       <section v-if="locatedMedia.length" class="mb-12">
-        <h2 class="mb-3 text-sm font-semibold text-ink-soft">{{ t('day.onMap') }}</h2>
-        <TripMap :media="locatedMedia" :date="date" height="360px" />
+        <div class="mb-3 flex items-center justify-between gap-4">
+          <!-- Heading becomes a show/hide button when the map is hidden by default. -->
+          <button
+            v-if="mapHiddenByDefault"
+            type="button"
+            class="text-sm font-semibold text-ink-soft transition hover:text-ink"
+            @click="mapShown = !mapShown"
+          >
+            {{ mapShown ? t('day.hideMap') : t('day.showMap') }}
+          </button>
+          <h2 v-else class="text-sm font-semibold text-ink-soft">{{ t('day.onMap') }}</h2>
+
+          <!-- Preference toggle, always available while the day has locations. -->
+          <label class="flex cursor-pointer items-center gap-2 text-xs text-ink-faint">
+            {{ t('day.mapDefaultHidden') }}
+            <input
+              type="checkbox"
+              class="peer sr-only"
+              :checked="mapHiddenByDefault"
+              @change="toggleMapDefault"
+            />
+            <span
+              class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
+              aria-hidden="true"
+            >
+              <span
+                class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition"
+              />
+            </span>
+          </label>
+        </div>
+
+        <TripMap v-if="mapShown" :media="locatedMedia" :date="date" height="360px" />
       </section>
 
       <section class="mb-8">
