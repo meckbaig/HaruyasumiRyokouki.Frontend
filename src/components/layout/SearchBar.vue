@@ -41,7 +41,7 @@ function clear() {
 <template>
   <form
     role="search"
-    class="flex w-full items-center gap-2 rounded-full border border-edge bg-paper-raised px-4 transition focus-within:border-ink-faint"
+    class="flex w-full items-center gap-2 rounded-full border border-edge bg-paper-raised px-2.5 transition focus-within:border-ink-faint"
     :class="props.size === 'large' ? 'py-3' : 'py-1.5'"
     @submit.prevent="submit"
   >
@@ -63,14 +63,15 @@ function clear() {
       :placeholder="t('search.placeholder')"
       :aria-label="t('search.submit')"
       :autofocus="props.autofocus"
-      class="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-ink-faint"
+      class="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-ink-faint 
+        [appearance:textfield] [&::-webkit-search-cancel-button]:appearance-none"
       :class="props.size === 'large' ? 'text-lg' : 'text-sm'"
     />
 
     <button
       v-if="text"
       type="button"
-      class="shrink-0 rounded p-1 text-ink-faint transition hover:text-ink"
+      class="shrink-0 rounded p-0 text-ink-faint transition hover:text-ink"
       :aria-label="t('search.clear')"
       @click="clear"
     >

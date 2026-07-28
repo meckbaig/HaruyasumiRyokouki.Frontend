@@ -42,7 +42,7 @@ function signOut() {
     <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
       <RouterLink
         :to="{ name: 'home' }"
-        class="shrink-0 text-sm font-semibold tracking-tight text-ink"
+        class="shrink-0 text-sm font-semibold tracking-tight text-ink my-2"
       >
         {{ t('app.title') }}
       </RouterLink>
