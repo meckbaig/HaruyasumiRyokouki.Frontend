@@ -213,11 +213,14 @@ onBeforeUnmount(() => {
         class="flex flex-wrap gap-1.5 border-t border-white/10 px-4 py-3"
         @click.stop
       >
+        <!-- A tag navigates to its search; close the viewer so results are not
+             left hidden behind it (the search route may reuse this view). -->
         <TagChip
           v-for="tag in current.tags"
           :key="tag"
           :tag="tag"
           class="!border-white/30 !text-white/80 hover:!border-white/60 hover:!text-white"
+          @click="close"
         />
       </div>
     </div>
