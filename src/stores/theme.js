@@ -1,30 +1,41 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { themes, themeById, THEME_OPTIONS, FALLBACK_THEME_ID } from '@/theme/themes'
 
 const STORAGE_KEY = 'haruyasumi.theme'
 
-/** User-facing choices. "system" follows the OS light/dark preference. */
-export const THEME_OPTIONS = ['system', 'light', 'dark', 'black']
+const mediaQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
 
-const media = window.matchMedia?.('(prefers-color-scheme: dark)')
-
-/** Resolves a preference to the concrete theme written to the DOM. */
-function resolve(preference) {
-  if (preference === 'system') return media?.matches ? 'dark' : 'light'
-  return preference
-}
-
-function apply(theme) {
-  const root = document.documentElement
-  // "light" is the default palette, so it needs no attribute.
-  if (theme === 'light') root.removeAttribute('data-theme')
-  else root.setAttribute('data-theme', theme)
+/** Resolves a preference id to the concrete themed entry to paint. */
+function resolve(id) {
+  const theme = themeById[id] ?? themeById[FALLBACK_THEME_ID]
+  if (theme.followsOs) {
+    return themeById[mediaQuery?.matches ? 'dark' : 'light'] ?? themeById[FALLBACK_THEME_ID]
+  }
+  return theme
 }
 
 /**
- * Theme preference and its resolution to a concrete light/dark/black theme.
- * A three-way palette (plus "system") cannot ride on prefers-color-scheme alone,
- * so the choice is stored and applied explicitly.
+ * Paints a resolved theme by writing its palette as inline custom properties on
+ * <html>. Inline vars win over the stylesheet `@theme` defaults, so every
+ * Tailwind `var(--color-*)` utility re-themes at once. Because all themes list
+ * the same tokens, overwriting is a complete swap — no leftovers to clear.
+ */
+function apply(theme) {
+  const root = document.documentElement
+  for (const [name, value] of Object.entries(theme.colors ?? {})) {
+    root.style.setProperty(`--color-${name}`, value)
+  }
+  // Native controls and scrollbars follow the theme's light/dark nature.
+  root.style.colorScheme = theme.scheme ?? 'light'
+  // Kept as a styling/debug hook even though colours ride on the inline vars.
+  root.setAttribute('data-theme', theme.id)
+}
+
+/**
+ * Theme preference and its resolution to a concrete palette. A multi-way palette
+ * (plus "system") cannot ride on prefers-color-scheme alone, so the choice is
+ * stored and applied explicitly. All theme definitions live in @/theme/themes.
  */
 export const useThemeStore = defineStore('theme', () => {
   const stored = localStorage.getItem(STORAGE_KEY)
@@ -41,10 +52,10 @@ export const useThemeStore = defineStore('theme', () => {
   function init() {
     apply(resolve(preference.value))
     // Track OS changes only while the preference is "system".
-    media?.addEventListener?.('change', () => {
+    mediaQuery?.addEventListener?.('change', () => {
       if (preference.value === 'system') apply(resolve('system'))
     })
   }
 
-  return { preference, THEME_OPTIONS, set, init }
+  return { preference, themes, THEME_OPTIONS, set, init }
 })

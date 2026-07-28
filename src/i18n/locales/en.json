@@ -78,11 +78,7 @@
     "fallbackNotice": "No translation for the selected language — showing the original."
   },
   "theme": {
-    "label": "Theme",
-    "system": "Match system",
-    "light": "Light",
-    "dark": "Dark",
-    "black": "Black (OLED)"
+    "label": "Theme"
   },
   "menu": {
     "open": "Menu",

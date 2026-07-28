@@ -78,11 +78,7 @@
     "fallbackNotice": "選択した言語の翻訳がないため、原文を表示しています。"
   },
   "theme": {
-    "label": "テーマ",
-    "system": "システムに合わせる",
-    "light": "ライト",
-    "dark": "ダーク",
-    "black": "ブラック（OLED）"
+    "label": "テーマ"
   },
   "menu": {
     "open": "メニュー",

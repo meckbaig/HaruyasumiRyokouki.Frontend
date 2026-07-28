@@ -2,19 +2,22 @@
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useThemeStore } from '@/stores/theme'
+import { themes, themeById, themeLabel } from '@/theme/themes'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const theme = useThemeStore()
 
 // A dropdown rather than a cycling button: with a "system" option the old
 // single button showed what looked like the same theme twice, so the current
 // choice was never clear. The menu names every option and ticks the active one.
-const ICONS = { system: '◐', light: '☀', dark: '☾', black: '◍' }
-
+// Icons and labels come straight from the theme registry, so a new theme shows
+// up here with no edit to this component.
 const open = ref(false)
 const root = ref(null)
 
-const currentIcon = computed(() => ICONS[theme.preference])
+const current = computed(() => themeById[theme.preference] ?? themes[0])
+const currentIcon = computed(() => current.value.icon)
+const labelOf = (option) => themeLabel(option, locale.value)
 
 function choose(next) {
   theme.set(next)
@@ -39,7 +42,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
     <button
       type="button"
       class="flex items-center gap-1 rounded px-1.5 py-1 text-sm text-ink-soft transition hover:bg-edge/60 hover:text-ink"
-      :aria-label="`${t('theme.label')}: ${t('theme.' + theme.preference)}`"
+      :aria-label="`${t('theme.label')}: ${labelOf(current)}`"
       :aria-expanded="open"
       @click.stop="toggle"
     >
@@ -67,19 +70,19 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
         class="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-md border border-edge bg-paper-raised py-1 shadow-lg"
         role="menu"
       >
-        <li v-for="option in theme.THEME_OPTIONS" :key="option">
+        <li v-for="option in themes" :key="option.id">
           <button
             type="button"
             role="menuitemradio"
-            :aria-checked="theme.preference === option"
+            :aria-checked="theme.preference === option.id"
             class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition hover:bg-edge/50"
-            :class="theme.preference === option ? 'text-ink' : 'text-ink-soft'"
-            @click="choose(option)"
+            :class="theme.preference === option.id ? 'text-ink' : 'text-ink-soft'"
+            @click="choose(option.id)"
           >
-            <span class="w-4 text-center" aria-hidden="true">{{ ICONS[option] }}</span>
-            <span class="flex-1">{{ t(`theme.${option}`) }}</span>
+            <span class="w-4 text-center" aria-hidden="true">{{ option.icon }}</span>
+            <span class="flex-1">{{ labelOf(option) }}</span>
             <svg
-              v-if="theme.preference === option"
+              v-if="theme.preference === option.id"
               class="h-3.5 w-3.5 text-accent"
               viewBox="0 0 14 14"
               fill="none"

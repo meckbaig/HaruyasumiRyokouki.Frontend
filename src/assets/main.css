@@ -18,47 +18,18 @@
 }
 
 /*
-  Theme overrides. Tailwind v4 utilities compile to `var(--color-*)`, so
-  overriding these variables under a scope re-themes every utility at once.
-  `data-theme` is stamped on <html> by the UI store:
-    - absent / "light" -> the @theme defaults above
-    - "dark"           -> soft dark grey, easy on the eyes
-    - "black"          -> pure black for OLED panels
+  The @theme block above holds the light palette only. Every other theme is
+  defined in src/theme/themes.js and applied at runtime: the theme store writes
+  its palette as inline `--color-*` custom properties on <html>, which override
+  these defaults, so all Tailwind `var(--color-*)` utilities re-theme at once.
+  Add or edit themes there, not here.
 */
-:root[data-theme='dark'] {
-  --color-ink: #ededed;
-  --color-ink-soft: #b2b2b2;
-  --color-ink-faint: #7d7d7d;
-  --color-paper: #141414;
-  --color-paper-raised: #282828;
-  --color-edge: #3a3a3a;
-  --color-accent: #e8807f;
-  --color-accent-soft: #3a2726;
-}
-
-:root[data-theme='black'] {
-  --color-ink: #ededed;
-  --color-ink-soft: #a8a8a8;
-  --color-ink-faint: #6f6f6f;
-  --color-paper: #000000;
-  --color-paper-raised: #0c0c0c;
-  --color-edge: #262626;
-  --color-accent: #e8807f;
-  --color-accent-soft: #2a1c1c;
-}
 
 @layer base {
   html {
     scroll-behavior: smooth;
-    /* Native form controls and scrollbars follow the active theme. */
+    /* Pre-JS default; the theme store sets color-scheme inline per theme. */
     color-scheme: light;
-  }
-
-  :root[data-theme='dark'] html,
-  :root[data-theme='black'] html,
-  html[data-theme='dark'],
-  html[data-theme='black'] {
-    color-scheme: dark;
   }
 
   body {
