@@ -120,7 +120,7 @@ onBeforeUnmount(() => {
       tabindex="-1"
       @click="close"
     >
-      <div class="flex items-start justify-between gap-4 px-4 py-3">
+      <div class="flex items-start justify-between gap-4 px-4 py-3" style="cursor: pointer;">
         <div class="min-w-0">
           <p class="truncate text-sm font-medium">{{ label }}</p>
           <p v-if="current.description" class="mt-1 line-clamp-2 text-xs text-white/70">
