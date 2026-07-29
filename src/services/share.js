@@ -1,8 +1,18 @@
 /**
  * Sharing is just "copy the current URL": every shareable state — the day, the
  * search query, the active tab, the map range — already lives in the address
- * bar, so there is nothing else to serialise.
+ * bar, so there is nothing else to serialise. The one addition is ?lang=<current
+ * locale>, so the recipient opens the site in the language the sender was using
+ * (and the crawler serves a preview card in that language).
  */
+import { currentLocale } from '@/i18n'
+
+/** Returns a URL with ?lang set to the active locale, preserving other params. */
+function withLang(rawUrl) {
+  const url = new URL(rawUrl, window.location.origin)
+  url.searchParams.set('lang', currentLocale())
+  return url.toString()
+}
 
 /** Copies text to the clipboard, falling back for non-secure contexts. */
 export async function copyToClipboard(text) {
@@ -36,5 +46,10 @@ export async function copyToClipboard(text) {
 }
 
 export function copyCurrentUrl() {
-  return copyToClipboard(window.location.href)
+  return copyToClipboard(withLang(window.location.href))
+}
+
+/** Copies a link to the home page (used by the footer to share the site itself). */
+export function copyHomeUrl() {
+  return copyToClipboard(withLang(window.location.origin + '/'))
 }
