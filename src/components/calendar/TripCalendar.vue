@@ -89,10 +89,14 @@ function page(direction) {
  */
 let drag = null
 let suppressClick = false
+// Reactive so the cursor reflects the drag; the ribbon itself is always
+// select-none (see template) so a horizontal drag never highlights day numbers.
+const dragging = ref(false)
 
 function onPointerDown(event) {
   if (event.pointerType !== 'mouse' || event.button > 0) return
   drag = { startX: event.clientX, startScroll: scroller.value.scrollLeft, moved: false }
+  dragging.value = true
   document.addEventListener('pointermove', onPointerMove)
   document.addEventListener('pointerup', onPointerUp)
 }
@@ -107,6 +111,7 @@ function onPointerMove(event) {
 function onPointerUp() {
   if (drag?.moved) suppressClick = true
   drag = null
+  dragging.value = false
   document.removeEventListener('pointermove', onPointerMove)
   document.removeEventListener('pointerup', onPointerUp)
 }
@@ -143,8 +148,8 @@ onBeforeUnmount(() => {
     <div class="relative">
       <div
         ref="scroller"
-        class="no-scrollbar flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth"
-        :class="drag ? 'cursor-grabbing select-none' : 'sm:cursor-grab'"
+        class="no-scrollbar flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth select-none"
+        :class="dragging ? 'cursor-grabbing' : 'sm:cursor-grab'"
         @scroll="updateArrows"
         @pointerdown="onPointerDown"
         @click.capture="onClickCapture"
