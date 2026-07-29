@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { setUnauthorizedHandler } from '@/api/authState'
 import { i18n } from '@/i18n'
+import { applyHead } from '@/services/head'
 
 const routes = [
   {
@@ -63,9 +64,9 @@ router.beforeEach((to) => {
 })
 
 /**
- * Document title per route, so a shared link reads sensibly in a browser tab and
- * in link previews. Kept out of views to avoid repeating it in each one; the day
- * page refines its own title once the date is known.
+ * Per-route title key, so a shared link reads sensibly in a browser tab and in
+ * link previews. Kept out of views to avoid repeating it in each one; the day
+ * page refines its own title once the date is known. `home` uses the tagline.
  */
 const TITLE_KEYS = {
   home: null,
@@ -76,18 +77,17 @@ const TITLE_KEYS = {
   'not-found': 'notFound.title',
 }
 
-router.afterEach((to) => {
-  const base = i18n.global.t('app.title')
-  const key = TITLE_KEYS[to.name]
-
-  if (to.name === 'day' && to.params.date) {
-    document.title = `${to.params.date} · ${base}`
-  } else if (key) {
-    document.title = `${i18n.global.t(key)} · ${base}`
+/** Builds the localised head for a route and applies it. */
+export function updateHead(route) {
+  if (route.name === 'day' && route.params.date) {
+    applyHead({ title: route.params.date })
   } else {
-    document.title = base
+    const key = TITLE_KEYS[route.name]
+    applyHead({ title: key ? i18n.global.t(key) : null })
   }
-})
+}
+
+router.afterEach((to) => updateHead(to))
 
 /**
  * Wires the HTTP client's 401 handling into the router. Only calls marked

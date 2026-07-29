@@ -22,8 +22,15 @@ function russianPluralRule(choice) {
   return 2
 }
 
-/** Reads the persisted locale, falling back to the browser language. */
+/**
+ * Chooses the initial locale. A shared link may carry `?lang=`, which wins so
+ * the recipient opens the site in the sender's language; otherwise a previously
+ * saved choice, then the browser language, then the default.
+ */
 export function detectLocale() {
+  const shared = new URLSearchParams(window.location.search).get('lang')
+  if (shared && SUPPORTED_LOCALES.includes(shared)) return shared
+
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored && SUPPORTED_LOCALES.includes(stored)) return stored
 
@@ -36,6 +43,16 @@ export function detectLocale() {
 
 export function persistLocale(locale) {
   localStorage.setItem(STORAGE_KEY, locale)
+}
+
+/**
+ * Persists a locale only when the visitor has not chosen one before. Used for
+ * the `?lang=` shared-link case: it should not override a returning visitor's
+ * own saved preference — they still see the shared language this visit, but
+ * their stored choice stays intact for next time.
+ */
+export function persistLocaleIfUnset(locale) {
+  if (!localStorage.getItem(STORAGE_KEY)) persistLocale(locale)
 }
 
 export const i18n = createI18n({

@@ -3,6 +3,9 @@
     "title": "Spring Break",
     "subtitle": "Three months across Japan"
   },
+  "seo": {
+    "description": "A timeline of a three-month trip across Japan — notes, photos, video and a map, day by day."
+  },
   "nav": {
     "home": "Home",
     "map": "Map",

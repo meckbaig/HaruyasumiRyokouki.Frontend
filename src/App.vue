@@ -1,11 +1,19 @@
 <script setup>
+import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 import ToastHost from '@/components/common/ToastHost.vue'
 import SelectionToolbar from '@/components/editor/SelectionToolbar.vue'
+import { updateHead } from '@/router'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const route = useRoute()
+
+// The router sets the head on navigation; re-apply it when the locale changes
+// mid-page so the tab title and preview meta follow the switch immediately.
+watch(locale, () => updateHead(route))
 </script>
 
 <template>
