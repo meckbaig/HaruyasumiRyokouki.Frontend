@@ -1,8 +1,15 @@
 <script setup>
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { originalUrl, posterUrl, videoUrl } from '@/services/mediaUrl'
+import {
+  downloadSrc,
+  mediaDate,
+  originalSrc,
+  previewSrc,
+  streamSrc,
+} from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
+import { useIsMobile } from '@/composables/useIsMobile'
 import TagChip from './TagChip.vue'
 
 const props = defineProps({
@@ -25,6 +32,22 @@ const label = computed(() => current.value?.title || current.value?.fileName || 
 
 const hasPrev = computed(() => open.value && props.index > 0)
 const hasNext = computed(() => open.value && props.index < props.items.length - 1)
+
+const isMobile = useIsMobile()
+
+/**
+ * The preview is the very image the grid tile already downloaded, so it is
+ * served from cache and fills the frame at once while the original arrives over
+ * it. Both share the file's aspect ratio, so nothing shifts on the swap.
+ */
+const preview = computed(() => previewSrc(current.value, isMobile.value))
+const original = computed(() => originalSrc(current.value, isMobile.value))
+const stream = computed(() => streamSrc(current.value))
+const download = computed(() => downloadSrc(current.value, isMobile.value))
+const dayDate = computed(() => mediaDate(current.value))
+
+const fullLoaded = ref(false)
+watch(current, () => (fullLoaded.value = false))
 
 function close() {
   emit('update:index', null)
@@ -164,29 +187,47 @@ onBeforeUnmount(() => {
         </button>
 
         <!--
-          Video streams the real file over WebDAV (the preview endpoint yields
-          only a still). Both media stop the click from bubbling so interacting
-          with them never closes the viewer.
+          Both media stop the click from bubbling so interacting with them never
+          closes the viewer.
         -->
         <video
           v-if="video"
           :key="current.id ?? current.fileName"
-          :src="videoUrl(current.fileName)"
-          :poster="posterUrl(current.fileName)"
+          :src="stream"
+          :poster="preview"
           controls
           autoplay
           playsinline
           class="max-h-full max-w-full rounded"
           @click.stop
         />
-        <img
+        <!--
+          Two stages: the preview the grid already fetched paints immediately,
+          and the original fades in over it once downloaded. The preview is
+          absolute and pointer-events-none, so clicks still reach the backdrop.
+        -->
+        <div
           v-else
-          :key="current.id ?? current.fileName"
-          :src="originalUrl(current.fileName)"
-          :alt="label"
-          class="max-h-full max-w-full rounded object-contain"
-          @click.stop
-        />
+          class="relative flex min-h-0 min-w-0 flex-1 items-center justify-center self-stretch"
+        >
+          <img
+            :key="current.id ?? current.fileName"
+            :src="original"
+            :alt="label"
+            class="max-h-full max-w-full rounded object-contain transition-opacity duration-200"
+            :class="fullLoaded ? 'opacity-100' : 'opacity-0'"
+            @load="fullLoaded = true"
+            @click.stop
+          />
+          <img
+            v-if="preview && !fullLoaded"
+            :key="`preview-${current.id ?? current.fileName}`"
+            :src="preview"
+            alt=""
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 h-full w-full rounded object-contain"
+          />
+        </div>
 
         <button
           v-if="hasNext"
@@ -206,6 +247,53 @@ onBeforeUnmount(() => {
             <path d="M7.5 4l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
+
+        <!-- Bottom-right is the one corner no other control occupies. -->
+        <div class="absolute bottom-2 right-2 z-10 flex items-center gap-1.5" @click.stop>
+          <RouterLink
+            v-if="dayDate"
+            :to="{ name: 'day', params: { date: dayDate } }"
+            class="rounded-full bg-white/10 p-2.5 text-white transition hover:bg-white/20"
+            :title="t('media.openDay')"
+            :aria-label="t('media.openDay')"
+            @click="close"
+          >
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              aria-hidden="true"
+            >
+              <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
+              <path d="M3 8h14M7 3v3M13 3v3" stroke-linecap="round" />
+            </svg>
+          </RouterLink>
+
+          <a
+            v-if="download"
+            :href="download"
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-full bg-white/10 p-2.5 text-white transition hover:bg-white/20"
+            :title="t('media.download')"
+            :aria-label="t('media.download')"
+          >
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              aria-hidden="true"
+            >
+              <path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M4 15.5h12" stroke-linecap="round" />
+            </svg>
+          </a>
+        </div>
       </div>
 
       <div

@@ -8,7 +8,7 @@ the ASP.NET Core backend described in `swagger.json`.
 
 ```bash
 npm install
-cp .env.example .env   # then fill in the Nextcloud share values
+cp .env.example .env
 npm run dev            # http://localhost:5173
 ```
 
@@ -26,14 +26,13 @@ All configuration is through `.env` (see `.env.example`):
 | --- | --- |
 | `VITE_API_BASE_URL` | API base path, `/v1` in development |
 | `BACKEND_ORIGIN` | Dev proxy target (not bundled) |
-| `VITE_NEXTCLOUD_BASE_URL`, `VITE_NEXTCLOUD_SHARE_TOKEN` | Public share the media URLs are built from |
 | `VITE_MAP_TILE_URL`, `VITE_MAP_ATTRIBUTION` | Map tiles |
 | `VITE_AUTHOR_NAME`, `VITE_AUTHOR_GITHUB` | Footer links |
 
 ## Structure
 
 - `src/api` — one `request()` wrapper plus a thin module per endpoint group.
-- `src/services` — framework-free logic: Nextcloud URL building, media-type
+- `src/services` — framework-free logic: media URL accessors, media-type
   detection, search highlighting, dates, translations, sharing.
 - `src/stores` — Pinia: auth, days cache, search cache, editor selection, UI.
 - `src/components` — grouped by area (`layout`, `media`, `calendar`, `map`,

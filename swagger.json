@@ -609,6 +609,46 @@
         },
         "additionalProperties": false
       },
+      "ImageUrlsDto": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "$ref": "#/components/schemas/ImageUrlsDto.MobileImagesDto"
+          },
+          "desktop": {
+            "$ref": "#/components/schemas/ImageUrlsDto.DesktopImagesDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImageUrlsDto.DesktopImagesDto": {
+        "type": "object",
+        "properties": {
+          "original": {
+            "type": "string",
+            "nullable": true
+          },
+          "preview": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImageUrlsDto.MobileImagesDto": {
+        "type": "object",
+        "properties": {
+          "original": {
+            "type": "string",
+            "nullable": true
+          },
+          "preview": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "MediaFileDto": {
         "required": [
           "fileName"
@@ -656,12 +696,22 @@
             "type": "string",
             "nullable": true
           },
+          "miniature": {
+            "type": "string",
+            "nullable": true
+          },
           "tags": {
             "type": "array",
             "items": {
               "type": "string"
             },
             "nullable": true
+          },
+          "imageUrls": {
+            "$ref": "#/components/schemas/ImageUrlsDto"
+          },
+          "videoUrls": {
+            "$ref": "#/components/schemas/VideoUrlsDto"
           }
         },
         "additionalProperties": false
@@ -782,6 +832,46 @@
             "items": {
               "$ref": "#/components/schemas/DayDto"
             },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "VideoUrlsDto": {
+        "type": "object",
+        "properties": {
+          "download": {
+            "type": "string",
+            "nullable": true
+          },
+          "stream": {
+            "type": "string",
+            "nullable": true
+          },
+          "mobile": {
+            "$ref": "#/components/schemas/VideoUrlsDto.MobileImagesDto"
+          },
+          "desktop": {
+            "$ref": "#/components/schemas/VideoUrlsDto.DesktopImagesDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "VideoUrlsDto.DesktopImagesDto": {
+        "type": "object",
+        "properties": {
+          "preview": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "VideoUrlsDto.MobileImagesDto": {
+        "type": "object",
+        "properties": {
+          "preview": {
+            "type": "string",
             "nullable": true
           }
         },

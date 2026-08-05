@@ -8,7 +8,7 @@ import LanguageTabs from './LanguageTabs.vue'
 const MediaLocationPicker = defineAsyncComponent(() => import('./MediaLocationPicker.vue'))
 import { editMedia, fetchMediaEdit, fetchMediaLocations } from '@/api/media'
 import { useUiStore } from '@/stores/ui'
-import { squareUrl } from '@/services/mediaUrl'
+import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { parseTags, formatTags } from '@/services/translations'
 import { SUPPORTED_LOCALES } from '@/i18n'
 import { addDays, parseIsoDate, toIsoDate } from '@/services/dates'
@@ -349,7 +349,7 @@ async function save() {
         <img
           v-for="item in thumbs"
           :key="item.id ?? item.fileName"
-          :src="squareUrl(item.fileName, 160)"
+          :src="previewSrc(item, true) || miniatureSrc(item)"
           :alt="item.title || item.fileName"
           loading="lazy"
           class="h-16 w-16 rounded object-cover ring-1 ring-edge"

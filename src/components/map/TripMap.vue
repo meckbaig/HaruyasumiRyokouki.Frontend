@@ -13,7 +13,7 @@ import {
   FALLBACK_CENTER,
   FALLBACK_ZOOM,
 } from '@/services/leaflet'
-import { squareUrl } from '@/services/mediaUrl'
+import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { formatLongDate } from '@/services/dates'
 
 const props = defineProps({
@@ -57,7 +57,9 @@ function buildPopup(item) {
   const root = document.createElement('div')
   root.className = 'w-44'
 
-  const thumb = squareUrl(item.fileName, 320)
+  // `/media/locations` returns no preview URLs, so map-wide points have no
+  // thumbnail; a day's own points come from MediaFileDto and do.
+  const thumb = previewSrc(item, true) || miniatureSrc(item)
   if (thumb) {
     const image = document.createElement('img')
     image.src = thumb

@@ -1,8 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { squareUrl, squareSrcSet, SQUARE_SIZES } from '@/services/mediaUrl'
+import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { useEditorStore } from '@/stores/editor'
 
 const props = defineProps({
@@ -25,9 +26,20 @@ const video = computed(() => isVideo(props.media))
 const selected = computed(() => editor.isSelected(props.media.id))
 const label = computed(() => props.media.title || props.media.fileName || t('media.untitled'))
 
-const src = computed(() => squareUrl(props.media.fileName, 480))
-const srcset = computed(() => squareSrcSet(props.media.fileName))
+const isMobile = useIsMobile()
+
+// The miniature is inline base64, so it paints with no request at all; the real
+// preview fades in over it. Previews keep their original aspect ratio and are
+// cropped to a square by `object-cover`.
+const miniature = computed(() => miniatureSrc(props.media))
+const src = computed(() => previewSrc(props.media, isMobile.value))
+const loaded = ref(false)
 const failed = ref(false)
+
+watch(src, () => {
+  loaded.value = false
+  failed.value = false
+})
 
 const outlineClass = computed(() => {
   if (selected.value) return 'ring-2 ring-accent ring-offset-2 ring-offset-paper'
@@ -64,19 +76,31 @@ function activate() {
     >
       <!-- Fixed square keeps the grid from reflowing while previews arrive. -->
       <div class="relative aspect-square">
+        <!-- Placeholder underneath: inline base64, so it is there immediately. -->
+        <img
+          v-if="miniature && !loaded"
+          :src="miniature"
+          alt=""
+          aria-hidden="true"
+          draggable="false"
+          class="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        />
         <img
           v-if="src && !failed"
           :src="src"
-          :srcset="srcset"
-          :sizes="`(max-width: 640px) 50vw, (max-width: 1024px) 25vw, ${SQUARE_SIZES[0]}px`"
           :alt="label"
           loading="lazy"
           decoding="async"
           draggable="false"
-          class="pointer-events-none h-full w-full object-cover"
+          class="pointer-events-none h-full w-full object-cover transition-opacity duration-200"
+          :class="loaded ? 'opacity-100' : 'opacity-0'"
+          @load="loaded = true"
           @error="failed = true"
         />
-        <div v-else class="flex h-full w-full items-center justify-center text-ink-faint">
+        <div
+          v-else-if="!miniature"
+          class="flex h-full w-full items-center justify-center text-ink-faint"
+        >
           <svg
             class="h-8 w-8"
             viewBox="0 0 24 24"

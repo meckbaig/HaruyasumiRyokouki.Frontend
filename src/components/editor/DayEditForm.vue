@@ -5,7 +5,7 @@ import LanguageTabs from './LanguageTabs.vue'
 import { saveDay, fetchDayEdit } from '@/api/days'
 import { useUiStore } from '@/stores/ui'
 import { useDaysStore } from '@/stores/days'
-import { squareUrl } from '@/services/mediaUrl'
+import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { SUPPORTED_LOCALES } from '@/i18n'
 
 const props = defineProps({
@@ -163,7 +163,7 @@ async function save() {
         <img
           v-for="item in thumbs"
           :key="item.id ?? item.fileName"
-          :src="squareUrl(item.fileName, 160)"
+          :src="previewSrc(item, true) || miniatureSrc(item)"
           :alt="item.title || item.fileName"
           loading="lazy"
           class="h-16 w-16 rounded object-cover ring-1 ring-edge"
