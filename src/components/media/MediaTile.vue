@@ -38,6 +38,26 @@ watch(src, () => {
   failed.value = false
 })
 
+/**
+ * `load` only means the bytes arrived — the browser still has to decode them,
+ * and it does that while painting, which is what makes a fresh preview appear
+ * in bands over the miniature. Awaiting `decode()` does that work first, so the
+ * swap is a single clean frame. From cache it resolves immediately, which is
+ * why a revisit already looked smooth.
+ */
+async function onLoaded(event) {
+  const image = event.target
+  try {
+    await image.decode()
+  } catch {
+    // Decoding can reject if the source changed mid-flight; reveal regardless.
+  }
+  // The tile may have been recycled to another file while decoding. Compare the
+  // bound attribute rather than `currentSrc`, which the browser resolves to an
+  // absolute URL and would never match a relative one.
+  if (image.isConnected && image.getAttribute('src') === src.value) loaded.value = true
+}
+
 const outlineClass = computed(() => {
   if (selected.value) return 'ring-2 ring-accent ring-offset-2 ring-offset-paper'
   if (props.variant === 'matched') return 'ring-2 ring-ink'
@@ -74,10 +94,9 @@ function activate() {
       <!-- Fixed square keeps the grid from reflowing while previews arrive. -->
       <div class="relative aspect-square">
         <!--
-          The preview sits underneath at full opacity and the miniature covers
-          it, fading out once the preview has arrived. Fading the top layer out
-          — rather than the bottom one in — keeps one layer opaque at all times,
-          which is what stops the tile flashing during the swap.
+          The preview sits underneath and stays fully transparent until it has
+          loaded: a half-loaded <img> renders its own alt text and an empty box,
+          and both used to show through the blurred miniature above it.
         -->
         <img
           v-if="src && !failed"
@@ -87,13 +106,16 @@ function activate() {
           decoding="async"
           draggable="false"
           class="pointer-events-none h-full w-full object-cover"
-          @load="loaded = true"
+          :class="loaded ? 'opacity-100' : 'opacity-0'"
+          @load="onLoaded"
           @error="failed = true"
         />
         <!--
-          Inline base64, so it is there immediately. Tiny, so it is blurred
-          rather than shown as a blocky upscale; `scale-105` hides the
-          transparent edge the blur would otherwise leave at the border.
+          Inline base64, so it is there immediately, and blurred because it is
+          tiny. Blur bleeds inwards and leaves the edges semi-transparent, so the
+          image is scaled well past the blur radius to keep the corners covered.
+          It fades out only once the preview underneath is fully opaque, so one
+          layer is always solid and the swap never flashes.
         -->
         <img
           v-if="miniature"
@@ -105,8 +127,8 @@ function activate() {
           :class="loaded ? 'opacity-0' : 'opacity-100'"
         />
         <div
-          v-else-if="!miniature"
-          class="flex h-full w-full items-center justify-center text-ink-faint"
+          v-if="!miniature && (!src || failed)"
+          class="absolute inset-0 flex items-center justify-center text-ink-faint"
         >
           <svg
             class="h-8 w-8"

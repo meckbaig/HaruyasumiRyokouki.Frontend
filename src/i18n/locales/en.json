@@ -160,7 +160,8 @@
   "footer": {
     "about": "About",
     "aboutText": "A personal timeline of a three-month trip across Japan: notes, photos and points on the map.",
-    "developer": "Author"
+    "developer": "Author",
+    "forceMotion": "Animate regardless of system settings"
   },
   "errors": {
     "generic": "Something went wrong.",

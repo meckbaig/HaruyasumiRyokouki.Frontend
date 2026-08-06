@@ -2,9 +2,13 @@
 import { useI18n } from 'vue-i18n'
 import { copyHomeUrl } from '@/services/share'
 import { useUiStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/auth'
+import { useMotionStore } from '@/stores/motion'
 
 const { t } = useI18n()
 const ui = useUiStore()
+const auth = useAuthStore()
+const motion = useMotionStore()
 
 const authorName = import.meta.env.VITE_AUTHOR_NAME || 'meckbaig'
 const authorGithub = import.meta.env.VITE_AUTHOR_GITHUB || ''
@@ -22,7 +26,33 @@ async function shareSite() {
     <div
       class="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between"
     >
-      <p class="max-w-prose">{{ t('footer.aboutText') }}</p>
+      <div class="max-w-prose">
+        <p>{{ t('footer.aboutText') }}</p>
+
+        <!--
+          Editor-only: the site respects the OS "reduce motion" setting, and this
+          opts back into animation for someone who turned it off system-wide but
+          wants it here. Not worth putting in front of visitors.
+        -->
+        <label
+          v-if="auth.isEditor"
+          class="mt-2 flex cursor-pointer items-center gap-2 text-xs text-ink-faint"
+        >
+          <input
+            type="checkbox"
+            class="peer sr-only"
+            :checked="motion.preference === 'always'"
+            @change="motion.toggle()"
+          />
+          <span
+            class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
+            aria-hidden="true"
+          >
+            <span class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition" />
+          </span>
+          {{ t('footer.forceMotion') }}
+        </label>
+      </div>
 
       <div class="shrink-0 sm:text-left">
         <p>

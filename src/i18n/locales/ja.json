@@ -160,7 +160,8 @@
   "footer": {
     "about": "このサイトについて",
     "aboutText": "日本を巡る三か月の個人的な記録。メモ、写真、そして地図上の足跡。",
-    "developer": "著者"
+    "developer": "著者",
+    "forceMotion": "システム設定に関わらずアニメーションを使う"
   },
   "errors": {
     "generic": "問題が発生しました。",

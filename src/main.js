@@ -6,6 +6,7 @@ import { router, installAuthRedirect } from './router'
 import { i18n, SUPPORTED_LOCALES, persistLocaleIfUnset } from './i18n'
 import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
+import { useMotionStore } from './stores/motion'
 import './assets/main.css'
 
 const app = createApp(App)
@@ -18,6 +19,7 @@ app.use(i18n)
 // the guard on /admin/pending checks a session that has not been restored yet.
 useAuthStore().restore()
 useThemeStore().init()
+useMotionStore().init()
 installAuthRedirect()
 
 app.use(router)

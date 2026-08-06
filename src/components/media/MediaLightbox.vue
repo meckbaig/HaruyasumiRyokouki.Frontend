@@ -72,9 +72,64 @@ function armSpinner() {
   }, SPINNER_DELAY)
 }
 
-function onFullLoaded() {
-  fullLoaded.value = true
-  stopSpinner()
+/**
+ * Aspect ratio of the open file, taken from whichever layer reports it first.
+ *
+ * Until it is known the media simply fills the frame and lets `object-contain`
+ * letterbox it. Once known, `.fit-media` shrinks the element to the picture
+ * itself, so the space beside it goes back to being backdrop and a click there
+ * closes the viewer. Both states paint the picture at exactly the same size and
+ * position — only the element's box changes, so nothing moves on screen.
+ */
+const aspect = ref(null)
+const aspectStyle = computed(() => (aspect.value ? { '--ar': aspect.value } : undefined))
+const fitClass = computed(() => (aspect.value ? 'fit-media' : 'h-full w-full'))
+
+function rememberAspect(image) {
+  if (image.naturalWidth && image.naturalHeight) {
+    aspect.value = image.naturalWidth / image.naturalHeight
+  }
+}
+
+/** Videos report their dimensions on metadata rather than as natural size. */
+function onVideoMeta(event) {
+  const element = event.target
+  if (element.videoWidth && element.videoHeight) {
+    aspect.value = element.videoWidth / element.videoHeight
+  }
+  // The click that opened the viewer counts as the gesture that permits
+  // playback; a browser that disagrees just leaves the poster up.
+  element.play?.()?.catch(() => {})
+}
+
+/**
+ * Decoding is what makes a freshly downloaded image appear in bands: `load`
+ * fires when the bytes have arrived, but the browser still has to turn them
+ * into pixels, and it does that while painting. Awaiting `decode()` moves that
+ * work off the visible frame, so the image is only revealed once it can be
+ * drawn in one go. From cache it resolves immediately, which is why a revisit
+ * always looked smooth.
+ */
+async function revealWhenDecoded(image) {
+  try {
+    await image.decode()
+  } catch {
+    // Decoding can reject if the source changed mid-flight; reveal regardless.
+  }
+  return image.isConnected
+}
+
+function onPreviewLoaded(event) {
+  rememberAspect(event.target)
+}
+
+async function onFullLoaded(event) {
+  const image = event.target
+  rememberAspect(image)
+  if (await revealWhenDecoded(image)) {
+    fullLoaded.value = true
+    stopSpinner()
+  }
 }
 
 function onFullFailed() {
@@ -85,6 +140,7 @@ function onFullFailed() {
 watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
+  aspect.value = null
   armSpinner()
 })
 
@@ -228,8 +284,10 @@ onBeforeUnmount(() => {
         </button>
 
         <!--
-          Both media stop the click from bubbling so interacting with them never
-          closes the viewer.
+          Sized like a photo: scaled up to the frame rather than left at its own
+          resolution, and shrink-wrapped once its proportions are known so the
+          space beside it stays part of the backdrop. Stops the click from
+          bubbling, so reaching for the controls never closes the viewer.
         -->
         <video
           v-if="video"
@@ -239,7 +297,10 @@ onBeforeUnmount(() => {
           controls
           playsinline
           preload="metadata"
-          class="max-h-full max-w-full rounded"
+          class="rounded object-contain"
+          :class="fitClass"
+          :style="aspectStyle"
+          @loadedmetadata="onVideoMeta"
           @click.stop
         />
         <!--
@@ -247,18 +308,24 @@ onBeforeUnmount(() => {
           the grid already fetched covers it and fades out once the original has
           arrived. Fading the top layer out — rather than fading the bottom one
           in — means there is never a frame where neither is opaque, which is
-          what made the picture flash black on the swap. The preview is
-          pointer-events-none, so clicks still reach the backdrop.
+          what made the picture flash black on the swap.
+
+          Both layers are sized by `.fit-media`, so they occupy exactly the same
+          rectangle and the swap is invisible. That rectangle ends where the
+          picture ends, leaving the space beside it as backdrop: a click there
+          still closes the viewer.
         -->
         <div
           v-else
-          class="relative flex min-h-0 min-w-0 flex-1 items-center justify-center self-stretch"
+          class="media-frame relative flex min-h-0 min-w-0 flex-1 items-center justify-center self-stretch"
         >
           <img
             :key="current.id ?? current.fileName"
             :src="original"
             :alt="label"
-            class="max-h-full max-w-full rounded object-contain"
+            class="rounded object-contain"
+            :class="fitClass"
+            :style="aspectStyle"
             @load="onFullLoaded"
             @error="onFullFailed"
             @click.stop
@@ -269,8 +336,10 @@ onBeforeUnmount(() => {
             :src="preview"
             alt=""
             aria-hidden="true"
-            class="pointer-events-none absolute inset-0 h-full w-full rounded object-contain transition-opacity duration-300"
-            :class="fullLoaded ? 'opacity-0' : 'opacity-100'"
+            class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded object-contain transition-opacity duration-300"
+            :class="[fitClass, fullLoaded ? 'opacity-0' : 'opacity-100']"
+            :style="aspectStyle"
+            @load="onPreviewLoaded"
           />
           <span
             v-if="showSpinner"
