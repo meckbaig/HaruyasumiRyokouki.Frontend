@@ -19,6 +19,27 @@
         "tags": [
           "Admin"
         ],
+        "parameters": [
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -107,6 +128,25 @@
               "type": "string",
               "format": "date"
             }
+          },
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
           }
         ],
         "responses": {
@@ -263,6 +303,15 @@
                 "format": "int32"
               }
             }
+          },
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
           }
         ],
         "responses": {
@@ -302,6 +351,25 @@
               "type": "string",
               "format": "date"
             }
+          },
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
           }
         ],
         "responses": {
@@ -331,6 +399,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
           }
         ],
         "responses": {
@@ -612,33 +699,11 @@
       "ImageUrlsDto": {
         "type": "object",
         "properties": {
-          "mobile": {
-            "$ref": "#/components/schemas/ImageUrlsDto.MobileImagesDto"
-          },
-          "desktop": {
-            "$ref": "#/components/schemas/ImageUrlsDto.DesktopImagesDto"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ImageUrlsDto.DesktopImagesDto": {
-        "type": "object",
-        "properties": {
           "original": {
             "type": "string",
             "nullable": true
           },
-          "preview": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "ImageUrlsDto.MobileImagesDto": {
-        "type": "object",
-        "properties": {
-          "original": {
+          "fullScreen": {
             "type": "string",
             "nullable": true
           },
@@ -748,8 +813,9 @@
             "format": "double",
             "nullable": true
           },
-          "isApproved": {
-            "type": "boolean"
+          "miniature": {
+            "type": "string",
+            "nullable": true
           },
           "translations": {
             "type": "array",
@@ -757,6 +823,12 @@
               "$ref": "#/components/schemas/MediaTranslationEditDto"
             },
             "nullable": true
+          },
+          "imageUrls": {
+            "$ref": "#/components/schemas/ImageUrlsDto"
+          },
+          "videoUrls": {
+            "$ref": "#/components/schemas/VideoUrlsDto"
           }
         },
         "additionalProperties": false
@@ -791,6 +863,16 @@
           "languageCode": {
             "type": "string",
             "nullable": true
+          },
+          "miniature": {
+            "type": "string",
+            "nullable": true
+          },
+          "imageUrls": {
+            "$ref": "#/components/schemas/ImageUrlsDto"
+          },
+          "videoUrls": {
+            "$ref": "#/components/schemas/VideoUrlsDto"
           }
         },
         "additionalProperties": false
@@ -848,28 +930,6 @@
             "type": "string",
             "nullable": true
           },
-          "mobile": {
-            "$ref": "#/components/schemas/VideoUrlsDto.MobileImagesDto"
-          },
-          "desktop": {
-            "$ref": "#/components/schemas/VideoUrlsDto.DesktopImagesDto"
-          }
-        },
-        "additionalProperties": false
-      },
-      "VideoUrlsDto.DesktopImagesDto": {
-        "type": "object",
-        "properties": {
-          "preview": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "VideoUrlsDto.MobileImagesDto": {
-        "type": "object",
-        "properties": {
           "preview": {
             "type": "string",
             "nullable": true
