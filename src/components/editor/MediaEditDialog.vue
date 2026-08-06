@@ -349,7 +349,7 @@ async function save() {
         <img
           v-for="item in thumbs"
           :key="item.id ?? item.fileName"
-          :src="previewSrc(item, true) || miniatureSrc(item)"
+          :src="previewSrc(item) || miniatureSrc(item)"
           :alt="item.title || item.fileName"
           loading="lazy"
           class="h-16 w-16 rounded object-cover ring-1 ring-edge"

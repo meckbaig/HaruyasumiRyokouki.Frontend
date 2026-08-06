@@ -1,5 +1,6 @@
 import { getAuthHeader, notifyUnauthorized } from './authState'
 import { currentLocale } from '@/i18n'
+import { displayHeader } from '@/services/display'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/v1'
 
@@ -85,6 +86,8 @@ export async function request(path, options = {}) {
   const headers = {
     Accept: 'application/json',
     'Accept-Language': currentLocale(),
+    // Lets the server pick the right image renditions for this screen.
+    'X-Display': displayHeader(),
   }
 
   const authHeader = options.authHeader ?? getAuthHeader()

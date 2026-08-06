@@ -1,23 +1,21 @@
 /**
  * Accessors for the media URLs the API returns.
  *
- * The frontend no longer builds any storage URL itself: `MediaFileDto` carries
- * `imageUrls` / `videoUrls` with ready-made links, plus `miniature`, a tiny
- * base64 square used as a placeholder until a real preview arrives.
+ * The frontend builds no storage URLs and picks no rendition: every response
+ * carries one ready-made link per purpose, already chosen by the server for this
+ * client's density and layout (see `services/display.js`). Sizing policy lives
+ * on the backend and can change without touching this file.
  *
- * Both `imageUrls` and `videoUrls` are split into `mobile` and `desktop`
- * variants; callers pass the current form factor (see `useIsMobile`).
+ *   imageUrls: { original, preview, fullScreen }
+ *   videoUrls: { download, stream, preview }
+ *
+ * `miniature` is a tiny base64 square shipped inline with every file, used as a
+ * placeholder until a real preview arrives.
  */
 import { isVideo } from './mediaType'
 
 /** The API returns raw base64 with no data-URI prefix. */
 const MINIATURE_PREFIX = 'data:image/octet-stream;base64,'
-
-/** Picks the mobile or desktop bundle from a urls object. */
-function variant(urls, mobile) {
-  if (!urls) return null
-  return (mobile ? urls.mobile : urls.desktop) ?? null
-}
 
 /**
  * Inline base64 placeholder, shown before any network image is available.
@@ -29,18 +27,18 @@ export function miniatureSrc(media) {
 
 /**
  * Preview image, in the file's original aspect ratio. Used for grid thumbnails
- * (cropped to a square in CSS) and as the first stage in the lightbox.
+ * (cropped to a square in CSS) and as the first stage in the lightbox — one URL
+ * for both, so the lightbox is served from cache with no request.
  */
-export function previewSrc(media, mobile = false) {
+export function previewSrc(media) {
   if (!media) return ''
-  const urls = isVideo(media) ? media.videoUrls : media.imageUrls
-  return variant(urls, mobile)?.preview ?? ''
+  return (isVideo(media) ? media.videoUrls?.preview : media.imageUrls?.preview) ?? ''
 }
 
-/** Full-size image. Videos have no original still — they stream instead. */
-export function originalSrc(media, mobile = false) {
+/** Full-screen image. Videos have no still of their own — they stream instead. */
+export function fullScreenSrc(media) {
   if (!media || isVideo(media)) return ''
-  return variant(media.imageUrls, mobile)?.original ?? ''
+  return media.imageUrls?.fullScreen ?? ''
 }
 
 /** Playable video stream. */
@@ -49,13 +47,12 @@ export function streamSrc(media) {
 }
 
 /**
- * Link for the download button. Videos expose a dedicated download URL; images
- * have none in the contract, so the full-size original stands in for it.
+ * Link for the download button: the untouched file in both cases — videos have
+ * a dedicated download URL, images use the original.
  */
-export function downloadSrc(media, mobile = false) {
+export function downloadSrc(media) {
   if (!media) return ''
-  if (isVideo(media)) return media.videoUrls?.download ?? ''
-  return originalSrc(media, mobile)
+  return (isVideo(media) ? media.videoUrls?.download : media.imageUrls?.original) ?? ''
 }
 
 /** The day a file belongs to, as an ISO date, derived from its timestamp. */

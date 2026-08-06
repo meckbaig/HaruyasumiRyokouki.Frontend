@@ -59,7 +59,7 @@ function buildPopup(item) {
 
   // `/media/locations` returns no preview URLs, so map-wide points have no
   // thumbnail; a day's own points come from MediaFileDto and do.
-  const thumb = previewSrc(item, true) || miniatureSrc(item)
+  const thumb = previewSrc(item) || miniatureSrc(item)
   if (thumb) {
     const image = document.createElement('img')
     image.src = thumb

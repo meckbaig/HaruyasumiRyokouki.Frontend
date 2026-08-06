@@ -33,21 +33,21 @@ const label = computed(() => current.value?.title || current.value?.fileName || 
 const hasPrev = computed(() => open.value && props.index > 0)
 const hasNext = computed(() => open.value && props.index < props.items.length - 1)
 
-const isMobile = useIsMobile()
-
 /**
- * The preview is the very image the grid tile already downloaded, so it is
- * served from cache and fills the frame at once while the original arrives over
- * it. Both share the file's aspect ratio, so nothing shifts on the swap.
+ * The preview is the very image the grid tile already downloaded — the API
+ * returns one preview URL per file — so it is served from cache and fills the
+ * frame at once while the full-screen version arrives over it. Both share the
+ * file's aspect ratio, so nothing shifts on the swap.
  */
-const preview = computed(() => previewSrc(current.value, isMobile.value))
-const original = computed(() => originalSrc(current.value, isMobile.value))
+const preview = computed(() => previewSrc(current.value))
+const original = computed(() => fullScreenSrc(current.value))
 const stream = computed(() => streamSrc(current.value))
-const download = computed(() => downloadSrc(current.value, isMobile.value))
+const download = computed(() => downloadSrc(current.value))
 const dayDate = computed(() => mediaDate(current.value))
 
 const fullLoaded = ref(false)
-watch(current, () => (fullLoaded.value = false))
+const fullFailed = ref(false)
+
 
 function close() {
   emit('update:index', null)
@@ -298,7 +298,7 @@ onBeforeUnmount(() => {
 
       <div
         v-if="current.tags?.length"
-        class="flex flex-wrap gap-1.5 border-t border-white/10 px-4 py-3"
+        class="flex flex-wrap gap-1.5 border-t border-white/10 px-2 py-1.5"
         @click.stop
       >
         <!-- A tag navigates to its search; close the viewer so results are not
