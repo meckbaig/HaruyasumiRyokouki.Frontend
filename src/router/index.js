@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import { setUnauthorizedHandler } from '@/api/authState'
 import { i18n } from '@/i18n'
 import { applyHead } from '@/services/head'
+import { formatLongDate } from '@/services/dates'
 
 const routes = [
   {
@@ -80,7 +81,9 @@ const TITLE_KEYS = {
 /** Builds the localised head for a route and applies it. */
 export function updateHead(route) {
   if (route.name === 'day' && route.params.date) {
-    applyHead({ title: route.params.date })
+    // Spelled out ("April 13, 2026"), not the raw ISO date: the title is what a
+    // visitor reads in the tab and what a shared link shows as its heading.
+    applyHead({ title: formatLongDate(route.params.date, i18n.global.locale.value) })
   } else {
     const key = TITLE_KEYS[route.name]
     applyHead({ title: key ? i18n.global.t(key) : null })

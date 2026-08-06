@@ -42,7 +42,7 @@ export function isSameDay(a, b) {
   return Boolean(a && b) && toIsoDate(a) === toIsoDate(b)
 }
 
-/** Long, human date for headings: "12 апреля 2025". */
+/** Long, human date for headings: "April 12, 2026". */
 export function formatLongDate(iso, locale) {
   const date = parseIsoDate(iso)
   if (!date) return ''

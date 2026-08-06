@@ -165,6 +165,21 @@
   .btn-danger:hover {
     background-color: var(--color-accent-soft);
   }
+
+  /*
+    Loading spinner. Own keyframes rather than a utility class, so the
+    reduced-motion rule at the bottom of this file can spare it: a frozen
+    spinner reads as a broken page, not as restraint.
+  */
+  .spinner {
+    animation: spinner-rotate 1s linear infinite;
+  }
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* SVG teardrop pins: strip Leaflet's default white divIcon box. */
@@ -189,5 +204,11 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Progress feedback is information, not decoration — it keeps moving. */
+  .spinner {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
   }
 }

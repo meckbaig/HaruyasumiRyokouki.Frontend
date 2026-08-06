@@ -3,13 +3,12 @@ import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   downloadSrc,
+  fullScreenSrc,
   mediaDate,
-  originalSrc,
   previewSrc,
   streamSrc,
 } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
-import { useIsMobile } from '@/composables/useIsMobile'
 import TagChip from './TagChip.vue'
 
 const props = defineProps({
@@ -48,6 +47,46 @@ const dayDate = computed(() => mediaDate(current.value))
 const fullLoaded = ref(false)
 const fullFailed = ref(false)
 
+/**
+ * The spinner waits before appearing: stepping through photos that are already
+ * cached resolves in a few milliseconds, and a spinner flashing on every arrow
+ * press is worse than no spinner at all. It only shows for loads slow enough to
+ * be worth reporting.
+ */
+const SPINNER_DELAY = 300
+
+const showSpinner = ref(false)
+let spinnerTimer = null
+
+function stopSpinner() {
+  clearTimeout(spinnerTimer)
+  spinnerTimer = null
+  showSpinner.value = false
+}
+
+function armSpinner() {
+  stopSpinner()
+  if (!original.value) return
+  spinnerTimer = setTimeout(() => {
+    if (!fullLoaded.value && !fullFailed.value) showSpinner.value = true
+  }, SPINNER_DELAY)
+}
+
+function onFullLoaded() {
+  fullLoaded.value = true
+  stopSpinner()
+}
+
+function onFullFailed() {
+  fullFailed.value = true
+  stopSpinner()
+}
+
+watch(current, () => {
+  fullLoaded.value = false
+  fullFailed.value = false
+  armSpinner()
+})
 
 function close() {
   emit('update:index', null)
@@ -112,6 +151,7 @@ watch(open, async (isOpen) => {
   } else {
     document.removeEventListener('keydown', onKeydown)
     document.body.style.overflow = ''
+    stopSpinner()
     // Return focus to the tile that opened the lightbox.
     lastFocused?.focus?.()
     lastFocused = null
@@ -121,6 +161,7 @@ watch(open, async (isOpen) => {
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = ''
+  stopSpinner()
 })
 </script>
 
@@ -196,15 +237,18 @@ onBeforeUnmount(() => {
           :src="stream"
           :poster="preview"
           controls
-          autoplay
           playsinline
+          preload="metadata"
           class="max-h-full max-w-full rounded"
           @click.stop
         />
         <!--
-          Two stages: the preview the grid already fetched paints immediately,
-          and the original fades in over it once downloaded. The preview is
-          absolute and pointer-events-none, so clicks still reach the backdrop.
+          Two stages. The original is always fully opaque underneath; the preview
+          the grid already fetched covers it and fades out once the original has
+          arrived. Fading the top layer out — rather than fading the bottom one
+          in — means there is never a frame where neither is opaque, which is
+          what made the picture flash black on the swap. The preview is
+          pointer-events-none, so clicks still reach the backdrop.
         -->
         <div
           v-else
@@ -214,19 +258,27 @@ onBeforeUnmount(() => {
             :key="current.id ?? current.fileName"
             :src="original"
             :alt="label"
-            class="max-h-full max-w-full rounded object-contain transition-opacity duration-200"
-            :class="fullLoaded ? 'opacity-100' : 'opacity-0'"
-            @load="fullLoaded = true"
+            class="max-h-full max-w-full rounded object-contain"
+            @load="onFullLoaded"
+            @error="onFullFailed"
             @click.stop
           />
           <img
-            v-if="preview && !fullLoaded"
+            v-if="preview"
             :key="`preview-${current.id ?? current.fileName}`"
             :src="preview"
             alt=""
             aria-hidden="true"
-            class="pointer-events-none absolute inset-0 h-full w-full rounded object-contain"
+            class="pointer-events-none absolute inset-0 h-full w-full rounded object-contain transition-opacity duration-300"
+            :class="fullLoaded ? 'opacity-0' : 'opacity-100'"
           />
+          <span
+            v-if="showSpinner"
+            class="pointer-events-none absolute inset-0 flex items-center justify-center"
+            aria-hidden="true"
+          >
+            <span class="spinner h-9 w-9 rounded-full border-2 border-white/25 border-t-white/90" />
+          </span>
         </div>
 
         <button

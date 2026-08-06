@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
-import { useIsMobile } from '@/composables/useIsMobile'
 import { useEditorStore } from '@/stores/editor'
 
 const props = defineProps({
@@ -26,13 +25,11 @@ const video = computed(() => isVideo(props.media))
 const selected = computed(() => editor.isSelected(props.media.id))
 const label = computed(() => props.media.title || props.media.fileName || t('media.untitled'))
 
-const isMobile = useIsMobile()
-
 // The miniature is inline base64, so it paints with no request at all; the real
 // preview fades in over it. Previews keep their original aspect ratio and are
 // cropped to a square by `object-cover`.
 const miniature = computed(() => miniatureSrc(props.media))
-const src = computed(() => previewSrc(props.media, isMobile.value))
+const src = computed(() => previewSrc(props.media))
 const loaded = ref(false)
 const failed = ref(false)
 
@@ -76,15 +73,12 @@ function activate() {
     >
       <!-- Fixed square keeps the grid from reflowing while previews arrive. -->
       <div class="relative aspect-square">
-        <!-- Placeholder underneath: inline base64, so it is there immediately. -->
-        <img
-          v-if="miniature && !loaded"
-          :src="miniature"
-          alt=""
-          aria-hidden="true"
-          draggable="false"
-          class="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        />
+        <!--
+          The preview sits underneath at full opacity and the miniature covers
+          it, fading out once the preview has arrived. Fading the top layer out
+          — rather than the bottom one in — keeps one layer opaque at all times,
+          which is what stops the tile flashing during the swap.
+        -->
         <img
           v-if="src && !failed"
           :src="src"
@@ -92,10 +86,23 @@ function activate() {
           loading="lazy"
           decoding="async"
           draggable="false"
-          class="pointer-events-none h-full w-full object-cover transition-opacity duration-200"
-          :class="loaded ? 'opacity-100' : 'opacity-0'"
+          class="pointer-events-none h-full w-full object-cover"
           @load="loaded = true"
           @error="failed = true"
+        />
+        <!--
+          Inline base64, so it is there immediately. Tiny, so it is blurred
+          rather than shown as a blocky upscale; `scale-105` hides the
+          transparent edge the blur would otherwise leave at the border.
+        -->
+        <img
+          v-if="miniature"
+          :src="miniature"
+          alt=""
+          aria-hidden="true"
+          draggable="false"
+          class="pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover blur-[10px] transition-opacity duration-300"
+          :class="loaded ? 'opacity-0' : 'opacity-100'"
         />
         <div
           v-else-if="!miniature"
