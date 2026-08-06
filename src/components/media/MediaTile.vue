@@ -82,9 +82,12 @@ function activate() {
 
 <template>
   <div class="group relative">
+    <!-- `touch-pan-y`, not `touch-none`: the browser must keep handling vertical
+         scrolling, or a finger landing on a tile pins the page. The paint
+         gesture only needs the long press and the horizontal axis. -->
     <button
       type="button"
-      class="block w-full touch-none select-none overflow-hidden rounded-md bg-edge/40 transition"
+      class="block w-full touch-pan-y select-none overflow-hidden rounded-md bg-edge/40 transition"
       :class="outlineClass"
       :aria-label="label"
       :aria-pressed="editor.selectionMode ? selected : undefined"
