@@ -174,7 +174,7 @@ onBeforeUnmount(() => {
     >
       <div
         v-if="showHint"
-        class="pointer-events-none absolute inset-0 z-[500] flex items-center justify-center bg-ink/40"
+        class="pointer-events-none absolute inset-0 z-[500] flex items-center justify-center bg-black/40"
       >
         <p class="rounded-md bg-ink/80 px-4 py-2 text-sm text-paper">{{ t('map.zoomHint') }}</p>
       </div>

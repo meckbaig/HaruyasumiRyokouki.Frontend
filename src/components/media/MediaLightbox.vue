@@ -138,10 +138,177 @@ function onFullFailed() {
   stopSpinner()
 }
 
+/*
+  Zoom and pan.
+
+  The wheel zooms towards the cursor and a double tap toggles a fixed
+  magnification at the point touched. While zoomed the drag pans instead of
+  paging, since panning is the only thing that gesture can sensibly mean; at
+  natural size the same drag swipes to the next or previous file.
+*/
+const MAX_SCALE = 4
+const TAP_ZOOM = 2.5
+const TAP_WINDOW = 300
+const TAP_SLOP = 40
+const DRAG_SLOP = 8
+const SWIPE_DISTANCE = 60
+
+const frame = ref(null)
+const scale = ref(1)
+const offsetX = ref(0)
+const offsetY = ref(0)
+const animating = ref(false)
+
+const zoomed = computed(() => scale.value > 1.01)
+const transformStyle = computed(() =>
+  zoomed.value || offsetX.value || offsetY.value
+    ? { transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value})` }
+    : undefined,
+)
+
+function resetZoom() {
+  scale.value = 1
+  offsetX.value = 0
+  offsetY.value = 0
+}
+
+/** Keeps the picture from being dragged out of the frame entirely. */
+function clampOffset() {
+  const rect = frame.value?.getBoundingClientRect()
+  if (!rect) return
+  const maxX = (rect.width * (scale.value - 1)) / 2
+  const maxY = (rect.height * (scale.value - 1)) / 2
+  offsetX.value = Math.min(maxX, Math.max(-maxX, offsetX.value))
+  offsetY.value = Math.min(maxY, Math.max(-maxY, offsetY.value))
+}
+
+/** Point of the pointer relative to the centre of the frame. */
+function pointerInFrame(event) {
+  const rect = frame.value?.getBoundingClientRect()
+  if (!rect) return null
+  return { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 }
+}
+
+/**
+ * Rescales around a fixed point: whatever sits under the cursor stays there,
+ * which is what makes wheel zoom feel like it is following the pointer.
+ */
+function zoomTo(next, point) {
+  const clamped = Math.min(MAX_SCALE, Math.max(1, next))
+  if (clamped === scale.value) return
+
+  if (point) {
+    const ratio = clamped / scale.value
+    offsetX.value = point.x - (point.x - offsetX.value) * ratio
+    offsetY.value = point.y - (point.y - offsetY.value) * ratio
+  }
+
+  scale.value = clamped
+  if (clamped === 1) {
+    offsetX.value = 0
+    offsetY.value = 0
+  } else {
+    clampOffset()
+  }
+}
+
+/** Runs a zoom change with a transition, used for the discrete tap zoom. */
+function animateZoom(change) {
+  animating.value = true
+  change()
+  setTimeout(() => (animating.value = false), 220)
+}
+
+function onWheel(event) {
+  zoomTo(scale.value * Math.exp(-event.deltaY * 0.0015), pointerInFrame(event))
+}
+
+let drag = null
+let lastTapAt = 0
+let lastTapX = 0
+let suppressClick = false
+
+function onPointerDown(event) {
+  // A gesture that ended off the frame fires no click, so a flag set then would
+  // linger and eat the next real tap.
+  suppressClick = false
+  // Keeps the moves coming even when the finger leaves the frame mid-pan.
+  event.currentTarget.setPointerCapture?.(event.pointerId)
+
+  drag = {
+    x: event.clientX,
+    y: event.clientY,
+    offsetX: offsetX.value,
+    offsetY: offsetY.value,
+    time: Date.now(),
+    pointerType: event.pointerType,
+    moved: false,
+  }
+}
+
+function onPointerMove(event) {
+  if (!drag) return
+  const dx = event.clientX - drag.x
+  const dy = event.clientY - drag.y
+  if (Math.hypot(dx, dy) > DRAG_SLOP) drag.moved = true
+
+  if (zoomed.value && drag.moved) {
+    offsetX.value = drag.offsetX + dx
+    offsetY.value = drag.offsetY + dy
+    clampOffset()
+  }
+}
+
+function onPointerUp(event) {
+  if (!drag) return
+  const { moved, pointerType, time } = drag
+  const dx = event.clientX - drag.x
+  const dy = event.clientY - drag.y
+  drag = null
+
+  // A pan must not fall through as a click on the backdrop.
+  if (moved) suppressClick = true
+
+  if (pointerType === 'mouse') return
+
+  // At natural size a decisive sideways flick pages through the files.
+  if (
+    !zoomed.value &&
+    moved &&
+    Math.abs(dx) > SWIPE_DISTANCE &&
+    Math.abs(dx) > Math.abs(dy) * 1.5 &&
+    Date.now() - time < 800
+  ) {
+    step(dx < 0 ? 1 : -1)
+    return
+  }
+
+  if (moved) return
+
+  const now = Date.now()
+  if (now - lastTapAt < TAP_WINDOW && Math.abs(event.clientX - lastTapX) < TAP_SLOP) {
+    const point = pointerInFrame(event)
+    animateZoom(() => (zoomed.value ? resetZoom() : zoomTo(TAP_ZOOM, point)))
+    lastTapAt = 0
+    suppressClick = true
+  } else {
+    lastTapAt = now
+    lastTapX = event.clientX
+  }
+}
+
+function onFrameClickCapture(event) {
+  if (!suppressClick) return
+  event.stopPropagation()
+  event.preventDefault()
+  suppressClick = false
+}
+
 watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
   aspect.value = null
+  resetZoom()
   armSpinner()
 })
 
@@ -209,6 +376,7 @@ watch(open, async (isOpen) => {
     document.removeEventListener('keydown', onKeydown)
     document.body.style.overflow = ''
     stopSpinner()
+    resetZoom()
     // Return focus to the tile that opened the lightbox.
     lastFocused?.focus?.()
     lastFocused = null
@@ -318,30 +486,42 @@ onBeforeUnmount(() => {
         -->
         <div
           v-else
-          class="media-frame relative flex min-h-0 min-w-0 flex-1 items-center justify-center self-stretch"
+          ref="frame"
+          class="media-frame relative flex min-h-0 min-w-0 flex-1 touch-none items-center justify-center self-stretch overflow-hidden"
+          @wheel.prevent="onWheel"
+          @pointerdown="onPointerDown"
+          @pointermove="onPointerMove"
+          @pointerup="onPointerUp"
+          @pointercancel="onPointerUp"
+          @click.capture="onFrameClickCapture"
         >
-          <img
-            :key="current.id ?? current.fileName"
-            :src="original"
-            :alt="label"
-            class="rounded object-contain"
-            :class="fitClass"
-            :style="aspectStyle"
-            @load="onFullLoaded"
-            @error="onFullFailed"
-            @click.stop
-          />
-          <img
-            v-if="preview"
-            :key="`preview-${current.id ?? current.fileName}`"
-            :src="preview"
-            alt=""
-            aria-hidden="true"
-            class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded object-contain transition-opacity duration-300"
-            :class="[fitClass, fullLoaded ? 'opacity-0' : 'opacity-100']"
-            :style="aspectStyle"
-            @load="onPreviewLoaded"
-          />
+          <div
+            class="relative flex h-full w-full items-center justify-center"
+            :class="[animating ? 'transition-transform duration-200' : '', zoomed ? 'cursor-grab' : '']"
+            :style="transformStyle"
+          >
+            <img
+              :key="current.id ?? current.fileName"
+              :src="original"
+              :alt="label"
+              class="rounded object-contain"
+              :class="fitClass"
+              :style="aspectStyle"
+              @load="onFullLoaded"
+              @error="onFullFailed"
+              @click.stop
+            />
+            <img
+              v-if="preview"
+              :key="`preview-${current.id ?? current.fileName}`"
+              :src="preview"
+              alt=""
+              aria-hidden="true"
+              class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded object-contain transition-opacity duration-300"
+              :class="[fitClass, fullLoaded ? 'opacity-0' : 'opacity-100']"
+              :style="aspectStyle"
+              @load="onPreviewLoaded"
+            />
           </div>
 
           <!-- Outside the transformed wrapper, so zooming does not scale it. -->
@@ -351,15 +531,15 @@ onBeforeUnmount(() => {
             leave-to-class="opacity-0"
             leave-active-class="transition-opacity duration-150"
           >
-          <span
-            v-if="showSpinner"
-            class="pointer-events-none absolute inset-0 flex items-center justify-center"
-            aria-hidden="true"
-          >
+            <span
+              v-if="showSpinner"
+              class="pointer-events-none absolute inset-0 flex items-center justify-center"
+              aria-hidden="true"
+            >
               <span
                 class="spinner h-9 w-9 rounded-full border-2 border-white/25 border-t-white/90"
               />
-          </span>
+            </span>
           </Transition>
         </div>
 
