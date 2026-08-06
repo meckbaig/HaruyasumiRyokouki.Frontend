@@ -51,9 +51,10 @@ const fullFailed = ref(false)
  * The spinner waits before appearing: stepping through photos that are already
  * cached resolves in a few milliseconds, and a spinner flashing on every arrow
  * press is worse than no spinner at all. It only shows for loads slow enough to
- * be worth reporting.
+ * be worth reporting — the delay is short because it fades in rather than
+ * appearing outright, which adds its own moment of grace.
  */
-const SPINNER_DELAY = 300
+const SPINNER_DELAY = 0
 
 const showSpinner = ref(false)
 let spinnerTimer = null
@@ -341,13 +342,25 @@ onBeforeUnmount(() => {
             :style="aspectStyle"
             @load="onPreviewLoaded"
           />
+          </div>
+
+          <!-- Outside the transformed wrapper, so zooming does not scale it. -->
+          <Transition
+            enter-from-class="opacity-0"
+            enter-active-class="transition-opacity duration-1000"
+            leave-to-class="opacity-0"
+            leave-active-class="transition-opacity duration-150"
+          >
           <span
             v-if="showSpinner"
             class="pointer-events-none absolute inset-0 flex items-center justify-center"
             aria-hidden="true"
           >
-            <span class="spinner h-9 w-9 rounded-full border-2 border-white/25 border-t-white/90" />
+              <span
+                class="spinner h-9 w-9 rounded-full border-2 border-white/25 border-t-white/90"
+              />
           </span>
+          </Transition>
         </div>
 
         <button
