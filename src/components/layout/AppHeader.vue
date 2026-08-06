@@ -189,7 +189,7 @@ function signOut() {
     >
       <div
         v-if="searchOpen"
-        class="fixed inset-0 z-40 flex items-start justify-center bg-ink/40 px-4 pt-24 sm:hidden"
+        class="fixed inset-0 z-40 flex items-start justify-center bg-black/60 px-4 pt-24 sm:hidden"
         @click.self="searchOpen = false"
       >
         <div class="w-full max-w-md">
