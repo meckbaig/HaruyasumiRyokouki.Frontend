@@ -14,6 +14,14 @@
             in main.css `@theme`; the theme store writes them as inline custom
             properties on <html>, which override the stylesheet defaults.
 
+  One optional token is worth calling out: `accent-on-dark`. The lightbox is a
+  dark room whatever the theme, and it colours its text, icons, tag outlines and
+  the tint under its blurred bars from the theme. `accent` itself is chosen to
+  read on the page background, which for a light theme means something dark and
+  usually warm — lifting that onto black gives a muddy orange rather than the
+  colour anyone expects. Set `accent-on-dark` to say what the theme should look
+  like there; leave it out and the lightbox derives one by lightening `accent`.
+
   `system` is special: it has no palette and follows the OS light/dark setting,
   resolving to the `light` or `dark` entry at runtime.
 
@@ -46,6 +54,8 @@ export const themes = [
       'edge': '#e5e0d8',
       'accent': '#b3403f',
       'accent-soft': '#f2dede',
+      // Neutral in the lightbox: this theme's red belongs on paper, not on black.
+      'accent-on-dark': '#f4f4f5',
     },
   },
   {
@@ -62,6 +72,8 @@ export const themes = [
       'edge': '#f3b4cc',
       'accent': '#e83e8c',
       'accent-soft': '#ffc1dc',
+      // Softer than the page accent — the same pink, without the shout.
+      'accent-on-dark': '#ffb6d5',
     },
   },
   {
@@ -78,6 +90,7 @@ export const themes = [
       'edge': '#3a3a3a',
       'accent': '#e8807f',
       'accent-soft': '#3a2726',
+      'accent-on-dark': '#f4f4f5',
     },
   },
   {
@@ -94,6 +107,7 @@ export const themes = [
       'edge': '#262626',
       'accent': '#e8807f',
       'accent-soft': '#2a1c1c',
+      'accent-on-dark': '#f4f4f5',
     },
   },
 ]

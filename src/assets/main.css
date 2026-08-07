@@ -60,6 +60,15 @@
   button:disabled {
     cursor: not-allowed;
   }
+
+  /*
+    A long press on a tile enters selection mode. Mobile Safari and Chrome answer
+    the same press with their own image callout, which steals the gesture, so it
+    is turned off for tiles specifically.
+  */
+  [data-media-index] {
+    -webkit-touch-callout: none;
+  }
 }
 
 @layer components {
@@ -189,8 +198,133 @@
     is enlarged like any other, and the element still ends exactly where the
     picture ends. `--ar` is the file's aspect ratio, set once it is known.
   */
-  .media-frame {
+  /*
+    Lightbox palette.
+
+    The viewer is a dark room under every theme — photographs need one, and a
+    pale surround competes with them. Only the accent travels across: it is the
+    theme's own colour, lifted towards white so that a hue chosen for a light
+    page still carries on black. The default theme's brick red and the purple
+    one are both far too dark to use unaltered here, so the mix is not optional.
+
+    The plain `var(--color-accent)` line before it is the fallback for browsers
+    without `color-mix` — they simply keep the unlifted colour.
+  */
+  .lightbox {
+    color-scheme: dark;
+
+    /*
+      A theme states its lightbox colour outright with `accent-on-dark`; without
+      one, `accent` is lightened to carry on black.
+    */
+    --lb-derived: color-mix(in oklab, var(--color-accent), white 35%);
+    --lb-accent: var(--color-accent-on-dark, var(--lb-derived));
+
+    --lb-text: #f4f4f5;
+    --lb-muted: rgb(255 255 255 / 0.62);
+    --lb-edge: rgb(255 255 255 / 0.14);
+    --lb-hover: rgb(255 255 255 / 0.12);
+    --lb-bar: rgb(0 0 0 / 0.45);
+
+    background-color: #000;
+    color: var(--lb-text);
+  }
+
+  /*
+    Relative colour syntax, where it exists. It buys two things the plain values
+    above cannot:
+
+    - the derived accent keeps the theme's hue *and* chroma and only raises
+      lightness, where mixing towards white also washes the colour out;
+    - the bars pick up the accent's own hue at a fraction of its saturation, so a
+      pink theme blurs through faintly rose and a purple one faintly violet.
+      Scaling the chroma rather than setting it is what keeps neutral themes
+      neutral — a white accent has none to scale.
+
+    Older browsers keep the flat values and simply lose the tint.
+  */
+  @supports (color: oklch(from white 0.5 0.1 0)) {
+    .lightbox {
+      --lb-derived: oklch(from var(--color-accent) 0.82 c h);
+      --lb-bar: oklch(from var(--lb-accent) 0.22 calc(c * 0.45) h / 0.5);
+    }
+  }
+
+  /*
+    The OLED theme means it: its whole point is that unlit pixels stay unlit, and
+    the tinted bar — dark grey, however faintly — undoes that on the one surface
+    covering the most screen. It gets true black instead, leaning on opacity
+    alone for separation. `data-theme` is stamped on <html> by the theme store.
+  */
+  :root[data-theme='black'] .lightbox {
+    --lb-bar: rgb(0 0 0 / 0.55);
+  }
+
+  /* Translucent strip the chrome sits on, with the picture blurred behind it. */
+  .lightbox-bar {
+    background-color: var(--lb-bar);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  .lightbox-icon {
+    color: var(--lb-accent);
+    transition:
+      background-color 150ms,
+      color 150ms;
+  }
+
+  .lightbox-icon:hover {
+    background-color: var(--lb-hover);
+    color: var(--lb-text);
+  }
+
+  /*
+    Paging arrows need their own disc: they sit on the picture, not on a bar.
+    Like the bars they hide by sliding rather than fading, which is what lets
+    them keep the backdrop filter — an opacity transition holds the blurred
+    backdrop back until the animation ends, and it snaps in afterwards.
+  */
+  .lightbox-arrow {
+    background-color: var(--lb-bar);
+    /* box-shadow: inset 0 0 0 1px var(--lb-edge); */
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  /*
+    Tag chips carry the theme colour most visibly, so they take the accent for
+    both text and outline. `!important` because TagChip's own utility classes
+    live in Tailwind's utilities layer, which otherwise wins on order.
+  */
+  .lightbox-tag {
+    border-color: var(--lb-accent) !important;
+    border-color: color-mix(in oklab, var(--lb-accent), transparent 60%) !important;
+    color: var(--lb-accent) !important;
+  }
+
+  .lightbox-tag:hover {
+    border-color: var(--lb-accent) !important;
+    color: var(--lb-text) !important;
+  }
+
+  /*
+    One slot of the lightbox filmstrip. The vertical padding is the room the
+    floating bars need: at natural size the picture sits between them, exactly
+    as it did when they were part of the layout. Zooming scales out of that box,
+    so a magnified picture still reaches the edges of the screen.
+  */
+  .lightbox-cell {
     container-type: size;
+    /*
+      Measured from the bars rather than guessed, and deliberately the same on
+      both sides: equal padding leaves the picture centred on the window, where
+      unequal padding would centre it on the gap between the bars instead and
+      slide it up or down whenever the next file carries a longer description or
+      another row of tags. The value is the taller of the two bars, so a picture
+      that runs out of height stops at the chrome rather than under it.
+    */
+    padding-block: var(--lb-pad, 3.5rem);
   }
 
   .fit-media {

@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 import ToastHost from '@/components/common/ToastHost.vue'
+import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import SelectionToolbar from '@/components/editor/SelectionToolbar.vue'
 import { updateHead } from '@/router'
 
@@ -28,9 +29,17 @@ watch(locale, () => updateHead(route))
     <AppHeader />
 
     <main id="main" class="flex-1">
+      <!--
+        Views arrive as their own chunks, so a first visit to one has to wait for
+        the download. Without a fallback that wait shows as a blank page, which
+        reads as a hung site rather than as loading.
+      -->
       <RouterView v-slot="{ Component }">
         <Suspense>
           <component :is="Component" />
+          <template #fallback>
+            <LoadingIndicator />
+          </template>
         </Suspense>
       </RouterView>
     </main>

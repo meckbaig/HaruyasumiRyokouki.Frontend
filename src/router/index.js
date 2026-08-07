@@ -93,6 +93,26 @@ export function updateHead(route) {
 router.afterEach((to) => updateHead(to))
 
 /**
+ * Warms the chunks a visitor is most likely to open next.
+ *
+ * Every view is loaded on demand, which keeps the first paint small but makes
+ * the first navigation to each one wait on a download. Fetching the two that
+ * every path leads to — a day and a search — while the browser is otherwise idle
+ * turns that wait into nothing at all; anything still cold falls back to the
+ * loading indicator. Failures are ignored on purpose: this is an optimisation,
+ * and the router will simply load the chunk again when it is really needed.
+ */
+export function prefetchViews() {
+  const warm = () => {
+    import('@/views/DayView.vue').catch(() => {})
+    import('@/views/SearchView.vue').catch(() => {})
+  }
+
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(warm, { timeout: 3000 })
+  else setTimeout(warm, 1500)
+}
+
+/**
  * Wires the HTTP client's 401 handling into the router. Only calls marked
  * `requiresAuth` reach this, so an anonymous visitor browsing public pages is
  * never yanked to the login screen.

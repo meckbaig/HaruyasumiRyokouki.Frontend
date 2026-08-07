@@ -15,6 +15,7 @@ import DayEditForm from '@/components/editor/DayEditForm.vue'
 import { useDaysStore } from '@/stores/days'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useEditorStore } from '@/stores/editor'
 import { formatLongDate, formatWeekday } from '@/services/dates'
 import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
@@ -28,6 +29,7 @@ const router = useRouter()
 const days = useDaysStore()
 const auth = useAuthStore()
 const ui = useUiStore()
+const editor = useEditorStore()
 
 const MAP_HIDDEN_KEY = 'haruyasumi.dayMapHidden'
 
@@ -120,12 +122,14 @@ onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
 /**
- * Touch equivalent of the arrow keys. Suspended while the lightbox is open —
- * it runs its own swipe over the file list — and never fires inside the
- * calendar or the map, both of which pan horizontally themselves.
+ * Touch equivalent of the arrow keys. Suspended while the lightbox is open — it
+ * runs its own swipe over the file list — and while files are being selected,
+ * where the same sideways stroke extends the selection and must not also throw
+ * the reader onto another day. Never fires inside the calendar or the map, both
+ * of which pan horizontally themselves.
  */
 const swipe = useHorizontalSwipe({
-  isEnabled: () => lightboxIndex.value === null,
+  isEnabled: () => lightboxIndex.value === null && !editor.selectionMode,
   onLeft: () => neighbours.value.next && openDay(neighbours.value.next),
   onRight: () => neighbours.value.prev && openDay(neighbours.value.prev),
 })
@@ -145,9 +149,9 @@ function onNoteSaved() {
 <template>
   <div
     class="mx-auto max-w-6xl px-4 py-8"
-    @pointerdown="swipe.onPointerDown"
-    @pointerup="swipe.onPointerUp"
-    @pointercancel="swipe.onPointerCancel"
+    @touchstart.passive="swipe.onTouchStart"
+    @touchend="swipe.onTouchEnd"
+    @touchcancel="swipe.onTouchCancel"
   >
     <header class="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>

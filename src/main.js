@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
 import App from './App.vue'
-import { router, installAuthRedirect } from './router'
+import { router, installAuthRedirect, prefetchViews } from './router'
 import { i18n, SUPPORTED_LOCALES, persistLocaleIfUnset } from './i18n'
 import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
@@ -42,3 +42,5 @@ router.isReady().then(() => {
 })
 
 app.mount('#app')
+
+prefetchViews()

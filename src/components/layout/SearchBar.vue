@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -16,6 +16,19 @@ const router = useRouter()
 const route = useRoute()
 
 const text = ref(String(route.query.text ?? ''))
+const field = ref(null)
+
+/**
+ * The `autofocus` attribute only counts on a page load, so a field that appears
+ * later — the mobile search panel opens on a tap — is left unfocused and the
+ * keyboard never comes up. Asking for focus once the element is in the document
+ * does what the attribute promises.
+ */
+onMounted(async () => {
+  if (!props.autofocus) return
+  await nextTick()
+  field.value?.focus()
+})
 
 // Keep the field in step with the URL — the query is the source of truth, and it
 // changes on back/forward and when a tag chip navigates here.
@@ -58,6 +71,7 @@ function clear() {
     </svg>
 
     <input
+      ref="field"
       v-model="text"
       type="search"
       :placeholder="t('search.placeholder')"

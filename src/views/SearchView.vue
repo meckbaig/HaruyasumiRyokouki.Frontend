@@ -7,7 +7,7 @@ import NoteResultCard from '@/components/search/NoteResultCard.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
 import MediaEditDialog from '@/components/editor/MediaEditDialog.vue'
 import ShareButton from '@/components/common/ShareButton.vue'
-import SkeletonGrid from '@/components/common/SkeletonGrid.vue'
+import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useSearchStore } from '@/stores/search'
@@ -87,7 +87,9 @@ function openLightbox({ items, index }) {
       </button>
     </div>
 
-    <SkeletonGrid v-if="search.loading" />
+    <!-- A skeleton grid would promise media results before the shape of the
+         answer is known — a query may return only notes, or nothing. -->
+    <LoadingIndicator v-if="search.loading" />
 
     <ErrorState v-else-if="search.error" :error="search.error" @retry="run" />
 

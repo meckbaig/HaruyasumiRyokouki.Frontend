@@ -11,7 +11,7 @@ defineProps({
   -->
   <RouterLink
     :to="{ name: 'search', query: { text: tag } }"
-    class="inline-flex items-center rounded-full border border-edge px-2.5 pt-0.5 pb-1 text-xs text-ink-soft transition hover:border-ink-faint hover:text-ink"
+    class="inline-flex items-center rounded-full border border-white/30 px-2.5 pt-0.5 pb-1 text-xs text-ink-soft transition hover:border-ink-faint hover:text-ink"
   >
     #{{ tag }}
   </RouterLink>

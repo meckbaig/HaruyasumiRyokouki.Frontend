@@ -5,6 +5,7 @@ import {
   downloadSrc,
   fullScreenSrc,
   mediaDate,
+  miniatureSrc,
   previewSrc,
   streamSrc,
 } from '@/services/mediaAssets'
@@ -32,6 +33,14 @@ const label = computed(() => current.value?.title || current.value?.fileName || 
 const hasPrev = computed(() => open.value && props.index > 0)
 const hasNext = computed(() => open.value && props.index < props.items.length - 1)
 
+/** Neighbours ride along in the filmstrip, shown as the previews the grid cached. */
+const prevItem = computed(() => (hasPrev.value ? props.items[props.index - 1] : null))
+const nextItem = computed(() => (hasNext.value ? props.items[props.index + 1] : null))
+
+function stripSrc(item) {
+  return previewSrc(item) || miniatureSrc(item)
+}
+
 /**
  * The preview is the very image the grid tile already downloaded — the API
  * returns one preview URL per file — so it is served from cache and fills the
@@ -47,13 +56,6 @@ const dayDate = computed(() => mediaDate(current.value))
 const fullLoaded = ref(false)
 const fullFailed = ref(false)
 
-/**
- * The spinner waits before appearing: stepping through photos that are already
- * cached resolves in a few milliseconds, and a spinner flashing on every arrow
- * press is worse than no spinner at all. It only shows for loads slow enough to
- * be worth reporting — the delay is short because it fades in rather than
- * appearing outright, which adds its own moment of grace.
- */
 const SPINNER_DELAY = 0
 
 const showSpinner = ref(false)
@@ -75,12 +77,10 @@ function armSpinner() {
 
 /**
  * Aspect ratio of the open file, taken from whichever layer reports it first.
- *
- * Until it is known the media simply fills the frame and lets `object-contain`
- * letterbox it. Once known, `.fit-media` shrinks the element to the picture
- * itself, so the space beside it goes back to being backdrop and a click there
- * closes the viewer. Both states paint the picture at exactly the same size and
- * position — only the element's box changes, so nothing moves on screen.
+ * Until it is known the media fills its cell and lets `object-contain` letterbox
+ * it; once known, `.fit-media` shrinks the element to the picture itself, which
+ * is what makes the empty space beside it clickable. Both paint identically, so
+ * nothing moves when the switch happens.
  */
 const aspect = ref(null)
 const aspectStyle = computed(() => (aspect.value ? { '--ar': aspect.value } : undefined))
@@ -105,11 +105,9 @@ function onVideoMeta(event) {
 
 /**
  * Decoding is what makes a freshly downloaded image appear in bands: `load`
- * fires when the bytes have arrived, but the browser still has to turn them
- * into pixels, and it does that while painting. Awaiting `decode()` moves that
- * work off the visible frame, so the image is only revealed once it can be
- * drawn in one go. From cache it resolves immediately, which is why a revisit
- * always looked smooth.
+ * fires when the bytes have arrived, but the browser still has to turn them into
+ * pixels, and it does that while painting. Awaiting `decode()` does that work
+ * first, so the image is revealed in one clean frame.
  */
 async function revealWhenDecoded(image) {
   try {
@@ -139,32 +137,65 @@ function onFullFailed() {
 }
 
 /*
-  Zoom and pan.
+  Gestures.
 
-  The wheel zooms towards the cursor and a double tap toggles a fixed
-  magnification at the point touched. While zoomed the drag pans instead of
-  paging, since panning is the only thing that gesture can sensibly mean; at
-  natural size the same drag swipes to the next or previous file.
+  All of them share one pointer surface because their meanings overlap: two
+  fingers pinch, one finger pans a magnified picture, drags the filmstrip
+  sideways, or pulls it down to dismiss. A tap on the picture hides the chrome, a
+  tap beside it closes, and a double tap magnifies. Deciding between them needs
+  the whole picture of what is pressed, so it is settled here rather than spread
+  across handlers.
 */
 const MAX_SCALE = 4
 const TAP_ZOOM = 2.5
 const TAP_WINDOW = 300
 const TAP_SLOP = 40
 const DRAG_SLOP = 8
-const SWIPE_DISTANCE = 60
+const ANIM_MS = 220
+/** Share of the frame a sideways drag must cross before the page turns. */
+const SWIPE_COMMIT = 0.22
+/** Downward travel that dismisses the viewer. */
+const DISMISS_DISTANCE = 120
 
 const frame = ref(null)
+/** The full-size image element, used to hit-test taps against the picture. */
+const picture = ref(null)
 const scale = ref(1)
 const offsetX = ref(0)
 const offsetY = ref(0)
+/** Travel of the filmstrip itself, separate from the pan offset of one picture. */
+const dragX = ref(0)
+const dragY = ref(0)
 const animating = ref(false)
+const uiVisible = ref(true)
 
 const zoomed = computed(() => scale.value > 1.01)
-const transformStyle = computed(() =>
+
+const stripStyle = computed(() =>
+  dragX.value || dragY.value
+    ? { transform: `translate3d(${dragX.value}px, ${dragY.value}px, 0)` }
+    : undefined,
+)
+
+const zoomStyle = computed(() =>
   zoomed.value || offsetX.value || offsetY.value
     ? { transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value})` }
     : undefined,
 )
+
+/** Dragging down dims the surroundings, so the dismissal reads as deliberate. */
+const dismissOpacity = computed(() =>
+  dragY.value > 0 ? Math.max(0.35, 1 - dragY.value / (DISMISS_DISTANCE * 3)) : 1,
+)
+
+function frameSize() {
+  const rect = frame.value?.getBoundingClientRect()
+  return {
+    width: rect?.width || window.innerWidth,
+    height: rect?.height || window.innerHeight,
+    rect,
+  }
+}
 
 function resetZoom() {
   scale.value = 1
@@ -172,26 +203,34 @@ function resetZoom() {
   offsetY.value = 0
 }
 
-/** Keeps the picture from being dragged out of the frame entirely. */
+/** Keeps the picture from being panned out of view entirely. */
 function clampOffset() {
-  const rect = frame.value?.getBoundingClientRect()
-  if (!rect) return
-  const maxX = (rect.width * (scale.value - 1)) / 2
-  const maxY = (rect.height * (scale.value - 1)) / 2
+  const { width, height } = frameSize()
+  const maxX = (width * (scale.value - 1)) / 2
+  const maxY = (height * (scale.value - 1)) / 2
   offsetX.value = Math.min(maxX, Math.max(-maxX, offsetX.value))
   offsetY.value = Math.min(maxY, Math.max(-maxY, offsetY.value))
 }
 
-/** Point of the pointer relative to the centre of the frame. */
-function pointerInFrame(event) {
-  const rect = frame.value?.getBoundingClientRect()
-  if (!rect) return null
-  return { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 }
+/** Whether a screen point lands on the picture itself rather than beside it. */
+function isOnPicture(clientX, clientY) {
+  const rect = picture.value?.getBoundingClientRect()
+  if (!rect || !rect.width || !rect.height) return false
+  return (
+    clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+  )
+}
+
+/** A point in frame coordinates, measured from its centre. */
+function toFramePoint(clientX, clientY) {
+  const { rect } = frameSize()
+  if (!rect) return { x: 0, y: 0 }
+  return { x: clientX - rect.left - rect.width / 2, y: clientY - rect.top - rect.height / 2 }
 }
 
 /**
- * Rescales around a fixed point: whatever sits under the cursor stays there,
- * which is what makes wheel zoom feel like it is following the pointer.
+ * Rescales around a fixed point: whatever sits under the cursor or between the
+ * fingers stays there, which is what makes zooming feel attached to the hand.
  */
 function zoomTo(next, point) {
   const clamped = Math.min(MAX_SCALE, Math.max(1, next))
@@ -212,88 +251,261 @@ function zoomTo(next, point) {
   }
 }
 
-/** Runs a zoom change with a transition, used for the discrete tap zoom. */
-function animateZoom(change) {
+let animationTimer = null
+
+/** Runs a change with a transition, then drops back to direct manipulation. */
+function withAnimation(change, done, duration = ANIM_MS) {
   animating.value = true
   change()
-  setTimeout(() => (animating.value = false), 220)
+  clearTimeout(animationTimer)
+  animationTimer = setTimeout(() => {
+    animating.value = false
+    done?.()
+  }, duration)
 }
+
+/*
+  Wheel zoom keeps the transition on for a moment after each notch. A wheel
+  reports coarse, discrete steps, and applying them straight to the transform
+  makes the picture jump from size to size; letting each step ease out — and
+  letting the next one interrupt it — turns the same events into one continuous
+  movement.
+*/
+let wheelTimer = null
 
 function onWheel(event) {
-  zoomTo(scale.value * Math.exp(-event.deltaY * 0.0015), pointerInFrame(event))
+  // Firefox reports lines rather than pixels; normalise before scaling.
+  const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY
+
+  animating.value = true
+  zoomTo(scale.value * Math.exp(-delta * 0.0015), toFramePoint(event.clientX, event.clientY))
+
+  clearTimeout(wheelTimer)
+  wheelTimer = setTimeout(() => (animating.value = false), 180)
 }
 
+const pointers = new Map()
 let drag = null
+let pinch = null
 let lastTapAt = 0
 let lastTapX = 0
+let uiTapTimer = null
 let suppressClick = false
+
+function beginDrag(clientX, clientY, pointerType, moved = false) {
+  drag = {
+    x: clientX,
+    y: clientY,
+    offsetX: offsetX.value,
+    offsetY: offsetY.value,
+    time: Date.now(),
+    pointerType,
+    moved,
+    // Locked on the first decisive movement, so a page turn never becomes a
+    // dismissal halfway through and vice versa.
+    axis: null,
+  }
+}
+
+/** Two fingers down: remember the span between them and drop any strip drag. */
+function beginPinch() {
+  const [a, b] = [...pointers.values()]
+  drag = null
+  dragX.value = 0
+  dragY.value = 0
+  pinch = {
+    distance: Math.hypot(a.x - b.x, a.y - b.y),
+    point: toFramePoint((a.x + b.x) / 2, (a.y + b.y) / 2),
+    scale: scale.value,
+    offsetX: offsetX.value,
+    offsetY: offsetY.value,
+  }
+}
+
+function updatePinch() {
+  const [a, b] = [...pointers.values()]
+  const distance = Math.hypot(a.x - b.x, a.y - b.y)
+  if (!pinch.distance || !distance) return
+
+  const next = Math.min(MAX_SCALE, Math.max(1, (pinch.scale * distance) / pinch.distance))
+  // The midpoint may travel as well, which pans at the same time — the motion a
+  // maps app makes when the pinch and the hand move together.
+  const centre = toFramePoint((a.x + b.x) / 2, (a.y + b.y) / 2)
+  const ratio = next / pinch.scale
+  offsetX.value = centre.x - (pinch.point.x - pinch.offsetX) * ratio
+  offsetY.value = centre.y - (pinch.point.y - pinch.offsetY) * ratio
+  scale.value = next
+  clampOffset()
+}
 
 function onPointerDown(event) {
   // A gesture that ended off the frame fires no click, so a flag set then would
   // linger and eat the next real tap.
   suppressClick = false
-  // Keeps the moves coming even when the finger leaves the frame mid-pan.
-  event.currentTarget.setPointerCapture?.(event.pointerId)
+  frame.value?.setPointerCapture?.(event.pointerId)
+  pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
 
-  drag = {
-    x: event.clientX,
-    y: event.clientY,
-    offsetX: offsetX.value,
-    offsetY: offsetY.value,
-    time: Date.now(),
-    pointerType: event.pointerType,
-    moved: false,
-  }
+  if (pointers.size === 2) beginPinch()
+  else if (pointers.size === 1) beginDrag(event.clientX, event.clientY, event.pointerType)
 }
 
 function onPointerMove(event) {
+  if (!pointers.has(event.pointerId)) return
+  pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+
+  if (pinch) {
+    updatePinch()
+    return
+  }
   if (!drag) return
+
   const dx = event.clientX - drag.x
   const dy = event.clientY - drag.y
   if (Math.hypot(dx, dy) > DRAG_SLOP) drag.moved = true
+  if (!drag.moved) return
 
-  if (zoomed.value && drag.moved) {
+  if (zoomed.value) {
     offsetX.value = drag.offsetX + dx
     offsetY.value = drag.offsetY + dy
     clampOffset()
+    return
+  }
+
+  // Only touch drags the strip; a mouse has the arrows and the keyboard.
+  if (drag.pointerType === 'mouse') return
+
+  if (!drag.axis) drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+
+  if (drag.axis === 'x') {
+    // Resist at the ends of the list, so the strip feels bounded.
+    const blocked = (dx < 0 && !hasNext.value) || (dx > 0 && !hasPrev.value)
+    dragX.value = blocked ? dx * 0.25 : dx
+  } else {
+    dragY.value = dy
   }
 }
 
+/** Decides whether a released sideways drag turns the page or springs back. */
+function settleStrip(dx) {
+  const { width } = frameSize()
+  const direction = dx < 0 ? 1 : -1
+  const canGo = direction === 1 ? hasNext.value : hasPrev.value
+
+  if (Math.abs(dx) < width * SWIPE_COMMIT || !canGo) {
+    withAnimation(() => (dragX.value = 0))
+    return
+  }
+
+  // Slide the strip by one full frame; the neighbour riding there lands dead
+  // centre. Swapping the index afterwards and zeroing the offset leaves the
+  // picture exactly where the animation left it, so the turn looks continuous.
+  withAnimation(
+    () => (dragX.value = -direction * width),
+    () => {
+      step(direction)
+      dragX.value = 0
+    },
+  )
+}
+
+/** Decides whether a released downward drag dismisses or springs back. */
+function settleDismiss(dy, point) {
+  if (dy > DISMISS_DISTANCE) {
+    close({ ghostAt: point })
+    return
+  }
+  withAnimation(() => (dragY.value = 0))
+}
+
+function toggleUi() {
+  uiVisible.value = !uiVisible.value
+}
+
 function onPointerUp(event) {
+  pointers.delete(event.pointerId)
+
+  if (pinch) {
+    if (pointers.size >= 2) return
+    pinch = null
+    suppressClick = true
+    if (!zoomed.value) withAnimation(resetZoom)
+    // A finger still on the glass keeps panning rather than starting a strip drag.
+    const [rest] = [...pointers.values()]
+    if (rest) beginDrag(rest.x, rest.y, 'touch', true)
+    return
+  }
+
   if (!drag) return
-  const { moved, pointerType, time } = drag
+  const { moved, pointerType, axis, time } = drag
   const dx = event.clientX - drag.x
   const dy = event.clientY - drag.y
   drag = null
 
-  // A pan must not fall through as a click on the backdrop.
-  if (moved) suppressClick = true
-
-  if (pointerType === 'mouse') return
-
-  // At natural size a decisive sideways flick pages through the files.
-  if (
-    !zoomed.value &&
-    moved &&
-    Math.abs(dx) > SWIPE_DISTANCE &&
-    Math.abs(dx) > Math.abs(dy) * 1.5 &&
-    Date.now() - time < 800
-  ) {
-    step(dx < 0 ? 1 : -1)
+  if (moved) {
+    suppressClick = true
+    if (zoomed.value) return
+    if (axis === 'y') settleDismiss(dy, { x: event.clientX, y: event.clientY })
+    else if (axis === 'x') settleStrip(dx)
+    else if (
+      pointerType !== 'mouse' &&
+      Math.abs(dx) > 60 &&
+      Math.abs(dx) > Math.abs(dy) * 1.5 &&
+      Date.now() - time < 800
+    ) {
+      // A flick fast enough to outrun the follow threshold still turns the page.
+      settleStrip(dx)
+    }
     return
   }
 
-  if (moved) return
+  // A tap on the picture hides the chrome; a tap on the empty space beside it
+  // closes the viewer, which is what that space did before it became one
+  // continuous surface.
+  //
+  // Hit-tested against the image's box rather than read from `event.target`:
+  // the frame captures the pointer so that a pan survives the finger leaving it,
+  // and capture retargets every later event to the frame itself — so the target
+  // was never the picture, and every tap read as a tap on empty space.
+  if (!isOnPicture(event.clientX, event.clientY)) {
+    close({ ghostAt: pointerType === 'mouse' ? null : { x: event.clientX, y: event.clientY } })
+    return
+  }
+
+  if (pointerType === 'mouse') {
+    toggleUi()
+    return
+  }
 
   const now = Date.now()
   if (now - lastTapAt < TAP_WINDOW && Math.abs(event.clientX - lastTapX) < TAP_SLOP) {
-    const point = pointerInFrame(event)
-    animateZoom(() => (zoomed.value ? resetZoom() : zoomTo(TAP_ZOOM, point)))
+    // The second tap of a pair magnifies; cancel the chrome toggle the first one
+    // queued, or the picture would zoom and the bars would vanish at once.
+    clearTimeout(uiTapTimer)
+    withAnimation(() =>
+      zoomed.value ? resetZoom() : zoomTo(TAP_ZOOM, toFramePoint(event.clientX, event.clientY)),
+    )
     lastTapAt = 0
     suppressClick = true
-  } else {
-    lastTapAt = now
-    lastTapX = event.clientX
+    return
+  }
+
+  lastTapAt = now
+  lastTapX = event.clientX
+  clearTimeout(uiTapTimer)
+  uiTapTimer = setTimeout(toggleUi, TAP_WINDOW)
+}
+
+function onPointerCancel(event) {
+  pointers.delete(event.pointerId)
+  if (pointers.size < 2) pinch = null
+  if (!pointers.size) {
+    drag = null
+    if (dragX.value || dragY.value) {
+      withAnimation(() => {
+        dragX.value = 0
+        dragY.value = 0
+      })
+    }
   }
 }
 
@@ -304,15 +516,40 @@ function onFrameClickCapture(event) {
   suppressClick = false
 }
 
-watch(current, () => {
-  fullLoaded.value = false
-  fullFailed.value = false
-  aspect.value = null
-  resetZoom()
-  armSpinner()
-})
+/**
+ * Stops the click a touch gesture leaves behind.
+ *
+ * A browser synthesises a click a moment after a touch ends, aimed at whatever
+ * is under the finger. Dismissing with a downward swipe removes the viewer
+ * before it arrives, so it lands on the grid beneath and re-opens the file that
+ * was just dismissed.
+ *
+ * Cancelling the touch sequence is the precise cure — a prevented `touchend`
+ * produces no compatibility click at all. The click guard behind it is only a
+ * backstop for browsers that synthesise one anyway, and it is deliberately
+ * narrow: it ignores anything more than a finger's width from where the gesture
+ * ended, so a deliberate tap somewhere else is never swallowed.
+ */
+function preventGhostClick(x, y) {
+  const stopTouch = (event) => {
+    if (event.cancelable) event.preventDefault()
+  }
+  const stopClick = (event) => {
+    if (Math.hypot(event.clientX - x, event.clientY - y) > 40) return
+    event.stopPropagation()
+    event.preventDefault()
+  }
 
-function close() {
+  document.addEventListener('touchend', stopTouch, { capture: true, passive: false })
+  document.addEventListener('click', stopClick, { capture: true })
+  setTimeout(() => {
+    document.removeEventListener('touchend', stopTouch, { capture: true })
+    document.removeEventListener('click', stopClick, { capture: true })
+  }, 350)
+}
+
+function close({ ghostAt = null } = {}) {
+  if (ghostAt) preventGhostClick(ghostAt.x, ghostAt.y)
   emit('update:index', null)
   emit('close')
 }
@@ -321,6 +558,118 @@ function step(delta) {
   const next = props.index + delta
   if (next < 0 || next >= props.items.length) return
   emit('update:index', next)
+}
+
+watch(current, async () => {
+  fullLoaded.value = false
+  fullFailed.value = false
+  aspect.value = null
+  tagsExpanded.value = false
+  descriptionExpanded.value = false
+  resetZoom()
+  armSpinner()
+  await nextTick()
+  measureChrome()
+})
+
+/*
+  Chrome measurements.
+
+  The bars float over the picture, so the picture has to be told how much room
+  they take. Both grow with their contents — a long description, several rows of
+  tags, either one expanded by the reader — so the heights are measured rather
+  than assumed, and fed back as the padding of the filmstrip cells.
+
+  The same observer answers the other question the bars have about themselves:
+  whether their contents overflow, which is what decides if the expander is
+  offered at all.
+*/
+const header = ref(null)
+const footer = ref(null)
+const tagList = ref(null)
+const description = ref(null)
+
+const barPadding = ref({})
+const tagsExpanded = ref(false)
+const tagsOverflow = ref(false)
+const descriptionExpanded = ref(false)
+const descriptionOverflow = ref(false)
+
+let chromeObserver = null
+
+function measureChrome() {
+  // Frozen while a bar is open, and for as long as one is animating shut: the
+  // expansion is meant to cover the picture, and following the bar back down
+  // would drag the picture along with the collapse.
+  if (!tagsExpanded.value && !descriptionExpanded.value && !chromeSettling) {
+    const top = header.value?.offsetHeight ?? 0
+    const bottom = footer.value?.offsetHeight ?? 0
+    barPadding.value = { '--lb-pad': `${Math.max(top, bottom)}px` }
+  }
+
+  const tags = tagList.value
+  tagsOverflow.value = Boolean(tags) && (tagsExpanded.value || tags.scrollHeight > tags.clientHeight + 1)
+
+  const text = description.value
+  descriptionOverflow.value =
+    Boolean(text) && (descriptionExpanded.value || text.scrollHeight > text.clientHeight + 1)
+}
+
+function observeChrome() {
+  chromeObserver?.disconnect()
+  if (typeof ResizeObserver === 'undefined') {
+    measureChrome()
+    return
+  }
+
+  chromeObserver = new ResizeObserver(measureChrome)
+  for (const element of [header.value, footer.value, tagList.value, description.value]) {
+    if (element) chromeObserver.observe(element)
+  }
+  measureChrome()
+}
+
+/**
+ * Holds the measurement still until an opening or closing bar has finished
+ * moving, then takes it once. Without it the observer follows every frame of the
+ * collapse and the picture slides along with the bar.
+ */
+let chromeSettling = false
+let chromeSettleTimer = null
+
+function settleChrome() {
+  chromeSettling = true
+  clearTimeout(chromeSettleTimer)
+  chromeSettleTimer = setTimeout(() => {
+    chromeSettling = false
+    measureChrome()
+  }, 260)
+}
+
+function toggleTags() {
+  tagsExpanded.value = !tagsExpanded.value
+  settleChrome()
+}
+
+function toggleDescription() {
+  if (!descriptionOverflow.value) return
+  descriptionExpanded.value = !descriptionExpanded.value
+  settleChrome()
+}
+
+/** The grab handle also answers a drag: up opens the tag list, down closes it. */
+let handleY = null
+
+function onHandleDown(event) {
+  handleY = event.clientY
+}
+
+function onHandleUp(event) {
+  if (handleY === null) return
+  const dy = event.clientY - handleY
+  handleY = null
+  if (Math.abs(dy) < 12) toggleTags()
+  else tagsExpanded.value = dy < 0
 }
 
 /** Keeps Tab inside the dialog while it is open. */
@@ -364,6 +713,20 @@ function onKeydown(event) {
   }
 }
 
+function resetGestures() {
+  pointers.clear()
+  drag = null
+  pinch = null
+  clearTimeout(uiTapTimer)
+  clearTimeout(animationTimer)
+  clearTimeout(wheelTimer)
+  animating.value = false
+  dragX.value = 0
+  dragY.value = 0
+  resetZoom()
+  uiVisible.value = true
+}
+
 watch(open, async (isOpen) => {
   if (isOpen) {
     lastFocused = document.activeElement
@@ -372,11 +735,16 @@ watch(open, async (isOpen) => {
     document.body.style.overflow = 'hidden'
     await nextTick()
     dialog.value?.focus()
+    observeChrome()
   } else {
+    chromeObserver?.disconnect()
+    chromeObserver = null
+    clearTimeout(chromeSettleTimer)
+    chromeSettling = false
     document.removeEventListener('keydown', onKeydown)
     document.body.style.overflow = ''
     stopSpinner()
-    resetZoom()
+    resetGestures()
     // Return focus to the tile that opened the lightbox.
     lastFocused?.focus?.()
     lastFocused = null
@@ -387,243 +755,382 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = ''
   stopSpinner()
+  resetGestures()
+  chromeObserver?.disconnect()
+  chromeObserver = null
+  clearTimeout(chromeSettleTimer)
 })
 </script>
 
 <template>
   <Teleport to="body">
     <!--
-      Everything except the media itself acts as one big close button, so a tap
-      on any empty space dismisses the viewer. The overlay is always dark
-      regardless of the app theme — a light lightbox behind photos looks wrong —
-      and sits above Leaflet's map panes (z-index ~1000), which otherwise poke
-      through on the day page.
+      A dark room under every theme, with the theme's accent carried through the
+      chrome — see `.lightbox` in main.css for the palette. It sits above
+      Leaflet's panes (z-index ~1000), which otherwise poke through on the day
+      page.
     -->
     <div
       v-if="open && current"
       ref="dialog"
-      class="fixed inset-0 z-[2000] flex flex-col bg-black/95 text-white"
+      class="lightbox fixed inset-0 z-[2000] overflow-hidden"
+      :style="{ opacity: dismissOpacity, ...barPadding }"
       role="dialog"
       aria-modal="true"
       :aria-label="label"
       tabindex="-1"
-      @click="close"
     >
-      <div class="flex items-start justify-between gap-4 px-4 py-3" style="cursor: pointer;">
-        <div class="min-w-0">
-          <p class="truncate text-sm font-medium">{{ label }}</p>
-          <p v-if="current.description" class="mt-1 line-clamp-2 text-xs text-white/70">
-            {{ current.description }}
-          </p>
-        </div>
-
-        <!-- Decorative: closing is handled by the backdrop click, so this is a
-             plain icon rather than a separate button. -->
-        <span class="shrink-0 p-2 text-white/70" aria-hidden="true">
-          <svg
-            class="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-          >
-            <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
-          </svg>
-        </span>
-      </div>
-
-      <div class="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-4">
-        <button
-          v-if="hasPrev"
-          type="button"
-          class="absolute left-2 z-10 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
-          :aria-label="t('media.prev')"
-          @click.stop="step(-1)"
-        >
-          <svg
-            class="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            aria-hidden="true"
-          >
-            <path d="M12.5 4 6.5 10l6 6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-
+      <div
+        v-if="video"
+        class="lightbox-cell absolute inset-0 flex items-center justify-center"
+      >
         <!--
-          Sized like a photo: scaled up to the frame rather than left at its own
-          resolution, and shrink-wrapped once its proportions are known so the
-          space beside it stays part of the backdrop. Stops the click from
-          bubbling, so reaching for the controls never closes the viewer.
+          `max-h-full max-w-full` on top of the fitting rules: a video reports no
+          dimensions until its metadata arrives, and until then the fitting maths
+          has only a guessed aspect ratio to work with — which is how a clip
+          ended up taller than its cell and slid under the bars. The caps are the
+          content box of the cell, so they hold whatever the guess turns out to be.
         -->
         <video
-          v-if="video"
           :key="current.id ?? current.fileName"
           :src="stream"
           :poster="preview"
           controls
           playsinline
           preload="metadata"
-          class="rounded object-contain"
+          class="max-h-full max-w-full object-contain"
           :class="fitClass"
           :style="aspectStyle"
           @loadedmetadata="onVideoMeta"
-          @click.stop
         />
-        <!--
-          Two stages. The original is always fully opaque underneath; the preview
-          the grid already fetched covers it and fades out once the original has
-          arrived. Fading the top layer out — rather than fading the bottom one
-          in — means there is never a frame where neither is opaque, which is
-          what made the picture flash black on the swap.
-
-          Both layers are sized by `.fit-media`, so they occupy exactly the same
-          rectangle and the swap is invisible. That rectangle ends where the
-          picture ends, leaving the space beside it as backdrop: a click there
-          still closes the viewer.
-        -->
-        <div
-          v-else
-          ref="frame"
-          class="media-frame relative flex min-h-0 min-w-0 flex-1 touch-none items-center justify-center self-stretch overflow-hidden"
-          @wheel.prevent="onWheel"
-          @pointerdown="onPointerDown"
-          @pointermove="onPointerMove"
-          @pointerup="onPointerUp"
-          @pointercancel="onPointerUp"
-          @click.capture="onFrameClickCapture"
-        >
-          <div
-            class="relative flex h-full w-full items-center justify-center"
-            :class="[animating ? 'transition-transform duration-200' : '', zoomed ? 'cursor-grab' : '']"
-            :style="transformStyle"
-          >
-            <img
-              :key="current.id ?? current.fileName"
-              :src="original"
-              :alt="label"
-              class="rounded object-contain"
-              :class="fitClass"
-              :style="aspectStyle"
-              @load="onFullLoaded"
-              @error="onFullFailed"
-              @click.stop
-            />
-            <img
-              v-if="preview"
-              :key="`preview-${current.id ?? current.fileName}`"
-              :src="preview"
-              alt=""
-              aria-hidden="true"
-              class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded object-contain transition-opacity duration-300"
-              :class="[fitClass, fullLoaded ? 'opacity-0' : 'opacity-100']"
-              :style="aspectStyle"
-              @load="onPreviewLoaded"
-            />
-          </div>
-
-          <!-- Outside the transformed wrapper, so zooming does not scale it. -->
-          <Transition
-            enter-from-class="opacity-0"
-            enter-active-class="transition-opacity duration-1000"
-            leave-to-class="opacity-0"
-            leave-active-class="transition-opacity duration-150"
-          >
-            <span
-              v-if="showSpinner"
-              class="pointer-events-none absolute inset-0 flex items-center justify-center"
-              aria-hidden="true"
-            >
-              <span
-                class="spinner h-9 w-9 rounded-full border-2 border-white/25 border-t-white/90"
-              />
-            </span>
-          </Transition>
-        </div>
-
-        <button
-          v-if="hasNext"
-          type="button"
-          class="absolute right-2 z-10 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
-          :aria-label="t('media.next')"
-          @click.stop="step(1)"
-        >
-          <svg
-            class="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            aria-hidden="true"
-          >
-            <path d="M7.5 4l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-
-        <!-- Bottom-right is the one corner no other control occupies. -->
-        <div class="absolute bottom-2 right-2 z-10 flex items-center gap-1.5" @click.stop>
-          <RouterLink
-            v-if="dayDate"
-            :to="{ name: 'day', params: { date: dayDate } }"
-            class="rounded-full bg-white/10 p-2.5 text-white transition hover:bg-white/20"
-            :title="t('media.openDay')"
-            :aria-label="t('media.openDay')"
-            @click="close"
-          >
-            <svg
-              class="h-4 w-4"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-              aria-hidden="true"
-            >
-              <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
-              <path d="M3 8h14M7 3v3M13 3v3" stroke-linecap="round" />
-            </svg>
-          </RouterLink>
-
-          <a
-            v-if="download"
-            :href="download"
-            download
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rounded-full bg-white/10 p-2.5 text-white transition hover:bg-white/20"
-            :title="t('media.download')"
-            :aria-label="t('media.download')"
-          >
-            <svg
-              class="h-4 w-4"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-              aria-hidden="true"
-            >
-              <path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M4 15.5h12" stroke-linecap="round" />
-            </svg>
-          </a>
-        </div>
       </div>
 
       <div
-        v-if="current.tags?.length"
-        class="flex flex-wrap gap-1.5 border-t border-white/10 px-2 py-1.5"
-        @click.stop
+        v-else
+        ref="frame"
+        class="absolute inset-0 touch-none overflow-hidden"
+        :class="zoomed ? 'cursor-grab' : ''"
+        @wheel.prevent="onWheel"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerCancel"
+        @click.capture="onFrameClickCapture"
       >
-        <!-- A tag navigates to its search; close the viewer so results are not
-             left hidden behind it (the search route may reuse this view). -->
-        <TagChip
-          v-for="tag in current.tags"
-          :key="tag"
-          :tag="tag"
-          class="!border-white/30 !text-white/80 hover:!border-white/60 hover:!text-white"
-          @click="close"
-        />
+        <!--
+          A filmstrip: the neighbouring files sit one frame away on either side,
+          so dragging sideways reveals the next picture as the current one leaves
+          rather than swapping them once the gesture ends. They are drawn from the
+          previews the grid already cached, so they cost nothing to keep there.
+        -->
+        <div
+          class="absolute inset-0"
+          :class="animating ? 'transition-transform duration-200' : ''"
+          :style="stripStyle"
+        >
+          <div
+            v-if="prevItem"
+            class="lightbox-cell absolute inset-0 flex -translate-x-full items-center justify-center"
+          >
+            <img
+              :src="stripSrc(prevItem)"
+              alt=""
+              aria-hidden="true"
+              draggable="false"
+              class="max-h-full max-w-full object-contain"
+            />
+          </div>
+
+          <div class="lightbox-cell absolute inset-0 flex items-center justify-center">
+            <!--
+              Two stages. The full-size image is always fully opaque underneath;
+              the preview the grid already fetched covers it and fades out once
+              the original has arrived. Fading the top layer out — rather than
+              fading the bottom one in — means there is never a frame where
+              neither is opaque, which is what made the picture flash on the swap.
+
+              `draggable="false"` matters: without it a mouse press starts the
+              browser's own image drag and the pan never receives its moves.
+            -->
+            <div
+              class="relative flex h-full w-full items-center justify-center"
+              :class="animating ? 'transition-transform duration-200' : ''"
+              :style="zoomStyle"
+            >
+              <img
+                :key="current.id ?? current.fileName"
+                :src="original"
+                :alt="label"
+                ref="picture"
+                draggable="false"
+                class="object-contain"
+                :class="fitClass"
+                :style="aspectStyle"
+                @load="onFullLoaded"
+                @error="onFullFailed"
+              />
+              <img
+                v-if="preview"
+                :key="`preview-${current.id ?? current.fileName}`"
+                :src="preview"
+                alt=""
+                aria-hidden="true"
+                draggable="false"
+                class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain transition-opacity duration-300"
+                :class="[fitClass, fullLoaded ? 'opacity-0' : 'opacity-100']"
+                :style="aspectStyle"
+                @load="onPreviewLoaded"
+              />
+            </div>
+          </div>
+
+          <div
+            v-if="nextItem"
+            class="lightbox-cell absolute inset-0 flex translate-x-full items-center justify-center"
+          >
+            <img
+              :src="stripSrc(nextItem)"
+              alt=""
+              aria-hidden="true"
+              draggable="false"
+              class="max-h-full max-w-full object-contain"
+            />
+          </div>
+        </div>
+
+        <!-- Outside the strip, so neither dragging nor zooming moves it. -->
+        <Transition
+          enter-from-class="opacity-0"
+          enter-active-class="transition-opacity duration-200"
+          leave-to-class="opacity-0"
+          leave-active-class="transition-opacity duration-150"
+        >
+          <span
+            v-if="showSpinner"
+            class="pointer-events-none absolute inset-0 flex items-center justify-center"
+            aria-hidden="true"
+          >
+            <span
+              class="spinner h-9 w-9 rounded-full border-2 border-[var(--lb-edge)] border-t-[var(--lb-accent)]"
+            />
+          </span>
+        </Transition>
+      </div>
+
+      <!--
+        Chrome floating over the picture.
+
+        The bars slide out of view rather than fading. A backdrop filter and an
+        opacity transition on the same element do not co-operate: the browser
+        holds the blurred backdrop until the opacity settles, so the bar arrived
+        first and the blur snapped in behind it a moment later. Moving the bar
+        instead leaves it fully opaque throughout, blur and all.
+
+        The wrapper ignores pointer events so the space between the bars still
+        belongs to the gesture surface; each bar takes them back for itself.
+      -->
+      <div class="pointer-events-none absolute inset-0 flex flex-col overflow-hidden">
+        <div
+          ref="header"
+          class="lightbox-bar flex items-start justify-between gap-4 px-4 py-3 transition-transform duration-200"
+          :class="uiVisible ? 'pointer-events-auto' : '-translate-y-full'"
+        >
+          <div class="min-w-0">
+            <p class="truncate text-sm font-medium">{{ label }}</p>
+            <!-- Tapping a clipped description opens it, and again puts it back. -->
+            <!--
+              A max-height transition rather than a line clamp: clamping cannot
+              be animated, and the tags beside it open the same way.
+            -->
+            <p
+              v-if="current.description"
+              ref="description"
+              class="mt-1 overflow-hidden text-xs text-[var(--lb-accent)] transition-[max-height] duration-200"
+              :class="[
+                descriptionExpanded ? 'max-h-[40vh] overflow-y-auto' : 'max-h-[2.25rem]',
+                descriptionOverflow ? 'cursor-pointer' : '',
+              ]"
+              @click="toggleDescription"
+            >
+              {{ current.description }}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="lightbox-icon shrink-0 rounded-full p-2"
+            :aria-label="t('media.close')"
+            @click="close"
+          >
+            <svg
+              class="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <!--
+          Positioned against the window rather than laid out between the bars:
+          the arrows belong to the screen, and letting the bars decide their
+          height moved them whenever a description or a row of tags did.
+
+          Each leaves towards its own edge, the way the bars leave towards
+          theirs — and, like them, sliding rather than fading is what keeps the
+          blur behind them alive through the animation.
+        -->
+        <div
+          class="absolute inset-x-2 top-1/2 flex -translate-y-1/2 items-center justify-between"
+        >
+          <!--
+            Both stay mounted whether or not there is a file that way: reaching
+            the end of the list should retire an arrow the same way hiding the
+            chrome does, and a `v-if` would snatch it away instead of letting it
+            leave. `disabled` keeps a retired one off the keyboard's path.
+          -->
+          <button
+            type="button"
+            :disabled="!hasPrev"
+            class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
+            :class="
+              uiVisible && hasPrev ? 'pointer-events-auto' : '-translate-x-[calc(100%+1rem)]'
+            "
+            :aria-label="t('media.prev')"
+            @click="step(-1)"
+          >
+            <svg
+              class="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="M12.5 4 6.5 10l6 6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            :disabled="!hasNext"
+            class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
+            :class="
+              uiVisible && hasNext ? 'pointer-events-auto' : 'translate-x-[calc(100%+1rem)]'
+            "
+            :aria-label="t('media.next')"
+            @click="step(1)"
+          >
+            <svg
+              class="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="M7.5 4l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Pushes the footer to the bottom now that the arrows float free. -->
+        <div class="flex-1" />
+
+        <div
+          ref="footer"
+          class="lightbox-bar relative flex items-center justify-between gap-3 px-3 py-2 transition-transform duration-200"
+          :class="uiVisible ? 'pointer-events-auto' : 'translate-y-full'"
+        >
+          <!--
+            Offered only when the tags do not fit. Answers a press or a pull:
+            up opens the list, down folds it back to two rows.
+          -->
+          <button
+            v-if="tagsOverflow"
+            type="button"
+            class="absolute left-1/2 top-1 -translate-x-1/2 px-6 py-1"
+            :aria-expanded="tagsExpanded"
+            :aria-label="t('media.moreTags')"
+            @pointerdown="onHandleDown"
+            @pointerup="onHandleUp"
+          >
+            <span class="block h-1 w-10 rounded-full bg-[var(--lb-accent)] opacity-50" />
+          </button>
+
+          <div
+            ref="tagList"
+            class="flex min-w-0 flex-wrap gap-1.5 overflow-hidden transition-[max-height] duration-300"
+            :class="[
+              tagsExpanded ? 'max-h-[40vh] overflow-y-auto' : 'max-h-[3.4rem]',
+              tagsOverflow ? 'mt-3.5' : '',
+            ]"
+          >
+            <!-- A tag navigates to its search; close the viewer so results are
+                 not left hidden behind it. -->
+            <TagChip
+              v-for="tag in current.tags ?? []"
+              :key="tag"
+              :tag="tag"
+              class="lightbox-tag"
+              @click="close"
+            />
+          </div>
+
+          <div class="flex shrink-0 items-center gap-1.5">
+            <RouterLink
+              v-if="dayDate"
+              :to="{ name: 'day', params: { date: dayDate } }"
+              class="lightbox-icon rounded-full p-2.5"
+              :title="t('media.openDay')"
+              :aria-label="t('media.openDay')"
+              @click="close"
+            >
+              <svg
+                class="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
+                <path d="M3 8h14M7 3v3M13 3v3" stroke-linecap="round" />
+              </svg>
+            </RouterLink>
+
+            <a
+              v-if="download"
+              :href="download"
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              class="lightbox-icon rounded-full p-2.5"
+              :title="t('media.download')"
+              :aria-label="t('media.download')"
+            >
+              <svg
+                class="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <path
+                  d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path d="M4 15.5h12" stroke-linecap="round" />
+              </svg>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </Teleport>

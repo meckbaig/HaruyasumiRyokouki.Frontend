@@ -15,14 +15,27 @@ function resolve(id) {
   return theme
 }
 
+/** Custom properties written for the theme currently on screen. */
+let appliedTokens = []
+
 /**
  * Paints a resolved theme by writing its palette as inline custom properties on
  * <html>. Inline vars win over the stylesheet `@theme` defaults, so every
- * Tailwind `var(--color-*)` utility re-themes at once. Because all themes list
- * the same tokens, overwriting is a complete swap — no leftovers to clear.
+ * Tailwind `var(--color-*)` utility re-themes at once.
+ *
+ * Tokens the previous theme set and this one does not are removed rather than
+ * left standing: some are optional (`accent-on-dark`), and a leftover would
+ * quietly apply the old theme's colour to the new one.
  */
 function apply(theme) {
   const root = document.documentElement
+  const tokens = Object.keys(theme.colors ?? {})
+
+  for (const name of appliedTokens) {
+    if (!tokens.includes(name)) root.style.removeProperty(`--color-${name}`)
+  }
+  appliedTokens = tokens
+
   for (const [name, value] of Object.entries(theme.colors ?? {})) {
     root.style.setProperty(`--color-${name}`, value)
   }
