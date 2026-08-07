@@ -6,7 +6,7 @@
  * client's density and layout (see `services/display.js`). Sizing policy lives
  * on the backend and can change without touching this file.
  *
- *   imageUrls: { original, preview, fullScreen }
+ *   imageUrls: { download, preview, fullScreen }
  *   videoUrls: { download, stream, preview }
  *
  * `miniature` is a tiny base64 square shipped inline with every file, used as a
@@ -47,12 +47,11 @@ export function streamSrc(media) {
 }
 
 /**
- * Link for the download button: the untouched file in both cases — videos have
- * a dedicated download URL, images use the original.
+ * Link for the download button. Videos and images use the download URL.
  */
 export function downloadSrc(media) {
   if (!media) return ''
-  return (isVideo(media) ? media.videoUrls?.download : media.imageUrls?.original) ?? ''
+  return (isVideo(media) ? media.videoUrls?.download : media.imageUrls?.download) ?? ''
 }
 
 /** The day a file belongs to, as an ISO date, derived from its timestamp. */

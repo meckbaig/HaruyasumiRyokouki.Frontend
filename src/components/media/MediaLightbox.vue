@@ -48,7 +48,7 @@ function stripSrc(item) {
  * file's aspect ratio, so nothing shifts on the swap.
  */
 const preview = computed(() => previewSrc(current.value))
-const original = computed(() => fullScreenSrc(current.value))
+const fullScreen = computed(() => fullScreenSrc(current.value))
 const stream = computed(() => streamSrc(current.value))
 const download = computed(() => downloadSrc(current.value))
 const dayDate = computed(() => mediaDate(current.value))
@@ -69,7 +69,7 @@ function stopSpinner() {
 
 function armSpinner() {
   stopSpinner()
-  if (!original.value) return
+  if (!fullScreen.value) return
   spinnerTimer = setTimeout(() => {
     if (!fullLoaded.value && !fullFailed.value) showSpinner.value = true
   }, SPINNER_DELAY)
@@ -845,7 +845,7 @@ onBeforeUnmount(() => {
             <!--
               Two stages. The full-size image is always fully opaque underneath;
               the preview the grid already fetched covers it and fades out once
-              the original has arrived. Fading the top layer out — rather than
+              the full-screen image has arrived. Fading the top layer out — rather than
               fading the bottom one in — means there is never a frame where
               neither is opaque, which is what made the picture flash on the swap.
 
@@ -859,7 +859,7 @@ onBeforeUnmount(() => {
             >
               <img
                 :key="current.id ?? current.fileName"
-                :src="original"
+                :src="fullScreen"
                 :alt="label"
                 ref="picture"
                 draggable="false"
