@@ -18,6 +18,10 @@ calls surface as an error state.
 
 Scripts: `npm run dev`, `npm run build`, `npm run preview`.
 
+`npm run build` runs Vite and then `scripts/generate-localized-html.mjs`, which
+emits `dist/index.{ru,en,ja}.html` and a `dist/.htaccess` — see
+[Localised link previews](#localised-link-previews).
+
 ## Configuration
 
 All configuration is through `.env` (see `.env.example`):
@@ -26,18 +30,28 @@ All configuration is through `.env` (see `.env.example`):
 | --- | --- |
 | `VITE_API_BASE_URL` | API base path, `/v1` in development |
 | `BACKEND_ORIGIN` | Dev proxy target (not bundled) |
-| `VITE_MAP_TILE_URL`, `VITE_MAP_ATTRIBUTION` | Map tiles |
+| `VITE_MAP_TILE_URL`, `VITE_MAP_ATTRIBUTION` | Map tiles; defaults to keyless CARTO Voyager |
 | `VITE_AUTHOR_NAME`, `VITE_AUTHOR_GITHUB` | Footer links |
+
+`VITE_*` values are baked into the bundle at build time; `BACKEND_ORIGIN` is read
+only by `vite.config.js` and never shipped.
 
 ## Structure
 
 - `src/api` — one `request()` wrapper plus a thin module per endpoint group.
-- `src/services` — framework-free logic: media URL accessors, media-type
-  detection, search highlighting, dates, translations, sharing.
-- `src/stores` — Pinia: auth, days cache, search cache, editor selection, UI.
+- `src/services` — framework-free logic: media URL accessors, display
+  reporting, media-type detection, search highlighting, dates, translations,
+  sharing, document head.
+- `src/composables` — reusable stateful bits (`useHorizontalSwipe`,
+  `useTripMedia`).
+- `src/stores` — Pinia: auth, days cache, search cache, editor selection, UI,
+  theme, motion.
+- `src/theme/themes.js` — the theme registry; see [Theming](#theming).
 - `src/components` — grouped by area (`layout`, `media`, `calendar`, `map`,
   `search`, `editor`, `common`).
-- `src/views` — one per route.
+- `src/views` — one per route. All are lazy; `prefetchViews()` from `src/router`
+  warms the day and search chunks while the browser is idle, and `<Suspense>` in
+  `App.vue` covers whatever is still cold.
 
 ## Notes on the API contract
 
@@ -45,12 +59,63 @@ A few expectations are documented at their call sites and worth knowing up front
 
 - **Language** travels as `Accept-Language: ru|en|ja` on every request; the
   response's `languageCode` drives the "showing the original" notice.
+- **Display** travels as `X-Display: dpr=<ratio>; min-side=<css-px>` on every
+  request (`services/display.js`). The server picks one `preview` and one
+  `fullScreen` URL per file from it, so sizing policy lives on the backend and
+  can change without a frontend release. Both numbers share a unit space:
+  multiply them for real device pixels. Responses vary by the header — a cache in
+  front of the API needs `Vary: Accept-Language, X-Display`, and a cross-origin
+  API needs it in `Access-Control-Allow-Headers`.
+- **Media URLs** come ready-made and are never built here: `imageUrls` carries
+  `{ download, preview, fullScreen }`, `videoUrls` carries
+  `{ download, stream, preview }`, and every file ships a `miniature` — a base64
+  square used as an instant placeholder (`services/mediaAssets.js`).
 - **Search** returns days; a day matched through media carries only the matching
   files, a day matched through its note alone carries none. Splitting into the
   Media/Notes tabs and highlighting are done on the client
   (`services/searchResults.js`, `services/highlight.js`).
-- **Editor login** sends credentials in the `Authorization` header, never the
-  URL. `api/auth.js` keeps a temporary query-parameter fallback until the
-  backend reads the header — remove it once that ships (`TODO(api-login-query)`).
 - **Bulk media edit** sends one PATCH for the whole selection with a translation
   row keyed by `languageCode` (no per-row id).
+- **Downloads** rely on the media host sending `Content-Disposition: attachment`
+  — a browser ignores a link's `download` attribute across origins. With imgproxy
+  that is `return_attachment`.
+
+## Theming
+
+Themes live in `src/theme/themes.js`. Copying a block there is the whole job: the
+entry appears in the switcher, and the store writes its palette as inline
+`--color-*` properties on `<html>`, which override the `@theme` defaults so every
+Tailwind utility re-themes at once.
+
+The lightbox is a dark room under every theme and takes only the accent from it.
+Because a colour chosen to read on a light page is usually too dark for black,
+an entry may set the optional `accent-on-dark` token to say what it should look
+like there; without one the accent is lightened automatically.
+
+Motion follows the OS "reduce motion" setting. Editors get a footer switch to opt
+back in — the choice is stamped as `data-motion="always"` on `<html>`, which the
+reduced-motion rules in `main.css` check for. Loading spinners are exempt either
+way: a frozen spinner reads as a broken page.
+
+## Localised link previews
+
+Crawlers that build link previews (Telegram, WhatsApp, VK, Slack) do not run
+JavaScript, so the card's language comes from static markup. The build writes one
+`index.<locale>.html` per locale, and the generated `.htaccess` picks between
+them by `?lang=` first and `Accept-Language` second. Shared links carry `?lang=`
+(added in `services/share.js`); on arrival the app applies that language, saves
+it only if the visitor has none of their own, and strips the parameter from the
+address bar.
+
+Deploying means copying the whole `dist/` — including the dotfile — and serving
+it from Apache with `mod_rewrite` and `AllowOverride` enabled. On another server
+the same rules transfer; only their syntax changes.
+
+## Verification
+
+There are no automated tests. Checks are manual, and the flows worth walking
+after touching the viewer or the grid are the awkward ones: pinch and double-tap
+zoom, swiping between files and pulling down to dismiss, long-press to enter
+selection and then swiping across tiles to extend it, and the same on a real
+phone rather than in a device emulator — the two behave differently precisely
+where these gestures live.
