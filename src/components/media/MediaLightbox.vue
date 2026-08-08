@@ -56,7 +56,7 @@ const dayDate = computed(() => mediaDate(current.value))
 const fullLoaded = ref(false)
 const fullFailed = ref(false)
 
-const SPINNER_DELAY = 0
+const SPINNER_DELAY = 50
 
 const showSpinner = ref(false)
 let spinnerTimer = null
@@ -560,7 +560,7 @@ function step(delta) {
   emit('update:index', next)
 }
 
-watch(current, async () => {
+watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
   aspect.value = null
@@ -568,9 +568,15 @@ watch(current, async () => {
   descriptionExpanded.value = false
   resetZoom()
   armSpinner()
-  await nextTick()
-  measureChrome()
 })
+
+/**
+ * Sizing runs after the DOM has been updated and before the paint that follows,
+ * and writes its result straight onto the element. Reading it a tick later, or
+ * handing it to a reactive value to apply on the next render, is what used to
+ * let a frame out at the wrong size.
+ */
+watch([open, current], () => open.value && measureChrome(), { flush: 'post' })
 
 /*
   Chrome measurements.
@@ -586,10 +592,11 @@ watch(current, async () => {
 */
 const header = ref(null)
 const footer = ref(null)
+const band = ref(null)
 const tagList = ref(null)
 const description = ref(null)
+const previewImage = ref(null)
 
-const barPadding = ref({})
 const tagsExpanded = ref(false)
 const tagsOverflow = ref(false)
 const descriptionExpanded = ref(false)
@@ -597,18 +604,101 @@ const descriptionOverflow = ref(false)
 
 let chromeObserver = null
 
+/** Heights the bars settle at when nothing has stretched them. */
+const DEFAULT_BARS = 60 + 51
+
+/** True while the system asks for less motion and the reader has not opted back in. */
+function motionReduced() {
+  if (document.documentElement.dataset.motion === 'always') return false
+  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+}
+
+/** Proportions of the file, read off the preview the grid already downloaded. */
+function previewAspect() {
+  const image = previewImage.value
+  if (!image?.complete || !image.naturalWidth || !image.naturalHeight) return null
+  return image.naturalWidth / image.naturalHeight
+}
+
+/**
+ * Decides the overflow now rather than at the next render.
+ *
+ * The expander's margin is part of the footer's height, so a measurement taken
+ * before the overflow is known is a measurement of a bar that has not finished
+ * deciding how tall it is. Setting the class by hand as well as through the
+ * binding closes that gap: the binding still lands on the next render, and
+ * agrees with what was just written.
+ */
+function settleTagOverflow() {
+  const tags = tagList.value
+  if (!tags) return
+  const overflows = tagsExpanded.value || tags.scrollHeight > tags.clientHeight + 1
+  tagsOverflow.value = overflows
+  tags.classList.toggle('mt-3.5', overflows)
+}
+
+/**
+ * Where the picture actually goes, asked of the layout rather than worked out
+ * from the bars.
+ *
+ * A quick check comes first: with bars of the usual height, does the file run
+ * out of height or out of width? If it runs out of width the bars never touch it
+ * and their exact size does not matter. Only when it is the height that binds is
+ * the band read from the element that sits in flow between the two bars — the
+ * browser has already solved that as part of laying them out.
+ *
+ * Returns null whenever the recipe cannot be followed, which hands the caller
+ * back to the older, approximate route.
+ */
+function exactBand() {
+  // if (!motionReduced()) return null
+  // const ratio = previewAspect()
+  // if (!ratio) return null
+
+  // const available = window.innerHeight - DEFAULT_BARS
+  // if (available <= 0) return null
+  // if (ratio >= window.innerWidth / available) return null
+
+  settleTagOverflow()
+
+  const rect = band.value?.getBoundingClientRect()
+  if (!rect || rect.height <= 0) return null
+  return {
+    top: Math.round(rect.top),
+    bottom: Math.round(window.innerHeight - rect.bottom),
+  }
+}
+
+const chromeReady = ref(false)
+
+/** Hands the cells the room the bars need, as one write before the frame. */
+function applyBand(root, top, bottom) {
+  root.style.setProperty('--lb-top', `${top}px`)
+  root.style.setProperty('--lb-bottom', `${bottom}px`)
+}
+
 function measureChrome() {
+  const root = dialog.value
+
   // Frozen while a bar is open, and for as long as one is animating shut: the
   // expansion is meant to cover the picture, and following the bar back down
   // would drag the picture along with the collapse.
-  if (!tagsExpanded.value && !descriptionExpanded.value && !chromeSettling) {
-    const top = header.value?.offsetHeight ?? 0
-    const bottom = footer.value?.offsetHeight ?? 0
-    barPadding.value = { '--lb-pad': `${Math.max(top, bottom)}px` }
+  if (root && !tagsExpanded.value && !descriptionExpanded.value && !chromeSettling) {
+    const exact = exactBand()
+    if (exact) {
+      // The band as it is: the picture meets each bar, rather than resting
+      // against the taller one and leaving the difference as a gap at the other.
+      applyBand(root, exact.top, exact.bottom)
+      chromeReady.value = true
+    } else {
+      applyBand(root, 0, 0)
+      chromeReady.value = true
+    }
   }
 
   const tags = tagList.value
-  tagsOverflow.value = Boolean(tags) && (tagsExpanded.value || tags.scrollHeight > tags.clientHeight + 1)
+  tagsOverflow.value =
+    Boolean(tags) && (tagsExpanded.value || tags.scrollHeight > tags.clientHeight + 1)
 
   const text = description.value
   descriptionOverflow.value =
@@ -729,6 +819,7 @@ function resetGestures() {
 
 watch(open, async (isOpen) => {
   if (isOpen) {
+    chromeReady.value = false
     lastFocused = document.activeElement
     document.addEventListener('keydown', onKeydown)
     // Locking the body keeps the page behind from scrolling under the overlay.
@@ -750,6 +841,7 @@ watch(open, async (isOpen) => {
     lastFocused = null
   }
 })
+
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
@@ -774,7 +866,9 @@ onBeforeUnmount(() => {
       v-if="open && current"
       ref="dialog"
       class="lightbox fixed inset-0 z-[2000] overflow-hidden"
-      :style="{ opacity: dismissOpacity, ...barPadding }"
+      :style="{
+        opacity: chromeReady ? dismissOpacity : 0
+      }"
       role="dialog"
       aria-modal="true"
       :aria-label="label"
@@ -871,6 +965,7 @@ onBeforeUnmount(() => {
               />
               <img
                 v-if="preview"
+                ref="previewImage"
                 :key="`preview-${current.id ?? current.fileName}`"
                 :src="preview"
                 alt=""
@@ -1038,8 +1133,14 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <!-- Pushes the footer to the bottom now that the arrows float free. -->
-        <div class="flex-1" />
+        <!--
+          Pushes the footer to the bottom now that the arrows float free — and,
+          because it is in flow between the two bars, it *is* the space left for
+          the picture. Asking it where it ended up is how that space is learnt:
+          the browser works it out as part of laying the bars out, so the answer
+          needs no arithmetic on their heights and no second pass to correct.
+        -->
+        <div ref="band" class="flex-1" />
 
         <div
           ref="footer"

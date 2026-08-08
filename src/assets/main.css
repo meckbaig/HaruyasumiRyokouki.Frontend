@@ -317,14 +317,13 @@
   .lightbox-cell {
     container-type: size;
     /*
-      Measured from the bars rather than guessed, and deliberately the same on
-      both sides: equal padding leaves the picture centred on the window, where
-      unequal padding would centre it on the gap between the bars instead and
-      slide it up or down whenever the next file carries a longer description or
-      another row of tags. The value is the taller of the two bars, so a picture
-      that runs out of height stops at the chrome rather than under it.
+      The room the bars leave, written by the viewer once it has asked the layout
+      where the band between them ended up. Two values rather than one: the
+      picture is meant to meet each bar, and a single figure taken from the
+      taller of the two left a gap at the other.
     */
-    padding-block: var(--lb-pad, 3.5rem);
+    padding-top: var(--lb-top, 3.5rem);
+    padding-bottom: var(--lb-bottom, 3.5rem);
   }
 
   .fit-media {
@@ -372,7 +371,7 @@
   :root:not([data-motion='always']) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-property: none !important;
   }
 
   /*
