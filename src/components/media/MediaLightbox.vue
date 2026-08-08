@@ -445,6 +445,7 @@ function settleDismiss(dy, point) {
 
 function toggleUi() {
   uiVisible.value = !uiVisible.value
+  measureChrome()
 }
 
 function onPointerUp(event) {
@@ -641,7 +642,7 @@ const descriptionOverflow = ref(false)
 let chromeObserver = null
 
 /** Heights the bars settle at when nothing has stretched them. */
-const DEFAULT_BARS = 60 + 51
+const MAX_SIZE_BARS = 80 + 80
 
 /** True while the system asks for less motion and the reader has not opted back in. */
 function motionReduced() {
@@ -688,12 +689,12 @@ function settleTagOverflow() {
  */
 function exactBand() {
   // if (!motionReduced()) return null
-  // const ratio = previewAspect()
-  // if (!ratio) return null
 
-  // const available = window.innerHeight - DEFAULT_BARS
-  // if (available <= 0) return null
-  // if (ratio >= window.innerWidth / available) return null
+  const ratio = previewAspect()  
+  if (!ratio) return null
+  const available = window.innerHeight - MAX_SIZE_BARS
+  if (available <= 0) return null
+  if (ratio >= window.innerWidth / available) return null
 
   settleTagOverflow()
 
@@ -720,8 +721,8 @@ function measureChrome() {
   // expansion is meant to cover the picture, and following the bar back down
   // would drag the picture along with the collapse.
   if (root && !tagsExpanded.value && !descriptionExpanded.value && !chromeSettling) {
-    const exact = exactBand()
-    if (exact) {
+    let exact
+    if (uiVisible.value && (exact = exactBand())) {
       // The band as it is: the picture meets each bar, rather than resting
       // against the taller one and leaving the difference as a gap at the other.
       applyBand(root, exact.top, exact.bottom)

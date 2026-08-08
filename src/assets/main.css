@@ -322,8 +322,8 @@
       picture is meant to meet each bar, and a single figure taken from the
       taller of the two left a gap at the other.
     */
-    padding-top: var(--lb-top, 3.5rem);
-    padding-bottom: var(--lb-bottom, 3.5rem);
+    padding-top: var(--lb-top, 0px);
+    padding-bottom: var(--lb-bottom, 0px);
   }
 
   .fit-media {
