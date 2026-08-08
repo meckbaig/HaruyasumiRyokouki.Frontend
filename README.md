@@ -47,6 +47,8 @@ only by `vite.config.js` and never shipped.
 - `src/stores` — Pinia: auth, days cache, search cache, editor selection, UI,
   theme, motion.
 - `src/theme/themes.js` — the theme registry; see [Theming](#theming).
+- `src/services/release.js` — the release names behind the footer's version; see
+  [Versioning and releases](#versioning-and-releases).
 - `src/components` — grouped by area (`layout`, `media`, `calendar`, `map`,
   `search`, `editor`, `common`).
 - `src/views` — one per route. All are lazy; `prefetchViews()` from `src/router`
@@ -110,6 +112,39 @@ address bar.
 Deploying means copying the whole `dist/` — including the dotfile — and serving
 it from Apache with `mod_rewrite` and `AllowOverride` enabled. On another server
 the same rules transfer; only their syntax changes.
+
+## Versioning and releases
+
+The number lives in `package.json` and reaches the bundle as a build-time
+constant, so `npm version` is the whole act of releasing: it bumps the number,
+commits and tags. `src/services/release.js` turns that number into what the
+footer says, and `CHANGELOG.md` is the long form of the same list.
+
+Only feature releases carry a name, and the name is looked up by major and minor
+alone — a fix belongs to the release it follows, so patches inherit it and need
+no entry anywhere. Major zero means the site is still finding its shape; the
+`pre-release` label is derived from it rather than written down, and a later
+generation can name itself in the `STAGES` table.
+
+Hovering the version shows when the bundle was built, in the reader's own zone —
+a version alone cannot say whether what is deployed is what was last built.
+
+**A fix.** Nothing but `npm version patch`, then build and deploy.
+
+**A feature.** Order matters, so that the tag lands on a commit that already has
+everything:
+
+1. Add the name to `NAMES` in `src/services/release.js`, keyed `major.minor`.
+2. Add a section at the top of `CHANGELOG.md`.
+3. Commit those.
+4. `npm version minor` — its own commit and tag.
+5. Build and deploy.
+
+**A rework.** The same, plus a line in `STAGES` if the new generation should say
+what it is, and `npm version major`.
+
+`npm version` insists on a clean working tree and makes the commit and tag
+itself; `--no-git-tag-version` bumps without one.
 
 ## Verification
 

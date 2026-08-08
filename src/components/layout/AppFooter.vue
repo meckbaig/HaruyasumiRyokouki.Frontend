@@ -4,6 +4,7 @@ import { copyHomeUrl } from '@/services/share'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useMotionStore } from '@/stores/motion'
+import * as release from '@/services/release'
 
 const { t } = useI18n()
 const ui = useUiStore()
@@ -75,6 +76,13 @@ async function shareSite() {
         >
           {{ t('common.share') }}
         </button>
+
+        <!-- The build stamp answers what a version number cannot: whether what
+             is deployed is what was last built. Kept to the tooltip, since it
+             only matters when something looks stale. -->
+        <p class="mt-1 text-xs text-ink-faint" :title="`build ${release.build}`">
+          {{ release.label }}
+        </p>
       </div>
     </div>
   </footer>
