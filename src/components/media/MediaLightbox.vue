@@ -692,9 +692,6 @@ const descriptionOverflow = ref(false)
 
 let chromeObserver = null
 
-/** Heights the bars settle at when nothing has stretched them. */
-const MAX_SIZE_BARS = 80 + 80
-
 /** True while the system asks for less motion and the reader has not opted back in. */
 function motionReduced() {
   if (document.documentElement.dataset.motion === 'always') return false
@@ -743,14 +740,17 @@ function exactBand() {
 
   const ratio = previewAspect()  
   if (!ratio) return null
-  const available = window.innerHeight - MAX_SIZE_BARS
+
+  const rect = band.value?.getBoundingClientRect()
+  if (!rect || rect.height <= 0) return null
+
+  const barsDifference = Math.abs(Math.round(rect.top) - Math.round(window.innerHeight - rect.bottom))
+  const available = window.innerHeight - (Math.round(rect.top) + Math.round(window.innerHeight - rect.bottom)) - barsDifference
   if (available <= 0) return null
   if (ratio >= window.innerWidth / available) return null
 
   settleTagOverflow()
 
-  const rect = band.value?.getBoundingClientRect()
-  if (!rect || rect.height <= 0) return null
   return {
     top: Math.round(rect.top),
     bottom: Math.round(window.innerHeight - rect.bottom),
@@ -1176,22 +1176,29 @@ onBeforeUnmount(() => {
       <div class="pointer-events-none absolute inset-0 flex flex-col overflow-hidden">
         <div
           ref="header"
-          class="lightbox-bar flex items-start justify-between gap-4 px-4 py-3 transition-transform duration-200"
+          class="lightbox-bar flex items-start justify-between gap-4 px-3 py-2 transition-transform duration-200"
           :class="uiVisible ? 'pointer-events-auto' : '-translate-y-full'"
         >
-          <div class="min-w-0">
+          <div class="min-w-0 pt-1">
             <p class="truncate text-sm font-medium">{{ label }}</p>
-            <!-- Tapping a clipped description opens it, and again puts it back. -->
             <!--
-              A max-height transition rather than a line clamp: clamping cannot
-              be animated, and the tags beside it open the same way.
+              Tapping a clipped description opens it, and again puts it back.
+
+              Two limits at once, and each earns its place: the line clamp is
+              what ends a cut-off line in an ellipsis, and the max-height is what
+              can be animated — a clamp cannot. They agree on two lines, so the
+              clamp decides how the text looks and the height decides how it
+              moves. The height is also what the overflow check reads, which is
+              what offers the description as something to tap.
             -->
             <p
               v-if="current.description"
               ref="description"
               class="mt-1 overflow-hidden text-xs text-[var(--lb-accent)] transition-[max-height] duration-200"
               :class="[
-                descriptionExpanded ? 'max-h-[40vh] overflow-y-auto' : 'max-h-[2.25rem]',
+                descriptionExpanded
+                  ? 'line-clamp-none max-h-[40vh] overflow-y-auto'
+                  : 'line-clamp-2 max-h-[2.25rem]',
                 descriptionOverflow ? 'cursor-pointer' : '',
               ]"
               @click="toggleDescription"
