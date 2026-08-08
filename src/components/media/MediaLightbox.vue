@@ -122,6 +122,32 @@ function onPreviewLoaded(event) {
   rememberAspect(event.target)
 }
 
+/**
+ * True when the full-size picture was ready before it was ever shown — which is
+ * to say it came from cache. Nothing is gained by cross-fading then: the preview
+ * never had its turn on screen, and fading it away only holds back a picture
+ * that is already there. A file fetched over the network still gets the fade,
+ * because there the preview really was standing in for something.
+ */
+const instantSwap = ref(false)
+
+/**
+ * Shows a full-size picture the browser already had, at once and without a fade.
+ *
+ * A cached image reports `complete` as soon as its element exists, before any
+ * `load` event is dispatched — so this runs from the post-flush pass, while
+ * there is still time to decide before the first frame.
+ */
+function revealIfCached() {
+  const image = picture.value
+  if (!image?.complete || !image.naturalWidth) return
+
+  rememberAspect(image)
+  instantSwap.value = true
+  fullLoaded.value = true
+  stopSpinner()
+}
+
 async function onFullLoaded(event) {
   const image = event.target
   rememberAspect(image)
@@ -563,6 +589,7 @@ function step(delta) {
 watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
+  instantSwap.value = false
   aspect.value = null
   tagsExpanded.value = false
   descriptionExpanded.value = false
@@ -576,7 +603,16 @@ watch(current, () => {
  * handing it to a reactive value to apply on the next render, is what used to
  * let a frame out at the wrong size.
  */
-watch([open, current], () => open.value && measureChrome(), { flush: 'post' })
+watch(
+  [open, current],
+  () => {
+    if (!open.value) return
+    // Before the sizing, so a cached picture is already the one being sized.
+    revealIfCached()
+    measureChrome()
+  },
+  { flush: 'post' },
+)
 
 /*
   Chrome measurements.
@@ -971,8 +1007,12 @@ onBeforeUnmount(() => {
                 alt=""
                 aria-hidden="true"
                 draggable="false"
-                class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain transition-opacity duration-300"
-                :class="[fitClass, fullLoaded ? 'opacity-0' : 'opacity-100']"
+                class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
+                :class="[
+                  fitClass,
+                  fullLoaded ? 'opacity-0' : 'opacity-100',
+                  instantSwap ? '' : 'transition-opacity duration-300',
+                ]"
                 :style="aspectStyle"
                 @load="onPreviewLoaded"
               />
