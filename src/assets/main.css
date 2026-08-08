@@ -214,6 +214,18 @@
     color-scheme: dark;
 
     /*
+      Nothing in here is meant to be selected. Every gesture the viewer offers —
+      panning a magnified picture, dragging the strip sideways, pulling down to
+      dismiss, double-tapping to magnify — is a press and a drag, which is also
+      how a selection begins, so the browser starts one underneath and fights
+      the gesture. Mobile Firefox is the plainest case: a double tap selects
+      instead of zooming.
+    */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+
+    /*
       A theme states its lightbox colour outright with `accent-on-dark`; without
       one, `accent` is lightened to carry on black.
     */
@@ -314,16 +326,17 @@
     as it did when they were part of the layout. Zooming scales out of that box,
     so a magnified picture still reaches the edges of the screen.
   */
+  /*
+    A cell is the whole window, with no padding of its own — so scale 1 means
+    "as large as the window allows", and that is the far end of the zoom.
+
+    Clearing the bars is the transform's job instead: the viewer scales the
+    picture down and shifts it into the band between them. Keeping the layout box
+    fixed is the whole point, since padding changed the box and dragged the zoom
+    along with every change of it.
+  */
   .lightbox-cell {
     container-type: size;
-    /*
-      The room the bars leave, written by the viewer once it has asked the layout
-      where the band between them ended up. Two values rather than one: the
-      picture is meant to meet each bar, and a single figure taken from the
-      taller of the two left a gap at the other.
-    */
-    padding-top: var(--lb-top, 0px);
-    padding-bottom: var(--lb-bottom, 0px);
   }
 
   .fit-media {

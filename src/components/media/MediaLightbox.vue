@@ -203,11 +203,14 @@ const stripStyle = computed(() =>
     : undefined,
 )
 
-const zoomStyle = computed(() =>
-  zoomed.value || offsetX.value || offsetY.value
-    ? { transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value})` }
-    : undefined,
-)
+/**
+ * One scale, measured against the window: 1 fills it, less than 1 clears the
+ * bars. Nothing here depends on whether the chrome is showing, which is what
+ * keeps a toggle from disturbing the picture.
+ */
+const zoomStyle = computed(() => ({
+  transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value})`,
+}))
 
 /** Dragging down dims the surroundings, so the dismissal reads as deliberate. */
 const dismissOpacity = computed(() =>
@@ -223,19 +226,43 @@ function frameSize() {
   }
 }
 
+/**
+ * Hands the picture back to its opening fit. The numbers here are provisional —
+ * the proportions and the bars may not be known yet — and the sizing pass puts
+ * the real ones in as soon as they are.
+ */
 function resetZoom() {
   scale.value = 1
   offsetX.value = 0
   offsetY.value = 0
+  fitOffsetY.value = 0
+  atInitialFit = true
 }
 
 /** Keeps the picture from being panned out of view entirely. */
+/**
+ * Holds the picture against the edges of the window.
+ *
+ * Measured from the picture as drawn, not from the window: a portrait file fills
+ * the window's height and only a slice of its width, so bounds taken from the
+ * window let it be dragged until half the screen is empty. What may be panned is
+ * only ever the part that hangs past an edge — and an axis with nothing hanging
+ * past it does not move at all, which returns it to where the picture rests.
+ */
 function clampOffset() {
   const { width, height } = frameSize()
-  const maxX = (width * (scale.value - 1)) / 2
-  const maxY = (height * (scale.value - 1)) / 2
-  offsetX.value = Math.min(maxX, Math.max(-maxX, offsetX.value))
-  offsetY.value = Math.min(maxY, Math.max(-maxY, offsetY.value))
+  const ratio = aspect.value ?? previewAspect()
+
+  const fittedWidth = ratio ? Math.min(width, height * ratio) : width
+  const fittedHeight = ratio ? fittedWidth / ratio : height
+  const drawnWidth = fittedWidth * scale.value
+  const drawnHeight = fittedHeight * scale.value
+
+  const roomX = (drawnWidth - width) / 2
+  const roomY = (drawnHeight - height) / 2
+
+  offsetX.value = roomX > 0 ? Math.min(roomX, Math.max(-roomX, offsetX.value)) : 0
+  offsetY.value = roomY > 0 ? Math.min(roomY, Math.max(-roomY, offsetY.value)) : fitOffsetY.value
 }
 
 /** Whether a screen point lands on the picture itself rather than beside it. */
@@ -259,8 +286,13 @@ function toFramePoint(clientX, clientY) {
  * fingers stays there, which is what makes zooming feel attached to the hand.
  */
 function zoomTo(next, point) {
-  const clamped = Math.min(MAX_SCALE, Math.max(1, next))
+  // The far end is wherever the picture rests: clear of the bars while they are
+  // up, the whole window once they are away.
+  const min = restingScale.value
+  const clamped = Math.min(MAX_SCALE, Math.max(min, next))
   if (clamped === scale.value) return
+
+  atInitialFit = false
 
   if (point) {
     const ratio = clamped / scale.value
@@ -269,9 +301,10 @@ function zoomTo(next, point) {
   }
 
   scale.value = clamped
-  if (clamped === 1) {
-    offsetX.value = 0
-    offsetY.value = 0
+  if (clamped === min) {
+    // Pulled all the way back out — the picture is the viewer's to place again,
+    // so a later toggle of the chrome settles it afresh.
+    applyRestingFit()
   } else {
     clampOffset()
   }
@@ -391,6 +424,7 @@ function onPointerMove(event) {
   if (!drag.moved) return
 
   if (zoomed.value) {
+    atInitialFit = false
     offsetX.value = drag.offsetX + dx
     offsetY.value = drag.offsetY + dy
     clampOffset()
@@ -605,7 +639,9 @@ watch(current, () => {
  * let a frame out at the wrong size.
  */
 watch(
-  [open, current],
+  // `aspect` is in here because the fit cannot be worked out without it, and it
+  // usually arrives after the first pass — with the preview, a moment later.
+  [open, current, uiVisible, aspect],
   () => {
     if (!open.value) return
     // Before the sizing, so a cached picture is already the one being sized.
@@ -614,6 +650,21 @@ watch(
   },
   { flush: 'post' },
 )
+
+let restTimer = null
+
+/**
+ * Moving the chrome moves where the picture rests, so it travels there rather
+ * than jumping. Only for a picture still at rest: one the reader has zoomed is
+ * left exactly as they left it.
+ */
+watch(uiVisible, () => {
+  if (!open.value || !atInitialFit) return
+  animating.value = true
+  clearTimeout(restTimer)
+  restTimer = setTimeout(() => (animating.value = false), ANIM_MS)
+})
+
 
 /*
   Chrome measurements.
@@ -708,10 +759,69 @@ function exactBand() {
 
 const chromeReady = ref(false)
 
-/** Hands the cells the room the bars need, as one write before the frame. */
-function applyBand(root, top, bottom) {
-  root.style.setProperty('--lb-top', `${top}px`)
-  root.style.setProperty('--lb-bottom', `${bottom}px`)
+/*
+  Where the picture rests, and how far back it can be pulled.
+
+  The cell is the whole window, so the browser lays the picture out as large as
+  the window allows — scale 1 means exactly that. `uiFitScale` is how much
+  smaller it has to be to clear the bars, and `bandOffsetY` how far to shift it
+  to sit in the middle of the band rather than the middle of the window. Both
+  come from where the bars sit in the layout, which does not change when they
+  slide out of sight.
+
+  The resting fit then follows the chrome: with the bars up it is the fit under
+  them, with the bars away it is the window. That resting fit is both where a
+  file opens and the far end of the zoom.
+
+  A reader who has zoomed is left alone — their picture keeps its size through a
+  toggle, and only the limit beneath them moves. Pulling all the way back out
+  hands them to the resting fit again.
+*/
+const uiFitScale = ref(1)
+const bandOffsetY = ref(0)
+/** Where the picture rests, and what panning is measured around. */
+const fitOffsetY = ref(0)
+/** False once the reader has taken the zoom into their own hands. */
+let atInitialFit = true
+
+/** Scale at which the picture rests: clear of the bars, or filling the window. */
+const restingScale = computed(() => (uiVisible.value ? uiFitScale.value : 1))
+const restingOffsetY = computed(() => (uiVisible.value ? bandOffsetY.value : 0))
+
+function measureBand() {
+  const exact = exactBand()
+  const top = exact?.top ?? 0
+  const bottom = exact?.bottom ?? 0
+
+  const height = window.innerHeight
+  const width = window.innerWidth
+  const band = height - top - bottom
+  // The preview knows its proportions before `aspect` has been told them, and
+  // at the moment this first runs that is usually the only place to ask.
+  const ratio = aspect.value ?? previewAspect()
+
+  if (!ratio || band <= 0) {
+    uiFitScale.value = 1
+    bandOffsetY.value = 0
+    return
+  }
+
+  // Widths of the picture fitted to the window and fitted to the band; their
+  // ratio is what the bars cost.
+  const toWindow = Math.min(width, height * ratio)
+  const toBand = Math.min(width, band * ratio)
+
+  uiFitScale.value = toWindow > 0 ? toBand / toWindow : 1
+  bandOffsetY.value = (top - bottom) / 2
+}
+
+/** Settles the picture at rest for the chrome as it currently stands. */
+function applyRestingFit() {
+  scale.value = restingScale.value
+  fitOffsetY.value = restingOffsetY.value
+  offsetX.value = 0
+  offsetY.value = fitOffsetY.value
+  atInitialFit = true
 }
 
 function measureChrome() {
@@ -721,16 +831,13 @@ function measureChrome() {
   // expansion is meant to cover the picture, and following the bar back down
   // would drag the picture along with the collapse.
   if (root && !tagsExpanded.value && !descriptionExpanded.value && !chromeSettling) {
-    let exact
-    if (uiVisible.value && (exact = exactBand())) {
-      // The band as it is: the picture meets each bar, rather than resting
-      // against the taller one and leaving the difference as a gap at the other.
-      applyBand(root, exact.top, exact.bottom)
-      chromeReady.value = true
-    } else {
-      applyBand(root, 0, 0)
-      chromeReady.value = true
-    }
+    measureBand()
+    // Only until the reader takes over. After that the numbers above are just
+    // the limit their zoom is held to.
+    if (atInitialFit) applyRestingFit()
+    else clampOffset()
+
+    chromeReady.value = true
   }
 
   const tags = tagList.value
@@ -841,6 +948,7 @@ function onKeydown(event) {
 }
 
 function resetGestures() {
+  clearTimeout(restTimer)
   pointers.clear()
   drag = null
   pinch = null
