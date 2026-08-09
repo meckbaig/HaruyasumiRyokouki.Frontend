@@ -43,6 +43,11 @@ function apply(theme) {
   root.style.colorScheme = theme.scheme ?? 'light'
   // Kept as a styling/debug hook even though colours ride on the inline vars.
   root.setAttribute('data-theme', theme.id)
+
+  // Installed as an app, the browser paints its own surround in this colour. A
+  // fixed one would frame a black theme in cream.
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta && theme.colors?.paper) meta.setAttribute('content', theme.colors.paper)
 }
 
 /**

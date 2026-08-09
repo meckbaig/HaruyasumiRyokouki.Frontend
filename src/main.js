@@ -44,3 +44,18 @@ router.isReady().then(() => {
 app.mount('#app')
 
 prefetchViews()
+
+/*
+  Registers the service worker, which is what lets a browser offer to install the
+  site as an app. Production only: in development the dev server owns the
+  requests, and a worker sitting in front of it only confuses reloading.
+
+  The worker itself caches nothing — see public/sw.js for why.
+*/
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // An unavailable worker costs the install prompt and nothing else.
+    })
+  })
+}

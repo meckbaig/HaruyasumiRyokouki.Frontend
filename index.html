@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- seo:start -->
-    <title>Spring Break — Three months across Japan</title>
+    <title>Spring Break - Three months across Japan</title>
     <meta
       name="description"
       content="A timeline of a three-month trip across Japan — notes, photos, video and a map, day by day."
@@ -21,6 +21,12 @@
     <meta property="og:locale" content="en_US" />
     <meta name="twitter:card" content="summary" />
     <!-- seo:end -->
+
+    <!-- Installable as an app: the manifest names it and the worker registered
+         from main.js is what makes a browser offer to install it. The theme
+         colour follows the palette at runtime (services/head.js), so the two
+         here are only what a browser sees before any script has run. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
 
     <!-- The drawing itself where a browser will take it, and a raster behind it
          for those that will not. Order matters: a browser picks the last icon it
