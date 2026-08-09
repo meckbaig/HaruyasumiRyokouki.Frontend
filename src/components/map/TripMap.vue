@@ -50,6 +50,61 @@ function locatedMedia() {
 }
 
 /**
+ * The picture at the top of a popup, brought up the same way the grid brings up
+ * a tile: the inline miniature first, blurred because it is tiny, and the
+ * preview fading in over it once it arrives.
+ *
+ * The box is square because the miniature is: the server has already cropped it
+ * to a square, and cropping that again to a landscape strip threw away the sides
+ * of a picture that had none left to spare — a horizontal file arrived looking
+ * zoomed in twice over. A square asks each layer for exactly the shape it has.
+ */
+function buildThumbnail(item) {
+  const miniature = miniatureSrc(item)
+  const preview = previewSrc(item)
+  if (!miniature && !preview) return null
+
+  const box = document.createElement('div')
+  box.className = 'relative mb-2 aspect-square w-full overflow-hidden rounded'
+
+  if (preview) {
+    const image = document.createElement('img')
+    image.src = preview
+    image.alt = item.title || item.fileName || ''
+    image.loading = 'lazy'
+    image.decoding = 'async'
+    image.className = 'h-full w-full object-cover'
+    box.append(image)
+
+    if (miniature) {
+      const placeholder = document.createElement('img')
+      placeholder.src = miniature
+      placeholder.alt = ''
+      placeholder.setAttribute('aria-hidden', 'true')
+      // Scaled past the blur radius, or its softened edges let the empty box
+      // behind show through at the corners.
+      placeholder.className =
+        'absolute inset-0 h-full w-full scale-105 object-cover blur-[5px] transition-opacity duration-300'
+      box.append(placeholder)
+
+      // The preview sits underneath at full opacity and the miniature fades off
+      // it, so one of the two is always solid and the swap never flashes.
+      image.addEventListener('load', () => (placeholder.style.opacity = '0'), { once: true })
+    }
+
+    return box
+  }
+
+  const only = document.createElement('img')
+  only.src = miniature
+  only.alt = ''
+  only.setAttribute('aria-hidden', 'true')
+  only.className = 'h-full w-full scale-105 object-cover blur-[5px]'
+  box.append(only)
+  return box
+}
+
+/**
  * Builds the popup as real DOM rather than an HTML string, so a title or file
  * name can never be interpreted as markup.
  */
@@ -57,17 +112,8 @@ function buildPopup(item) {
   const root = document.createElement('div')
   root.className = 'w-44'
 
-  // `/media/locations` returns no preview URLs, so map-wide points have no
-  // thumbnail; a day's own points come from MediaFileDto and do.
-  const thumb = previewSrc(item) || miniatureSrc(item)
-  if (thumb) {
-    const image = document.createElement('img')
-    image.src = thumb
-    image.alt = item.title || item.fileName || ''
-    image.loading = 'lazy'
-    image.className = 'mb-2 h-32 w-full rounded object-cover'
-    root.append(image)
-  }
+  const thumbnail = buildThumbnail(item)
+  if (thumbnail) root.append(thumbnail)
 
   const caption = document.createElement('p')
   caption.className = 'text-xs font-medium'
