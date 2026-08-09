@@ -4,6 +4,21 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero says
 the site is still finding its shape.
 
+## 0.9.0 — pre-release: an app with a face
+
+The site can be installed on a phone and kept on the home screen, where it opens
+without browser chrome around it. It also gained a logo — which in the Japanese
+version stands in for the first character of the name and reads as part of it.
+
+- Tapping the picture while it is still loading no longer closes the viewer
+- On mobile, tapping beside the picture hides the interface instead of closing
+- Nothing spins over a picture on mobile — the wait is short and the preview is
+  already there
+- A larger target for the handle that opens the tag list
+- Map thumbnails are built the same way as everywhere else with blurred miniatures
+- The day and map pages stay where they were opened rather than jumping to the
+  calendar on refresh
+
 ## 0.8.0 — pre-release: zoom-based framing
 
 The viewer stopped reserving room for its bars with padding and started framing
