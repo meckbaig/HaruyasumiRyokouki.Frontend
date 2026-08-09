@@ -73,7 +73,14 @@ function scrollToAnchor() {
   const target = container.querySelector(`[data-month="${anchorMonth}"]`)
   if (!target) return
 
-  target.scrollIntoView({ block: 'nearest', inline: 'center' })
+  /*
+    The ribbon is scrolled by hand rather than by `scrollIntoView`. That asks the
+    browser to bring an element into view and it obliges with every scrollable
+    ancestor, the page included — so on a fresh day or map page, where the
+    calendar sits below the fold, arranging the ribbon dragged the reader down to
+    it and away from the content they came for.
+  */
+  container.scrollLeft = target.offsetLeft - (container.clientWidth - target.clientWidth) / 2
   updateArrows()
 }
 

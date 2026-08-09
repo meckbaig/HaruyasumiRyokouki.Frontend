@@ -25,7 +25,7 @@ async function shareSite() {
 <template>
   <footer class="mt-12 border-t border-edge">
     <div
-      class="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between"
+      class="mx-auto flex max-w-6xl flex-col gap-1 px-3 py-2 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between"
     >
       <div class="max-w-prose">
         <p>{{ t('footer.aboutText') }}</p>
@@ -56,26 +56,28 @@ async function shareSite() {
       </div>
 
       <div class="shrink-0 sm:text-left">
-        <p>
-          {{ t('footer.developer') }}:
-          <a
-            v-if="authorGithub"
-            :href="authorGithub"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-ink underline decoration-edge underline-offset-4 transition hover:decoration-ink-faint"
+        <div class="flex justify-between">
+          <p>
+            {{ t('footer.developer') }}:
+            <a
+              v-if="authorGithub"
+              :href="authorGithub"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-ink underline decoration-edge underline-offset-4 transition hover:decoration-ink-faint"
+            >
+              {{ authorName }}
+            </a>
+            <span v-else class="text-ink">{{ authorName }}</span>
+          </p>
+          <button
+            type="button"
+            class="text-xs mt-0.5 text-ink-faint underline decoration-edge underline-offset-4 transition hover:text-ink hover:decoration-ink-faint"
+            @click="shareSite"
           >
-            {{ authorName }}
-          </a>
-          <span v-else class="text-ink">{{ authorName }}</span>
-        </p>
-        <button
-          type="button"
-          class="mt-1 text-xs text-ink-faint underline decoration-edge underline-offset-4 transition hover:text-ink hover:decoration-ink-faint"
-          @click="shareSite"
-        >
-          {{ t('common.share') }}
-        </button>
+            {{ t('common.share') }}
+          </button>
+        </div>
 
         <!-- The build stamp answers what a version number cannot: whether what
              is deployed is what was last built. Kept to the tooltip, since it

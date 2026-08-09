@@ -10,6 +10,7 @@ import {
   streamSrc,
 } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
+import { isMobileLayout } from '@/services/display'
 import TagChip from './TagChip.vue'
 
 const props = defineProps({
@@ -70,6 +71,15 @@ function stopSpinner() {
 function armSpinner() {
   stopSpinner()
   if (!fullScreen.value) return
+
+  /*
+    Not on a phone. The wait there is longer — a mobile connection fetching a
+    full-size picture — and the difference the picture gains over the preview
+    already standing in for it is smaller on a small screen. A spinner would
+    mostly be something to watch, so the swap is left to happen quietly.
+  */
+  if (isMobileLayout()) return
+
   spinnerTimer = setTimeout(() => {
     if (!fullLoaded.value && !fullFailed.value) showSpinner.value = true
   }, SPINNER_DELAY)
@@ -265,10 +275,26 @@ function clampOffset() {
   offsetY.value = roomY > 0 ? Math.min(roomY, Math.max(-roomY, offsetY.value)) : fitOffsetY.value
 }
 
+/**
+ * The box of the picture as it is drawn at this moment.
+ *
+ * Which element that is changes while a file is arriving. `.fit-media` gives an
+ * image a width and lets its height follow its proportions — so the full-size
+ * element, before its bytes land, has no proportions to be sized by and its box
+ * is flat. Measuring it then put every tap beside the picture. The preview
+ * standing in for it is the layer actually on screen, so it is the one to ask
+ * until the full-size picture takes over.
+ */
+function pictureRect() {
+  const drawn = (!fullLoaded.value && previewImage.value) || picture.value
+  const rect = drawn?.getBoundingClientRect()
+  return rect?.width && rect?.height ? rect : null
+}
+
 /** Whether a screen point lands on the picture itself rather than beside it. */
 function isOnPicture(clientX, clientY) {
-  const rect = picture.value?.getBoundingClientRect()
-  if (!rect || !rect.width || !rect.height) return false
+  const rect = pictureRect()
+  if (!rect) return false
   return (
     clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
   )
@@ -479,7 +505,6 @@ function settleDismiss(dy, point) {
 
 function toggleUi() {
   uiVisible.value = !uiVisible.value
-  measureChrome()
 }
 
 function onPointerUp(event) {
@@ -519,21 +544,24 @@ function onPointerUp(event) {
     return
   }
 
-  // A tap on the picture hides the chrome; a tap on the empty space beside it
-  // closes the viewer, which is what that space did before it became one
+  // A click on the picture hides the chrome; a click on the empty space beside
+  // it closes the viewer, which is what that space did before it became one
   // continuous surface.
   //
   // Hit-tested against the image's box rather than read from `event.target`:
-  // the frame captures the pointer so that a pan survives the finger leaving it,
+  // the frame captures the pointer so that a pan survives the cursor leaving it,
   // and capture retargets every later event to the frame itself — so the target
-  // was never the picture, and every tap read as a tap on empty space.
-  if (!isOnPicture(event.clientX, event.clientY)) {
-    close({ ghostAt: pointerType === 'mouse' ? null : { x: event.clientX, y: event.clientY } })
-    return
-  }
-
+  // was never the picture, and every click read as a click on empty space.
+  //
+  // A finger is told nothing of the sort: it can only ever hide the chrome, and
+  // where it lands does not matter. A phone gives the picture the whole screen
+  // and leaves only slivers beside it, so a tap that misses is a tap that was
+  // meant for the picture — closing on it dismissed the viewer by accident far
+  // more often than on purpose. The close button and the downward pull are what
+  // remain, and both are deliberate.
   if (pointerType === 'mouse') {
-    toggleUi()
+    if (isOnPicture(event.clientX, event.clientY)) toggleUi()
+    else close()
     return
   }
 
@@ -1306,11 +1334,16 @@ onBeforeUnmount(() => {
           <!--
             Offered only when the tags do not fit. Answers a press or a pull:
             up opens the list, down folds it back to two rows.
+
+            The pill is small but what answers a finger is not: the padding
+            reaches well out to either side and up over the picture, where there
+            is nothing to hit by mistake. It stays shallow below, because that is
+            where the tags themselves begin.
           -->
           <button
             v-if="tagsOverflow"
             type="button"
-            class="absolute left-1/2 top-1 -translate-x-1/2 px-6 py-1"
+            class="absolute -top-2 left-1/2 -translate-x-1/2 px-10 pb-2 pt-4"
             :aria-expanded="tagsExpanded"
             :aria-label="t('media.moreTags')"
             @pointerdown="onHandleDown"

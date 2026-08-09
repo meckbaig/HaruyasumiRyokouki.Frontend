@@ -6,6 +6,14 @@
  * it can know: the pixel density and the screen size.
  */
 
+/** Where the layout switches to its narrow form; Tailwind's `sm`. */
+export const MOBILE_QUERY = '(max-width: 640px)'
+
+/** True while the site is in its mobile layout. */
+export function isMobileLayout() {
+  return Boolean(window.matchMedia?.(MOBILE_QUERY).matches)
+}
+
 /**
  * Shorter side of the drawable area, in CSS pixels — the same unit space as
  * `devicePixelRatio`, so `min-side * dpr` is the real device pixel count.
