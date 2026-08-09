@@ -39,12 +39,19 @@ function signOut() {
 
 <template>
   <header class="sticky top-0 z-30 border-b border-edge bg-paper/85 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+    <div class="mx-auto flex max-w-6xl items-center gap-4 px-3 py-1">
+      <!--
+        Below `md` the mark stands on its own: the title is three columns of
+        Japanese and the bar has a search field and two menu buttons to fit
+        beside it. The link keeps its full name for anyone not reading it by eye.
+      -->
       <RouterLink
         :to="{ name: 'home' }"
-        class="shrink-0 text-sm font-semibold tracking-tight text-ink my-2"
+        class="my-2 flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-ink"
+        :aria-label="t('app.title')"
       >
-        {{ t('app.title') }}
+        <img src="/haru-logo.svg" alt="" aria-hidden="true" class="h-7 w-7 shrink-0" />
+        <span class="hidden md:inline">{{ t('app.title') }}</span>
       </RouterLink>
 
       <!-- Desktop: inline search. -->

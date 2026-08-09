@@ -21,6 +21,15 @@
     <meta property="og:locale" content="en_US" />
     <meta name="twitter:card" content="summary" />
     <!-- seo:end -->
+
+    <!-- The drawing itself where a browser will take it, and a raster behind it
+         for those that will not. Order matters: a browser picks the last icon it
+         understands, so the fallback is declared as `alternate`. -->
+    <link rel="icon" href="/haru-logo.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="/icon-192.png" type="image/png" />
+    <!-- Safari takes no SVG here. -->
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="theme-color" content="#faf8f5" />
   </head>
   <body>
     <div id="app"></div>
