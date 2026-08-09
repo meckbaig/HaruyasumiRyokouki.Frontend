@@ -16,6 +16,23 @@ const auth = useAuthStore()
 // would just be noise.
 const showSearch = computed(() => route.name !== 'home')
 
+/** The character drawn on the logo. */
+const LOGO_GLYPH = '春'
+
+/**
+ * The Japanese title opens with the very character the logo draws — 春休み旅行記
+ * against a mark reading 春 — so the mark is read as the first character and the
+ * word carries on from it. The rest of the title is what goes beside it.
+ *
+ * Decided by looking at the title rather than at the locale, so a rewritten
+ * Japanese name that no longer begins with the glyph simply stops being trimmed
+ * instead of losing a character it needed. The other locales never match.
+ */
+const titleContinuesLogo = computed(() => t('app.title').startsWith(LOGO_GLYPH))
+const headerTitle = computed(() =>
+  titleContinuesLogo.value ? t('app.title').slice(LOGO_GLYPH.length) : t('app.title'),
+)
+
 // Mobile-only overlays. On desktop everything stays inline.
 const menuOpen = ref(false)
 const searchOpen = ref(false)
@@ -41,17 +58,22 @@ function signOut() {
   <header class="sticky top-0 z-30 border-b border-edge bg-paper/85 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center gap-4 px-3 py-1">
       <!--
-        Below `md` the mark stands on its own: the title is three columns of
-        Japanese and the bar has a search field and two menu buttons to fit
-        beside it. The link keeps its full name for anyone not reading it by eye.
+        The name drops out only between `sm` and `md`: that is where the search
+        field moves into the bar but the bar is not yet wide enough to carry
+        both. Below `sm` the search is a button again and the name fits, above
+        `md` there is room for everything.
+
+        `aria-label` carries the full title regardless — of the breakpoint, and
+        of the character the logo has taken over.
       -->
       <RouterLink
         :to="{ name: 'home' }"
-        class="my-2 flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight text-ink"
+        class="my-2 flex shrink-0 items-center text-sm font-semibold tracking-tight text-ink"
+        :class="titleContinuesLogo ? 'gap-0' : 'gap-2'"
         :aria-label="t('app.title')"
       >
         <img src="/haru-logo.svg" alt="" aria-hidden="true" class="h-7 w-7 shrink-0" />
-        <span class="hidden md:inline">{{ t('app.title') }}</span>
+        <span class="inline sm:hidden md:inline">{{ headerTitle }}</span>
       </RouterLink>
 
       <!-- Desktop: inline search. -->
