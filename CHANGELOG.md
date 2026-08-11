@@ -4,6 +4,24 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero says
 the site is still finding its shape.
 
+## 0.10.0 — pre-release: favorites and links to a photo
+
+The front page opens with a wall of photos picked out by hand, drifting past and
+opening into the viewer as one album. And a photo is now something a link can
+point at: shared, it arrives outlined among its neighbours, or already open.
+
+- A right-click on a photo offers a link to it, and the viewer has a share
+  button of its own
+- A photo arrived at by link is outlined until the next click anywhere
+- "Open the day" carries the photo with it, from the viewer and from the map
+- The map opens full screen, where the wheel zooms without holding Ctrl
+- Photos open at their true size at once, over a blurred stand-in rather than
+  over black — and video stopped sliding under the viewer's bars
+- Map popups show a wider picture again
+- The theme menu no longer hides behind the map
+- A star on each file marks it for the front page (only for admins)
+- "Pending" page now shows dates on each media (only for admins)
+
 ## 0.9.0 — pre-release: an app with a face
 
 The site can be installed on a phone and kept on the home screen, where it opens
