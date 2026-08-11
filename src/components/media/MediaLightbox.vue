@@ -112,7 +112,7 @@ function stopSpinner() {
 
 function armSpinner() {
   stopSpinner()
-  if (!fullScreen.value) return
+  if (!fullScreen.value || fullLoaded.value) return
 
   /*
     Not on a phone. The wait there is longer — a mobile connection fetching a
@@ -193,30 +193,71 @@ async function onPreviewLoaded(event) {
   if (await revealWhenDecoded(image)) previewLoaded.value = true
 }
 
-/**
- * True when the full-size picture was ready before it was ever shown — which is
- * to say it came from cache. Nothing is gained by cross-fading then: the preview
- * never had its turn on screen, and fading it away only holds back a picture
- * that is already there. A file fetched over the network still gets the fade,
- * because there the preview really was standing in for something.
- */
+/*
+  Layers the browser already has.
+
+  A stand-in earns its place only while there is nothing better to show. If the
+  full-size file is already in cache the preview is never wanted; if the preview
+  is, the miniature is never wanted — and "never wanted" has to mean never
+  painted, not painted and then faded away. A layer that gets its turn and is
+  then taken back is worse than one that never appeared: what the reader sees is
+  a sharp picture going soft and clearing again.
+
+  So each layer is asked about before the first render rather than after it, and
+  a layer that was superseded before it was ever seen is also denied its fade —
+  there is nothing to fade from.
+*/
+
+/** Whether the browser can paint this URL with no request of its own. */
+function isCached(url) {
+  if (!url) return false
+  // A detached element answers straight away for anything in the memory cache.
+  // Anything it does not know about simply keeps its stand-in, which is the
+  // conservative way round.
+  const probe = new Image()
+  probe.src = url
+  return probe.complete && probe.naturalWidth > 0
+}
+
+/** The preview was superseded before it was shown, so it swaps without a fade. */
 const instantSwap = ref(false)
+/** The same, for the miniature under it. */
+const groundInstant = ref(false)
+
+/** Marks every layer a ready one stands on as done with, fades and all. */
+function settleLayers({ full = false, preview = false }) {
+  if (full) {
+    fullLoaded.value = true
+    instantSwap.value = true
+    stopSpinner()
+  }
+  if (full || preview) {
+    previewLoaded.value = true
+    groundInstant.value = true
+  }
+}
 
 /**
- * Shows a full-size picture the browser already had, at once and without a fade.
+ * Second chance at the same question, once the elements exist.
  *
- * A cached image reports `complete` as soon as its element exists, before any
- * `load` event is dispatched — so this runs from the post-flush pass, while
- * there is still time to decide before the first frame.
+ * `isCached` answers for the memory cache; an image held only on disk reports
+ * nothing until its element is in the document, and then reports `complete`
+ * before any `load` event is dispatched. Running from the post-flush pass
+ * catches those while there is still time to decide before the first frame.
  */
 function revealIfCached() {
-  const image = picture.value
-  if (!image?.complete || !image.naturalWidth) return
+  const full = picture.value
+  if (full?.complete && full.naturalWidth) {
+    rememberAspect(full)
+    settleLayers({ full: true })
+    return
+  }
 
-  rememberAspect(image)
-  instantSwap.value = true
-  fullLoaded.value = true
-  stopSpinner()
+  const preview = previewImage.value
+  if (preview?.complete && preview.naturalWidth) {
+    rememberAspect(preview)
+    settleLayers({ preview: true })
+  }
 }
 
 async function onFullLoaded(event) {
@@ -715,6 +756,13 @@ watch(current, () => {
   fullFailed.value = false
   previewLoaded.value = false
   instantSwap.value = false
+  groundInstant.value = false
+  // Asked before this file has been rendered even once, so a layer the browser
+  // already holds is never given a frame it would have to be taken back out of.
+  settleLayers({
+    full: isCached(fullScreen.value),
+    preview: isCached(preview.value),
+  })
   aspect.value = mediaAspect(current.value)
   tagsExpanded.value = false
   descriptionExpanded.value = false
@@ -1277,8 +1325,12 @@ onBeforeUnmount(() => {
 
               <div
                 v-if="miniature"
-                class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden transition-opacity duration-300"
-                :class="[fitClass, previewLoaded || fullLoaded ? 'opacity-0' : 'opacity-100']"
+                class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+                :class="[
+                  fitClass,
+                  previewLoaded || fullLoaded ? 'opacity-0' : 'opacity-100',
+                  groundInstant ? '' : 'transition-opacity duration-300',
+                ]"
                 :style="fitBoxStyle"
                 aria-hidden="true"
               >
