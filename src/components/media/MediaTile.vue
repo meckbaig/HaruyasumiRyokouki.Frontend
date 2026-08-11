@@ -3,7 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
+import { toggleFavorite } from '@/services/favorites'
 import { useEditorStore } from '@/stores/editor'
+import { useUiStore } from '@/stores/ui'
 
 const props = defineProps({
   media: { type: Object, required: true },
@@ -20,6 +22,7 @@ const emit = defineEmits(['open', 'edit'])
 
 const { t } = useI18n()
 const editor = useEditorStore()
+const ui = useUiStore()
 
 const video = computed(() => isVideo(props.media))
 const selected = computed(() => editor.isSelected(props.media.id))
@@ -65,6 +68,29 @@ const outlineClass = computed(() => {
   return 'ring-1 ring-edge'
 })
 
+/*
+  The front-page mark.
+
+  Sits opposite the pencil and appears the same way, with one difference: a file
+  already marked keeps its star on show. The mark is the answer to "what have I
+  picked out?", and a mark that only appears under the cursor cannot be scanned
+  — nor reached at all on a phone, where nothing hovers.
+*/
+const favorite = computed(() => props.media.favorite === true)
+const marking = ref(false)
+
+async function mark() {
+  if (marking.value) return
+  marking.value = true
+  try {
+    await toggleFavorite(props.media)
+  } catch (error) {
+    ui.notify(error?.detail || error?.title || t('errors.generic'), 'error')
+  } finally {
+    marking.value = false
+  }
+}
+
 /**
  * Plain activation only. The press-and-drag paint gesture and the long-press
  * that enters selection mode both live in MediaGrid, which owns the pointer
@@ -81,7 +107,7 @@ function activate() {
 </script>
 
 <template>
-  <div class="group relative">
+  <div class="group relative" :data-media-id="media.id">
     <!-- `touch-pan-y`, not `touch-none`: the browser must keep handling vertical
          scrolling, or a finger landing on a tile pins the page. The paint
          gesture only needs the long press and the horizontal axis. -->
@@ -172,6 +198,35 @@ function activate() {
           </svg>
         </span>
       </div>
+    </button>
+
+    <!--
+      Star on the left, pencil on the right. A marked file shows its star at all
+      times; an unmarked one offers it the way the pencil is offered.
+    -->
+    <button
+      v-if="editable && !editor.selectionMode"
+      type="button"
+      class="absolute left-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 shadow-sm transition focus-visible:opacity-100 group-hover:opacity-100"
+      :class="favorite ? 'text-star opacity-100' : 'text-ink opacity-0'"
+      :aria-busy="marking"
+      :aria-pressed="favorite"
+      :aria-label="favorite ? t('media.unfavorite') : t('media.favorite')"
+      @click.stop="mark"
+    >
+      <svg
+        class="h-3.5 w-3.5"
+        viewBox="0 0 16 16"
+        :fill="favorite ? 'currentColor' : 'none'"
+        stroke="currentColor"
+        stroke-width="1.4"
+        aria-hidden="true"
+      >
+        <path
+          d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"
+          stroke-linejoin="round"
+        />
+      </svg>
     </button>
 
     <!-- Pencil stays hidden until hover or keyboard focus, per the brief. -->

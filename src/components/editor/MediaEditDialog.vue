@@ -51,6 +51,7 @@ const activeLang = ref(ui.locale)
 const coords = ref(null)
 const coordsTouched = ref(false)
 const approved = ref(true)
+const favorite = ref(false)
 const autoTranslate = ref(false)
 const saving = ref(false)
 const error = ref(null)
@@ -231,8 +232,10 @@ watch(
       prefillSelected(single.value)
     }
 
-    // Single: prefill approval and the current coordinate. Bulk: start neutral.
+    // Single: prefill approval, the mark and the current coordinate. Bulk:
+    // start neutral — there an unticked box means "leave these alone".
     approved.value = !isBulk.value
+    favorite.value = !isBulk.value && single.value?.favorite === true
     coords.value =
       !isBulk.value &&
       Number.isFinite(single.value?.latitude) &&
@@ -283,10 +286,15 @@ function buildChanges() {
       changes.longitude = coords.value.lng
     }
     if (approved.value) changes.isApproved = true
+    // Same rule as approval: a bulk tick marks the whole selection, an untouched
+    // box leaves each file as it was. Taking a mark off is the star's job, one
+    // file at a time — which is also the only place it is ever wanted.
+    if (favorite.value) changes.favorite = true
   } else {
     changes.latitude = coords.value?.lat ?? null
     changes.longitude = coords.value?.lng ?? null
     changes.isApproved = approved.value
+    changes.favorite = favorite.value
   }
   return changes
 }
@@ -390,6 +398,14 @@ async function save() {
         <input v-model="approved" type="checkbox" class="rounded border-edge" />
         {{ t('editor.approved') }}
       </label>
+
+      <div>
+        <label class="flex items-center gap-2 text-sm text-ink-soft">
+          <input v-model="favorite" type="checkbox" class="rounded border-edge" />
+          {{ t('editor.favorite') }}
+        </label>
+        <p v-if="isBulk" class="field-hint">{{ t('editor.favoriteBulkHint') }}</p>
+      </div>
 
       <div>
         <label class="flex items-center gap-2 text-sm text-ink-soft">

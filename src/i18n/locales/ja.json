@@ -77,7 +77,9 @@
     "next": "次のファイル",
     "close": "閉じる",
     "showMore": "もっと見る",
-    "shownOf": "{total}件中{shown}件を表示"
+    "shownOf": "{total}件中{shown}件を表示",
+    "favorite": "トップページに掲載",
+    "unfavorite": "トップページから外す"
   },
   "language": {
     "label": "言語",
@@ -156,7 +158,9 @@
     "collapseMap": "地図を縮小",
     "clearPoint": "ピンを削除",
     "neighborPoints": "前後の日の地点",
-    "dayThumbs": "この日の写真"
+    "dayThumbs": "この日の写真",
+    "favorite": "お気に入り — トップページに表示",
+    "favoriteBulkHint": "チェックすると選択したすべてのファイルに印が付きます。印を外すのはファイル上の星から。"
   },
   "footer": {
     "about": "このサイトについて",
@@ -174,5 +178,8 @@
   "notFound": {
     "title": "ページが見つかりません",
     "back": "ホームへ"
+  },
+  "home": {
+    "showcase": "お気に入り"
   }
 }

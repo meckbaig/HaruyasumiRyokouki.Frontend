@@ -13,6 +13,9 @@
   --color-edge: #e5e0d8;
   --color-accent: #b3403f;
   --color-accent-soft: #f2dede;
+  /* The front-page mark. A star reads as gold in every palette, so this one is
+     deliberately not themed — themes may still override it like any token. */
+  --color-star: #e0a419;
 
   --font-sans: 'Inter', 'Noto Sans JP', ui-sans-serif, system-ui, sans-serif;
 }
@@ -337,6 +340,48 @@
   */
   .lightbox-cell {
     container-type: size;
+  }
+
+  /*
+    The front-page wall (components/media/FavoritesShowcase.vue).
+
+    Its own scrollbar is hidden: the wall drifts by itself and is pushed by hand,
+    and a bar under it would read as a control for something that is already
+    moving. Nothing is hidden by hiding it — every picture also opens from a day.
+  */
+  .showcase-track {
+    scrollbar-width: none;
+    /* The drift writes scrollLeft every frame; snapping would fight it, and so
+       would smooth scrolling inherited from <html>. */
+    scroll-behavior: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .showcase-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+    Pictures fade out at both edges instead of being cut off, so the wall reads
+    as continuing past the page. A mask rather than a gradient overlay: the page
+    behind is themed, and painting paper-coloured gradients over it would be
+    wrong the moment a theme changed.
+  */
+  .showcase-edge {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 3rem,
+      #000 calc(100% - 3rem),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 3rem,
+      #000 calc(100% - 3rem),
+      transparent
+    );
   }
 
   .fit-media {

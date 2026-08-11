@@ -57,6 +57,31 @@ export function editMedia(ids, changes, { autoTranslate = false } = {}) {
   })
 }
 
+/**
+ * Marks one file for the front page, or takes the mark off.
+ *
+ * A PATCH carrying nothing but `favorite`: every other field is left out, which
+ * is what tells the backend to leave it alone. Editor-only.
+ */
+export function setFavorite(id, favorite) {
+  return editMedia([id], { favorite })
+}
+
+/**
+ * GET /v1/media/favorites -> MediaFileDto[].
+ *
+ * The files picked out for the front page. The backend shuffles them and caps
+ * the count, so the order is different on every visit and nothing here sorts or
+ * trims. Public.
+ *
+ * They arrive loose rather than inside their days, so each one's day comes from
+ * its own `created` timestamp (`mediaDate` in services/mediaAssets).
+ */
+export async function fetchFavoriteMedia(signal) {
+  const data = await request('/media/favorites', { signal })
+  return data?.items ?? []
+}
+
 /** DELETE /v1/media/{mediaId}. Irreversible — always confirm first. */
 export function deleteMedia(mediaId) {
   return request(`/media/${mediaId}`, {

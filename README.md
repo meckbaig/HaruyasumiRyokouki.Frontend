@@ -72,6 +72,13 @@ A few expectations are documented at their call sites and worth knowing up front
   `{ download, preview, fullScreen }`, `videoUrls` carries
   `{ download, stream, preview }`, and every file ships a `miniature` — a base64
   square used as an instant placeholder (`services/mediaAssets.js`).
+- **Favourites** are the files shown on the front page. `favorite` rides on both
+  media models but is `null` for anyone not signed in, so the star on a tile is
+  editor-only; marking one is a PATCH carrying nothing but `favorite`, and the
+  new value is written back onto the cached object rather than refetched
+  (`services/favorites.js`). `GET /v1/media/favorites` returns them shuffled and
+  capped by the backend, with no day around them — each one's day comes from its
+  own `created` timestamp.
 - **Search** returns days; a day matched through media carries only the matching
   files, a day matched through its note alone carries none. Splitting into the
   Media/Notes tabs and highlighting are done on the client

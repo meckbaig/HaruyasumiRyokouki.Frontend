@@ -77,7 +77,9 @@
     "next": "Next file",
     "close": "Close",
     "showMore": "Show more",
-    "shownOf": "Showing {shown} of {total}"
+    "shownOf": "Showing {shown} of {total}",
+    "favorite": "Mark for the front page",
+    "unfavorite": "Remove from the front page"
   },
   "language": {
     "label": "Language",
@@ -156,7 +158,9 @@
     "collapseMap": "Collapse map",
     "clearPoint": "Clear pin",
     "neighborPoints": "Points from neighbouring days",
-    "dayThumbs": "Photos of this day"
+    "dayThumbs": "Photos of this day",
+    "favorite": "Featured — show on the front page",
+    "favoriteBulkHint": "Ticking this marks every selected file. Taking a mark off is done with the star on the file itself."
   },
   "footer": {
     "about": "About",
@@ -174,5 +178,8 @@
   "notFound": {
     "title": "Page not found",
     "back": "Go home"
+  },
+  "home": {
+    "showcase": "Picked out"
   }
 }

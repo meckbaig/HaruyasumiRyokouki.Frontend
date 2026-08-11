@@ -2,7 +2,7 @@
   "openapi": "3.0.4",
   "info": {
     "title": "HaruyasumiRyokouki.Backend",
-    "description": "API for suggestions during typing in messengers.",
+    "description": "Backend project for website to display all my media and thoughts from my Japan trip.",
     "contact": {
       "name": "meckbaig"
     },
@@ -168,6 +168,15 @@
         "tags": [
           "Days"
         ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/GetDaysQuery"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -279,6 +288,15 @@
         "tags": [
           "Media"
         ],
+        "parameters": [
+          {
+            "name": "command",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/SyncMediaCommand"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -379,6 +397,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetMediaLocationsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/media/favorites": {
+      "get": {
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetFavoriteMediaResponse"
                 }
               }
             }
@@ -564,6 +612,10 @@
             "type": "boolean",
             "nullable": true
           },
+          "favorite": {
+            "type": "boolean",
+            "nullable": true
+          },
           "translations": {
             "type": "array",
             "items": {
@@ -619,6 +671,10 @@
         },
         "additionalProperties": false
       },
+      "GetDaysQuery": {
+        "type": "object",
+        "additionalProperties": false
+      },
       "GetDaysResponse": {
         "type": "object",
         "properties": {
@@ -654,6 +710,22 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MediaFileEditDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetFavoriteMediaResponse": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaFileDto"
             },
             "nullable": true
           }
@@ -765,6 +837,11 @@
             "type": "string",
             "nullable": true
           },
+          "favorite": {
+            "type": "boolean",
+            "description": "null when user is not admin.",
+            "nullable": true
+          },
           "tags": {
             "type": "array",
             "items": {
@@ -816,6 +893,9 @@
           "miniature": {
             "type": "string",
             "nullable": true
+          },
+          "favorite": {
+            "type": "boolean"
           },
           "translations": {
             "type": "array",
@@ -917,6 +997,10 @@
             "nullable": true
           }
         },
+        "additionalProperties": false
+      },
+      "SyncMediaCommand": {
+        "type": "object",
         "additionalProperties": false
       },
       "VideoUrlsDto": {
