@@ -208,7 +208,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="relative overflow-hidden rounded-lg ring-1 ring-edge">
+  <!--
+    `isolate`: Leaflet stacks its panes from 200 up to 800, and without a
+    stacking context of their own those numbers compete with the whole page —
+    which is how the map came to sit over the header and swallow the menus
+    dropping out of it. Isolating pins every one of them inside this box.
+  -->
+  <div class="relative isolate overflow-hidden rounded-lg ring-1 ring-edge">
     <div ref="container" :style="{ height }" class="w-full" />
 
     <!-- Wheel-without-ctrl hint, the convention embedded maps use. -->
