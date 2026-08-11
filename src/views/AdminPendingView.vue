@@ -140,6 +140,7 @@ function dayTitle(day) {
           v-else-if="pending.media.length"
           :items="pending.media"
           editable
+          show-date
           @open="editing = $event"
           @edit="editing = $event"
         />

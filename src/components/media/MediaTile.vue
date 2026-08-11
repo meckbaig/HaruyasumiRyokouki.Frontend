@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
+import { miniatureSrc, previewSrc, mediaDate } from '@/services/mediaAssets'
+import { formatShortDate } from '@/services/dates'
 import { isVideo } from '@/services/mediaType'
 import { toggleFavorite } from '@/services/favorites'
 import { useEditorStore } from '@/stores/editor'
@@ -18,6 +19,12 @@ const props = defineProps({
   editable: { type: Boolean, default: false },
   /** Singled out by a link (see composables/useMediaLink). */
   highlighted: { type: Boolean, default: false },
+  /**
+   * Stamps the day the file was taken onto the tile. For the pending queue,
+   * where files arrive from all over the trip with nothing else to place them
+   * by — everywhere else the day is the page they are already on.
+   */
+  showDate: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['open', 'edit', 'context'])

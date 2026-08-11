@@ -10,11 +10,13 @@ const props = defineProps({
   editable: { type: Boolean, default: false },
   /** Id of the file a link singled out, outlined wherever it sits in the list. */
   highlightedId: { type: Number, default: null },
+  /** Stamps each tile with the day its file was taken; see MediaTile. */
+  showDate: { type: Boolean, default: false },
   /** How many tiles to reveal at a time. */
   chunkSize: { type: Number, default: 60 },
 })
 
-const emit = defineEmits(['open', 'edit'])
+const emit = defineEmits(['open', 'edit', 'context'])
 
 const { t } = useI18n()
 const editor = useEditorStore()
@@ -308,6 +310,7 @@ onBeforeUnmount(() => {
         :media="media"
         :variant="variant"
         :editable="editable"
+        :show-date="showDate"
         :highlighted="highlightedId != null && media.id === highlightedId"
         @open="emit('open', $event)"
         @edit="emit('edit', $event)"

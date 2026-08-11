@@ -54,6 +54,13 @@ export function formatLongDate(iso, locale) {
 }
 
 /** Weekday name for the date heading. */
+/** Compact date for a badge on a picture: "12 Apr". */
+export function formatShortDate(iso, locale) {
+  const date = parseIsoDate(iso)
+  if (!date) return ''
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(date)
+}
+
 export function formatWeekday(iso, locale) {
   const date = parseIsoDate(iso)
   if (!date) return ''
