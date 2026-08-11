@@ -11,9 +11,11 @@ const props = defineProps({
   /** One entry of `splitSearchResults().mediaDays`. */
   group: { type: Object, required: true },
   editable: { type: Boolean, default: false },
+  /** Id of the file a link singled out; only one group will actually hold it. */
+  highlightedId: { type: Number, default: null },
 })
 
-const emit = defineEmits(['open', 'edit'])
+const emit = defineEmits(['open', 'edit', 'context'])
 
 const { t } = useI18n()
 const days = useDaysStore()
@@ -81,8 +83,10 @@ function openAt(media) {
       :items="group.matched"
       variant="matched"
       :editable="editable"
+      :highlighted-id="highlightedId"
       @open="openAt"
       @edit="emit('edit', $event)"
+      @context="emit('context', $event)"
     />
 
     <div v-if="expanded && rest.length" class="mt-2">
@@ -90,8 +94,10 @@ function openAt(media) {
         :items="rest"
         variant="expanded"
         :editable="editable"
+        :highlighted-id="highlightedId"
         @open="openAt"
         @edit="emit('edit', $event)"
+        @context="emit('context', $event)"
       />
     </div>
 

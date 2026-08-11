@@ -16,6 +16,8 @@ const props = defineProps({
    */
   variant: { type: String, default: 'normal' },
   editable: { type: Boolean, default: false },
+  /** Singled out by a link (see composables/useMediaLink). */
+  highlighted: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['open', 'edit'])
@@ -62,7 +64,12 @@ async function onLoaded(event) {
 }
 
 const outlineClass = computed(() => {
-  if (selected.value) return 'ring-2 ring-accent ring-offset-2 ring-offset-paper'
+  // A link singling this file out gets the same outline as a selection: both
+  // mean "this one, out of all of these", and selection mode is an editor's
+  // transient state, so the two are never on screen for the same reason at once.
+  if (selected.value || props.highlighted) {
+    return 'ring-2 ring-accent ring-offset-2 ring-offset-paper'
+  }
   if (props.variant === 'matched') return 'ring-2 ring-ink'
   if (props.variant === 'expanded') return 'ring-1 ring-ink-faint/60'
   return 'ring-1 ring-edge'
@@ -79,6 +86,12 @@ const outlineClass = computed(() => {
 const favorite = computed(() => props.media.favorite === true)
 const marking = ref(false)
 
+/**
+ * A request in flight is not a reason to disable the button: a disabled control
+ * takes the "not allowed" cursor, and a mark that answers a click with a barred
+ * circle reads as a refusal rather than as work already under way. Repeat clicks
+ * are simply ignored, and `aria-busy` says so to anyone being read to.
+ */
 async function mark() {
   if (marking.value) return
   marking.value = true
@@ -89,6 +102,17 @@ async function mark() {
   } finally {
     marking.value = false
   }
+}
+
+/**
+ * The browser's own menu is replaced rather than merely suppressed — it was
+ * already being suppressed, because a long press on a phone means "select" here
+ * and the native menu got in the way of it. What takes its place is offered from
+ * the page that owns the grid, which is the one that knows what a link to this
+ * file would have to say.
+ */
+function onContextMenu(event) {
+  emit('context', { media: props.media, x: event.clientX, y: event.clientY })
 }
 
 /**
@@ -118,7 +142,7 @@ function activate() {
       :aria-label="label"
       :aria-pressed="editor.selectionMode ? selected : undefined"
       @click="activate"
-      @contextmenu.prevent
+      @contextmenu.prevent="onContextMenu"
     >
       <!-- Fixed square keeps the grid from reflowing while previews arrive. -->
       <div class="relative aspect-square">

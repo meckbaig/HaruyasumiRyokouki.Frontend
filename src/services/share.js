@@ -6,6 +6,7 @@
  * (and the crawler serves a preview card in that language).
  */
 import { currentLocale } from '@/i18n'
+import { withMediaLink } from '@/composables/useMediaLink'
 
 /** Returns a URL with ?lang set to the active locale, preserving other params. */
 function withLang(rawUrl) {
@@ -43,6 +44,23 @@ export async function copyToClipboard(text) {
   }
 
   return copied
+}
+
+/**
+ * Copies a link to one file rather than to the page as a whole.
+ *
+ * Built on top of wherever the reader is, so a file shared from a search carries
+ * the search with it and lands among the same results. `path` overrides that for
+ * a page that cannot resolve a file at all — the front page, whose wall is
+ * reshuffled per visit — where the file's own day is the honest destination.
+ *
+ * See composables/useMediaLink for what `i` and `o` mean.
+ */
+export function copyMediaUrl(id, { open = false, path = null } = {}) {
+  const url = new URL(path ?? window.location.href, window.location.origin)
+  const query = withMediaLink(Object.fromEntries(url.searchParams), id, open)
+  url.search = new URLSearchParams(query).toString()
+  return copyToClipboard(withLang(url.toString()))
 }
 
 export function copyCurrentUrl() {

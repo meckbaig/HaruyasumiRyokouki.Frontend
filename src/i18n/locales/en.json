@@ -79,7 +79,8 @@
     "showMore": "Show more",
     "shownOf": "Showing {shown} of {total}",
     "favorite": "Mark for the front page",
-    "unfavorite": "Remove from the front page"
+    "unfavorite": "Remove from the front page",
+    "shareFile": "Share this file"
   },
   "language": {
     "label": "Language",

@@ -19,6 +19,8 @@ import { useEditorStore } from '@/stores/editor'
 import { formatLongDate, formatWeekday } from '@/services/dates'
 import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
+import { useMediaLink } from '@/composables/useMediaLink'
+import { scrollToMedia } from '@/services/scrollToMedia'
 
 const props = defineProps({
   date: { type: String, required: true },
@@ -89,6 +91,8 @@ watch(
     load()
     // Each day starts from the persisted default.
     mapShown.value = !mapHiddenByDefault.value
+    // Another day carries its own link, or none at all.
+    answered = undefined
   },
 )
 
@@ -98,6 +102,61 @@ watch(() => ui.locale, () => load(true))
 function openDay(date) {
   router.push({ name: 'day', params: { date } })
 }
+
+/*
+  A link pointing at one file of this day.
+
+  Reading it and writing it are two halves of the same contract. Reading happens
+  as soon as the day's files are known: the file is either here — outlined, and
+  opened if the link asked for that — or it is not, and the parameters are
+  dropped rather than left in the address bar promising something the page cannot
+  show.
+
+  Read every time the file being pointed at changes, not once per day. The day's
+  own map links back into the day it is already on, which changes nothing but the
+  parameter — and a reading that had already happened left that link outlining
+  nothing and scrolling nowhere.
+
+  Writing happens whenever the viewer opens or pages, so the address bar always
+  names the picture on screen and the share button copies a link to it. Closing
+  takes both away again, along with the outline: the reader is done with that
+  picture, and the page they are left on is the plain one.
+*/
+const mediaLink = useMediaLink({ suspended: () => lightboxIndex.value !== null })
+const highlightedId = computed(() => mediaLink.link.value.id)
+
+/** The file already answered for, so the same one is not answered for twice. */
+let answered
+
+watch(
+  [media, () => mediaLink.link.value],
+  ([list, link]) => {
+    if (!list.length || answered === link.id) return
+    answered = link.id
+    if (link.id == null) return
+
+    const index = list.findIndex((item) => item.id === link.id)
+    if (index < 0) {
+      // Not this day's file: a stale link, or one shared from somewhere else.
+      // Only once the day has settled, though — a reload leaves the previous
+      // day's files standing until the new ones arrive, and a link answered
+      // against those would be thrown away for the wrong reason.
+      if (!loading.value) mediaLink.clear()
+      else answered = undefined
+      return
+    }
+
+    if (link.open) lightboxIndex.value = index
+    else scrollToMedia(link.id)
+  },
+  { immediate: true },
+)
+
+watch(lightboxIndex, (index) => {
+  const opened = index == null ? null : media.value[index]
+  if (opened) mediaLink.write(opened.id, true)
+  else mediaLink.clear()
+})
 
 /**
  * Left/right arrows step to the previous/next day. Ignored while typing, while
@@ -235,6 +294,7 @@ function onNoteSaved() {
           v-else-if="media.length"
           :items="media"
           :editable="auth.isEditor"
+          :highlighted-id="highlightedId"
           @open="lightboxIndex = media.indexOf($event)"
           @edit="editing = $event"
         />

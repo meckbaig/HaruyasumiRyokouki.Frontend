@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   downloadSrc,
@@ -11,6 +12,8 @@ import {
 } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
 import { isMobileLayout } from '@/services/display'
+import { withMediaLink, pageIdentity } from '@/composables/useMediaLink'
+import { copyMediaUrl } from '@/services/share'
 import TagChip from './TagChip.vue'
 
 const props = defineProps({
@@ -22,6 +25,7 @@ const props = defineProps({
 const emit = defineEmits(['update:index', 'close'])
 
 const { t } = useI18n()
+const route = useRoute()
 
 const dialog = ref(null)
 let lastFocused = null
@@ -53,6 +57,40 @@ const fullScreen = computed(() => fullScreenSrc(current.value))
 const stream = computed(() => streamSrc(current.value))
 const download = computed(() => downloadSrc(current.value))
 const dayDate = computed(() => mediaDate(current.value))
+const dayQuery = computed(() =>
+  current.value?.id == null ? {} : withMediaLink({}, current.value.id),
+)
+
+/** The day button is an offer to go somewhere; on that day there is nowhere to go. */
+const onOwnDay = computed(
+  () => route.name === 'day' && String(route.params.date) === dayDate.value,
+)
+
+/*
+  Sharing the file rather than the page.
+
+  A day and a search can both resolve `?i=`, so the link is built on the address
+  the reader is at and lands them among the same neighbours. The front page
+  cannot: its wall is reshuffled every visit, so a link into it would point at
+  nothing — there the file's own day is what gets shared instead.
+*/
+const canResolveLink = computed(() => route.name === 'day' || route.name === 'search')
+const shareable = computed(
+  () => current.value?.id != null && (canResolveLink.value || Boolean(dayDate.value)),
+)
+
+const shareFeedback = ref(null)
+let shareTimer = null
+
+async function share() {
+  const copied = await copyMediaUrl(current.value.id, {
+    open: true,
+    path: canResolveLink.value ? null : `/day/${dayDate.value}`,
+  })
+  shareFeedback.value = copied ? t('common.shareCopied') : t('common.shareFailed')
+  clearTimeout(shareTimer)
+  shareTimer = setTimeout(() => (shareFeedback.value = null), 2000)
+}
 
 const fullLoaded = ref(false)
 const fullFailed = ref(false)
@@ -990,6 +1028,32 @@ function resetGestures() {
   uiVisible.value = true
 }
 
+/*
+  A link inside the viewer takes the page with it, and the viewer steps aside
+  rather than being carried over.
+
+  Closing on the click itself is what it used to do, and that was the bug: the
+  page underneath answers a close by rewriting its address, and replacing an
+  address while a navigation is in flight cancels it. From a day it went
+  unnoticed, because the only day a file's own link leads to is the one already
+  open; from a search it meant the link did nothing at all.
+
+  Waiting for the route to actually change instead covers every link in here at
+  once — the day and every tag — and it cannot race a navigation it is watching
+  for. Links that lead exactly where the reader already is are the one case it
+  does not answer, and there is nothing to answer there.
+
+  What it watches is the page, not the address: the page underneath writes the
+  open file into the address as `?i=`, so watching the address in full meant
+  every file opened and shut in the same breath.
+*/
+watch(
+  () => pageIdentity(route),
+  () => {
+    if (open.value) close()
+  },
+)
+
 watch(open, async (isOpen) => {
   if (isOpen) {
     chromeReady.value = false
@@ -1360,26 +1424,73 @@ onBeforeUnmount(() => {
               tagsOverflow ? 'mt-3.5' : '',
             ]"
           >
-            <!-- A tag navigates to its search; close the viewer so results are
-                 not left hidden behind it. -->
+            <!-- A tag navigates to its search; the route watcher above is what
+                 takes the viewer off the results it lands on. -->
             <TagChip
               v-for="tag in current.tags ?? []"
               :key="tag"
               :tag="tag"
               class="lightbox-tag"
-              @click="close"
             />
           </div>
 
-          <div class="flex shrink-0 items-center gap-1.5">
+          <div class="relative flex shrink-0 items-center gap-1.5">
+            <!-- Above the row rather than in a corner of the screen, so it is
+                 plainly the answer to the button that was just pressed. -->
+            <Transition
+              enter-from-class="translate-y-1 opacity-0"
+              enter-active-class="transition duration-150"
+              leave-to-class="translate-y-1 opacity-0"
+              leave-active-class="transition duration-150"
+            >
+              <span
+                v-if="shareFeedback"
+                role="status"
+                class="lightbox-bar absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-md px-2.5 py-1 text-xs"
+              >
+                {{ shareFeedback }}
+              </span>
+            </Transition>
+
+            <button
+              v-if="shareable"
+              type="button"
+              class="lightbox-icon rounded-full p-2.5"
+              :title="t('common.share')"
+              :aria-label="t('common.share')"
+              @click="share"
+            >
+              <svg
+                class="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <path d="M7.5 11.5 12.5 8.5M7.5 8.5l5 3" stroke-linecap="round" />
+                <circle cx="5.5" cy="10" r="2.2" />
+                <circle cx="14.5" cy="6.5" r="2.2" />
+                <circle cx="14.5" cy="13.5" r="2.2" />
+              </svg>
+            </button>
+
+            <!--
+              Carries the file into the day so it arrives outlined among the
+              rest — a picture met on the front page keeps its identity once it
+              is back among its neighbours. Without `o`: it was just being looked
+              at full screen, and opening it again there would be no arrival.
+
+              Left out on that day's own page: the button would lead where the
+              reader already is.
+            -->
             <RouterLink
-              v-if="dayDate"
-              :to="{ name: 'day', params: { date: dayDate } }"
+              v-if="dayDate && !onOwnDay"
+              :to="{ name: 'day', params: { date: dayDate }, query: dayQuery }"
               class="lightbox-icon rounded-full p-2.5"
               :title="t('media.openDay')"
               :aria-label="t('media.openDay')"
-              @click="close"
-            >
+                          >
               <svg
                 class="h-4 w-4"
                 viewBox="0 0 20 20"

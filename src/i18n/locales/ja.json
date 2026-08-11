@@ -79,7 +79,8 @@
     "showMore": "もっと見る",
     "shownOf": "{total}件中{shown}件を表示",
     "favorite": "トップページに掲載",
-    "unfavorite": "トップページから外す"
+    "unfavorite": "トップページから外す",
+    "shareFile": "この写真を共有"
   },
   "language": {
     "label": "言語",

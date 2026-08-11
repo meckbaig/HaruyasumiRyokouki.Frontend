@@ -8,6 +8,8 @@ const props = defineProps({
   items: { type: Array, default: () => [] },
   variant: { type: String, default: 'normal' },
   editable: { type: Boolean, default: false },
+  /** Id of the file a link singled out, outlined wherever it sits in the list. */
+  highlightedId: { type: Number, default: null },
   /** How many tiles to reveal at a time. */
   chunkSize: { type: Number, default: 60 },
 })
@@ -43,6 +45,21 @@ function revealMore() {
   if (!hasMore.value) return
   visibleCount.value = Math.min(visibleCount.value + props.chunkSize, props.items.length)
 }
+
+/**
+ * A linked file has to be in the DOM to be outlined or scrolled to, and it may
+ * sit past the first chunk — the eightieth photo of a day is one link away like
+ * any other. Revealing up to it is enough; the rest still waits for the reader.
+ */
+watch(
+  [() => props.highlightedId, () => props.items],
+  ([id]) => {
+    if (id == null) return
+    const index = props.items.findIndex((media) => media.id === id)
+    if (index >= visibleCount.value) visibleCount.value = index + 1
+  },
+  { immediate: true },
+)
 
 let observer = null
 
@@ -291,8 +308,10 @@ onBeforeUnmount(() => {
         :media="media"
         :variant="variant"
         :editable="editable"
+        :highlighted="highlightedId != null && media.id === highlightedId"
         @open="emit('open', $event)"
         @edit="emit('edit', $event)"
+        @context="emit('context', $event)"
       />
     </div>
 

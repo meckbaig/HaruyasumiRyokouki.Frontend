@@ -13,6 +13,8 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { useSearchStore } from '@/stores/search'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useMediaLink } from '@/composables/useMediaLink'
+import { scrollToMedia } from '@/services/scrollToMedia'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -46,6 +48,60 @@ function run() {
 onMounted(run)
 watch(query, run)
 watch(() => ui.locale, run)
+
+/*
+  A link pointing at one file of these results — the same contract the day page
+  keeps (composables/useMediaLink).
+
+  Resolved against the matched files only, which is what a search link can
+  honestly promise: the rest of a day appears solely because a reader asked for
+  it, and reaching into days that are still folded away to find a file would mean
+  fetching every one of them on the chance that it is there.
+
+  A new query is a new set of results, so a link belonging to the old one is
+  resolved again from scratch, and dropped if it no longer belongs anywhere.
+*/
+const mediaLink = useMediaLink({ suspended: () => lightboxIndex.value !== null })
+const highlightedId = computed(() => mediaLink.link.value.id)
+
+let linkResolved = false
+watch(query, () => (linkResolved = false))
+
+// The store replaces its whole result object once per completed run — cached or
+// fetched, hit or miss — which makes it the one signal that says "these are the
+// results now". Counting groups would fire early, when there are none yet.
+watch(
+  () => search.results,
+  () => {
+    if (linkResolved) return
+    linkResolved = true
+
+    const { id, open } = mediaLink.link.value
+    if (id == null) return
+
+    for (const group of mediaDays.value) {
+      const index = group.matched.findIndex((item) => item.id === id)
+      if (index < 0) continue
+
+      if (open) {
+        lightboxItems.value = group.matched
+        lightboxIndex.value = index
+      } else {
+        scrollToMedia(id)
+      }
+      return
+    }
+
+    // Nothing in these results is that file.
+    mediaLink.clear()
+  },
+)
+
+watch(lightboxIndex, (index) => {
+  const opened = index == null ? null : lightboxItems.value[index]
+  if (opened) mediaLink.write(opened.id, true)
+  else mediaLink.clear()
+})
 
 function selectTab(next) {
   if (next === tab.value) return
@@ -103,6 +159,7 @@ function openLightbox({ items, index }) {
             :key="group.date"
             :group="group"
             :editable="auth.isEditor"
+            :highlighted-id="highlightedId"
             @open="openLightbox"
             @edit="editing = $event"
           />

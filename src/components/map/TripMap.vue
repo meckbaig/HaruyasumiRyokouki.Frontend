@@ -15,6 +15,7 @@ import {
 } from '@/services/leaflet'
 import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { formatLongDate } from '@/services/dates'
+import { withMediaLink } from '@/composables/useMediaLink'
 
 const props = defineProps({
   /** Media that carry coordinates; anything without them is filtered out here. */
@@ -131,7 +132,15 @@ function buildPopup(item) {
     link.type = 'button'
     link.className = 'mt-1 text-xs underline'
     link.textContent = t('search.openDay')
-    link.addEventListener('click', () => router.push({ name: 'day', params: { date } }))
+    // Carries the file with it, so the day opens with this pin's photo outlined
+    // among the rest rather than leaving the reader to find it again.
+    link.addEventListener('click', () =>
+      router.push({
+        name: 'day',
+        params: { date },
+        query: item.id == null ? {} : withMediaLink({}, item.id),
+      }),
+    )
     root.append(link)
   }
 

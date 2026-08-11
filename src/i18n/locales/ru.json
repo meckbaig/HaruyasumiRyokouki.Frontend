@@ -79,7 +79,8 @@
     "showMore": "Показать ещё",
     "shownOf": "Показано {shown} из {total}",
     "favorite": "В избранное",
-    "unfavorite": "Убрать из избранного"
+    "unfavorite": "Убрать из избранного",
+    "shareFile": "Поделиться фото"
   },
   "language": {
     "label": "Язык",

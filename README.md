@@ -106,6 +106,30 @@ back in — the choice is stamped as `data-motion="always"` on `<html>`, which t
 reduced-motion rules in `main.css` check for. Loading spinners are exempt either
 way: a frozen spinner reads as a broken page.
 
+## Linking to one file
+
+A day and a search result are lists, so a link to either says nothing about which
+picture was being looked at. Two query parameters do, and they are handled the
+same way on both pages (`composables/useMediaLink.js`):
+
+| Parameter | Meaning |
+|---|---|
+| `i=<media id>` | single that file out, outlined among the rest |
+| `o=1` | and open it full screen straight away |
+
+`o` never travels alone. The page resolves `i` against what it actually holds —
+against a day's files, or against a search's *matched* files, not the remainders
+a reader can unfold — and anything it cannot resolve is dropped from the address
+bar, leaving the page to open as if nothing had been asked for.
+
+Writing runs the other way: opening, paging or closing the viewer replaces the
+pair, so the share button always copies a link to the picture on screen. Closing
+keeps `i` and drops `o` — the reader is back at the list, looking at the file they
+just left. The viewer's "open day" button carries `i` alone for the same reason.
+
+The front page is deliberately outside this: its wall is shuffled and capped by
+the backend, so an `i` pointing into it would mean nothing on the next visit.
+
 ## Localised link previews
 
 Crawlers that build link previews (Telegram, WhatsApp, VK, Slack) do not run
