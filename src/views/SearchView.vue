@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import MediaResultGroup from '@/components/search/MediaResultGroup.vue'
 import NoteResultCard from '@/components/search/NoteResultCard.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
+import MediaContextMenu from '@/components/media/MediaContextMenu.vue'
 import MediaEditDialog from '@/components/editor/MediaEditDialog.vue'
 import ShareButton from '@/components/common/ShareButton.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
@@ -28,6 +29,8 @@ const TABS = ['media', 'notes']
 const lightboxItems = ref([])
 const lightboxIndex = ref(null)
 const editing = ref(null)
+/** `{ media, x, y }` of the file right-clicked in a result group. */
+const contextTarget = ref(null)
 
 const query = computed(() => String(route.query.text ?? ''))
 // The active tab lives in the URL so a shared link reopens on the same one.
@@ -162,6 +165,7 @@ function openLightbox({ items, index }) {
             :highlighted-id="highlightedId"
             @open="openLightbox"
             @edit="editing = $event"
+            @context="contextTarget = $event"
           />
         </div>
         <EmptyState v-else :message="t('search.emptyMedia')" />
@@ -180,6 +184,7 @@ function openLightbox({ items, index }) {
       </div>
     </template>
 
+    <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
     <MediaLightbox v-model:index="lightboxIndex" :items="lightboxItems" />
     <MediaEditDialog
       :open="Boolean(editing)"

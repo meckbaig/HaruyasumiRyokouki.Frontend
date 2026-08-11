@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MediaGrid from '@/components/media/MediaGrid.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
+import MediaContextMenu from '@/components/media/MediaContextMenu.vue'
 import TripCalendar from '@/components/calendar/TripCalendar.vue'
 import TripMap from '@/components/map/TripMap.vue'
 import ShareButton from '@/components/common/ShareButton.vue'
@@ -40,6 +41,8 @@ const error = ref(null)
 const lightboxIndex = ref(null)
 const editing = ref(null)
 const editingNote = ref(false)
+/** `{ media, x, y }` of the file right-clicked in the grid. */
+const contextTarget = ref(null)
 
 // Persisted preference: some visitors find the day map distracting, so it can be
 // hidden by default. When on, the map starts collapsed and a show/hide button
@@ -297,6 +300,7 @@ function onNoteSaved() {
           :highlighted-id="highlightedId"
           @open="lightboxIndex = media.indexOf($event)"
           @edit="editing = $event"
+          @context="contextTarget = $event"
         />
         <EmptyState v-else :message="t('day.noMedia')" />
       </section>
@@ -360,6 +364,7 @@ function onNoteSaved() {
       </section>
     </template>
 
+    <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
     <MediaLightbox v-model:index="lightboxIndex" :items="media" />
     <MediaEditDialog
       :open="Boolean(editing)"

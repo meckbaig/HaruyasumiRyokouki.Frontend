@@ -20,13 +20,16 @@ const props = defineProps({
   highlighted: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['open', 'edit'])
+const emit = defineEmits(['open', 'edit', 'context'])
 
 const { t } = useI18n()
 const editor = useEditorStore()
 const ui = useUiStore()
 
 const video = computed(() => isVideo(props.media))
+const takenOn = computed(() =>
+  props.showDate ? formatShortDate(mediaDate(props.media), ui.locale) : '',
+)
 const selected = computed(() => editor.isSelected(props.media.id))
 const label = computed(() => props.media.title || props.media.fileName || t('media.untitled'))
 
@@ -195,6 +198,14 @@ function activate() {
             <path d="m4 16 5-5 4 4 2-2 5 5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
+
+        <!-- Bottom right, clear of the video badge on the left. -->
+        <span
+          v-if="takenOn"
+          class="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+        >
+          {{ takenOn }}
+        </span>
 
         <span
           v-if="video"
