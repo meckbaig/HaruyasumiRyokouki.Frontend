@@ -165,11 +165,12 @@ a version alone cannot say whether what is deployed is what was last built.
 **A feature.** Order matters, so that the tag lands on a commit that already has
 everything:
 
+1. `npm version minor --no-git-tag-version`
 1. Add the name to `NAMES` in `src/services/release.js`, keyed `major.minor`.
-2. Add a section at the top of `CHANGELOG.md`.
-3. Commit those.
-4. `npm version minor` — its own commit and tag.
-5. Build and deploy.
+1. Add a section at the top of `CHANGELOG.md`.
+1. `git commit -m "Release 1.1.0 - release name"`
+1. `git tag v1.1.0`
+1. Build and deploy.
 
 **A rework.** The same, plus a line in `STAGES` if the new generation should say
 what it is, and `npm version major`.
