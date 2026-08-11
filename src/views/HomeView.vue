@@ -67,7 +67,7 @@ function openFavorite(media) {
 
 <template>
   <div class="mx-auto max-w-6xl px-4">
-    <section class="py-16 text-center sm:py-24">
+    <section class="py-12 text-center sm:pt-20 sm:pb-10">
       <h1 class="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
         {{ t('app.title') }}
       </h1>
@@ -83,9 +83,20 @@ function openFavorite(media) {
       </p>
     </section>
 
-    <section v-if="favorites.length" class="pb-12">
-      <FavoritesShowcase :items="favorites" @open="openFavorite" />
-    </section>
+    <!--
+      The wall arrives after its request, so it would otherwise appear under the
+      calendar and shove it down the page. Rising into place says the same thing
+      the movement itself would have said accidentally — that something has
+      arrived — while the space is reserved before the pictures land in it.
+    -->
+    <Transition
+      enter-from-class="translate-y-3 opacity-0"
+      enter-active-class="transition duration-500 ease-out"
+    >
+      <section v-if="favorites.length" class="pb-12">
+        <FavoritesShowcase :items="favorites" @open="openFavorite" />
+      </section>
+    </Transition>
 
     <ErrorState v-if="days.listError" :error="days.listError" @retry="days.loadList(true)" />
 
