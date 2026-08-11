@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import TripMap from '@/components/map/TripMap.vue'
@@ -57,6 +57,33 @@ async function refresh() {
   reload()
 }
 
+/*
+  Fullscreen.
+
+  A second map rather than this one moved into an overlay: a live Leaflet
+  instance carried through a Teleport comes out broken — blank tiles, and dead
+  once it is put back — which is why the location picker in the editor builds two
+  as well. Both are driven from the same media, so they show the same thing and
+  neither knows about the other.
+*/
+const expanded = ref(false)
+
+function onKeydown(event) {
+  if (event.key === 'Escape' && expanded.value) expanded.value = false
+}
+
+onMounted(() => document.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
+  // Nothing else would put the page back if the view left while expanded.
+  document.body.style.overflow = ''
+})
+
+// The page behind an overlay must not scroll under it.
+watch(expanded, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
+
 onMounted(refresh)
 // The range comes from the trip bounds, so react once the day list has loaded too.
 watch([from, to, () => days.orderedDates.length], reload)
@@ -78,11 +105,35 @@ watch(() => ui.locale, refresh)
         <button v-if="from || to" type="button" class="btn-ghost" @click="reset">
           {{ t('map.reset') }}
         </button>
+        <button type="button" class="btn-ghost" @click="expanded = true">
+          {{ t('map.expand') }}
+        </button>
         <ShareButton />
       </div>
     </header>
 
     <TripMap :media="media" :route="routeLine" height="560px" class="mb-8" />
+
+    <Teleport to="body">
+      <div v-if="expanded" class="fixed inset-0 z-[2100] flex flex-col bg-paper">
+        <TripMap
+          :media="media"
+          :route="routeLine"
+          height="100%"
+          :framed="false"
+          wheel-zoom
+          class="min-h-0 flex-1"
+        />
+
+        <button
+          type="button"
+          class="btn-ghost absolute right-4 top-4 z-[1000] bg-paper-raised shadow-sm"
+          @click="expanded = false"
+        >
+          {{ t('map.collapse') }}
+        </button>
+      </div>
+    </Teleport>
 
     <EmptyState v-if="!loading && media.length === 0" :message="t('map.noPoints')" class="mb-8" />
 

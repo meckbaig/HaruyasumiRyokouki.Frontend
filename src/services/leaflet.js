@@ -80,13 +80,20 @@ export const neighborIcon = pinIconOf(NEIGHBOR_COLOR, 26)
  * scroll — so the wheel only zooms while Ctrl (or ⌘) is held, the same
  * convention embedded maps use elsewhere. `onScrollHint` is called when the user
  * scrolls without the modifier, so the caller can flash a hint.
+ *
+ * `wheelZoom` lifts that restriction, and is meant for a map that fills the
+ * window: the reason for the modifier is a page waiting to be scrolled behind
+ * the map, and there is none. Leaflet's own handling takes over, which is
+ * smoother than the notch-per-level the guarded path applies by hand.
  */
-export function createBaseMap(container, { center, zoom, onScrollHint } = {}) {
-  const map = L.map(container, { scrollWheelZoom: false }).setView(
+export function createBaseMap(container, { center, zoom, onScrollHint, wheelZoom = false } = {}) {
+  const map = L.map(container, { scrollWheelZoom: wheelZoom }).setView(
     center ?? FALLBACK_CENTER,
     zoom ?? FALLBACK_ZOOM,
   )
   L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: MAX_ZOOM }).addTo(map)
+
+  if (wheelZoom) return map
 
   container.addEventListener(
     'wheel',

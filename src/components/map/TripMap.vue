@@ -25,6 +25,17 @@ const props = defineProps({
   /** Fallback date used in popups when the media object has none. */
   date: { type: String, default: null },
   height: { type: String, default: '420px' },
+  /**
+   * The rounded, ruled frame the map wears on a page. Turned off when it fills
+   * a window of its own, where a border would be drawing a box around the edge
+   * of the screen.
+   */
+  framed: { type: Boolean, default: true },
+  /**
+   * Lets a bare wheel zoom, with no Ctrl held. Only for a map that fills the
+   * window — see `createBaseMap`.
+   */
+  wheelZoom: { type: Boolean, default: false },
 })
 
 const { t, locale } = useI18n()
@@ -55,10 +66,13 @@ function locatedMedia() {
  * a tile: the inline miniature first, blurred because it is tiny, and the
  * preview fading in over it once it arrives.
  *
- * The box is square because the miniature is: the server has already cropped it
- * to a square, and cropping that again to a landscape strip threw away the sides
- * of a picture that had none left to spare — a horizontal file arrived looking
- * zoomed in twice over. A square asks each layer for exactly the shape it has.
+ * A landscape strip, which is the shape a popup wants: it sits above a caption
+ * and a date in a narrow column, and a square one pushed both out of sight.
+ *
+ * It went square for a while because the miniature arrived pre-cropped to a
+ * square and this box cropped that again — a horizontal file came out looking
+ * zoomed in twice over. Miniatures now keep the file's own proportions, so there
+ * is only ever the one crop, and the strip is safe again.
  */
 function buildThumbnail(item) {
   const miniature = miniatureSrc(item)
@@ -66,7 +80,7 @@ function buildThumbnail(item) {
   if (!miniature && !preview) return null
 
   const box = document.createElement('div')
-  box.className = 'relative mb-2 aspect-square w-full overflow-hidden rounded'
+  box.className = 'relative mb-2 h-32 w-full overflow-hidden rounded'
 
   if (preview) {
     const image = document.createElement('img')
@@ -184,7 +198,9 @@ function renderMarkers() {
 let resizeObserver = null
 
 onMounted(() => {
-  const instance = markRaw(createBaseMap(container.value, { onScrollHint: flashHint }))
+  const instance = markRaw(
+    createBaseMap(container.value, { onScrollHint: flashHint, wheelZoom: props.wheelZoom }),
+  )
 
   map.value = instance
   routeLayer.value = markRaw(L.layerGroup().addTo(instance))
@@ -223,7 +239,10 @@ onBeforeUnmount(() => {
     which is how the map came to sit over the header and swallow the menus
     dropping out of it. Isolating pins every one of them inside this box.
   -->
-  <div class="relative isolate overflow-hidden rounded-lg ring-1 ring-edge">
+  <div
+    class="relative isolate overflow-hidden"
+    :class="framed ? 'rounded-lg ring-1 ring-edge' : ''"
+  >
     <div ref="container" :style="{ height }" class="w-full" />
 
     <!-- Wheel-without-ctrl hint, the convention embedded maps use. -->

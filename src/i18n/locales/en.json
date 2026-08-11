@@ -64,7 +64,9 @@
     "noPoints": "No media with coordinates in the selected range.",
     "showRoute": "Show route",
     "pointsCount": "{count} point | {count} points",
-    "zoomHint": "Ctrl + scroll to zoom"
+    "zoomHint": "Ctrl + scroll to zoom",
+    "expand": "Expand map",
+    "collapse": "Collapse map"
   },
   "media": {
     "video": "Video",

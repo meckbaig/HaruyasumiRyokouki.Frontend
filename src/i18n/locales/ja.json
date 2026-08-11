@@ -64,7 +64,9 @@
     "noPoints": "選択した期間に位置情報付きのメディアはありません。",
     "showRoute": "ルートを表示",
     "pointsCount": "{count}地点",
-    "zoomHint": "Ctrl + ホイールで拡大縮小"
+    "zoomHint": "Ctrl + ホイールで拡大縮小",
+    "expand": "地図を拡大",
+    "collapse": "地図を縮小"
   },
   "media": {
     "video": "動画",
