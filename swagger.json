@@ -804,6 +804,10 @@
             "type": "string",
             "nullable": true
           },
+          "aspectRatio": {
+            "type": "number",
+            "format": "float"
+          },
           "type": {
             "type": "string",
             "nullable": true
@@ -876,6 +880,10 @@
             "type": "string",
             "nullable": true
           },
+          "aspectRatio": {
+            "type": "number",
+            "format": "float"
+          },
           "type": {
             "type": "string",
             "nullable": true
@@ -935,6 +943,10 @@
           "fileName": {
             "type": "string",
             "nullable": true
+          },
+          "aspectRatio": {
+            "type": "number",
+            "format": "float"
           },
           "title": {
             "type": "string",

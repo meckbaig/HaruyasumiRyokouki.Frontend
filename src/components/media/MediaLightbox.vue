@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import {
   downloadSrc,
   fullScreenSrc,
+  mediaAspect,
   mediaDate,
   miniatureSrc,
   previewSrc,
@@ -53,6 +54,7 @@ function stripSrc(item) {
  * file's aspect ratio, so nothing shifts on the swap.
  */
 const preview = computed(() => previewSrc(current.value))
+const miniature = computed(() => miniatureSrc(current.value))
 const fullScreen = computed(() => fullScreenSrc(current.value))
 const stream = computed(() => streamSrc(current.value))
 const download = computed(() => downloadSrc(current.value))
@@ -94,6 +96,8 @@ async function share() {
 
 const fullLoaded = ref(false)
 const fullFailed = ref(false)
+/** The preview has painted, so the miniature under it has done its job. */
+const previewLoaded = ref(false)
 
 const SPINNER_DELAY = 50
 
@@ -124,14 +128,28 @@ function armSpinner() {
 }
 
 /**
- * Aspect ratio of the open file, taken from whichever layer reports it first.
- * Until it is known the media fills its cell and lets `object-contain` letterbox
- * it; once known, `.fit-media` shrinks the element to the picture itself, which
- * is what makes the empty space beside it clickable. Both paint identically, so
- * nothing moves when the switch happens.
+ * Aspect ratio of the open file.
+ *
+ * The file states it, so the fitting maths has it before a single byte of the
+ * picture has arrived — which is what lets a file open at exactly its final size
+ * instead of filling the cell and settling into place once a preview has
+ * reported. Whatever does load afterwards refines it, and for a file that states
+ * nothing that measurement is still the only source.
+ *
+ * Until it is known at all the media fills its cell and lets `object-contain`
+ * letterbox it; once known, `.fit-media` shrinks the element to the picture
+ * itself, which is what makes the empty space beside it clickable.
  */
 const aspect = ref(null)
 const aspectStyle = computed(() => (aspect.value ? { '--ar': aspect.value } : undefined))
+/**
+ * The same fit, for elements that have no proportions of their own to be sized
+ * by: a video before its metadata lands, and a plain box holding a layer. Both
+ * need the ratio written out, or `height: auto` has nothing to work from.
+ */
+const fitBoxStyle = computed(() =>
+  aspect.value ? { '--ar': aspect.value, aspectRatio: String(aspect.value) } : undefined,
+)
 const fitClass = computed(() => (aspect.value ? 'fit-media' : 'h-full w-full'))
 
 function rememberAspect(image) {
@@ -166,8 +184,13 @@ async function revealWhenDecoded(image) {
   return image.isConnected
 }
 
-function onPreviewLoaded(event) {
-  rememberAspect(event.target)
+async function onPreviewLoaded(event) {
+  const image = event.target
+  rememberAspect(image)
+  // Decoded before it is declared ready, or the layer above it stands down onto
+  // an image the browser is still turning into pixels — the banding `decode()`
+  // exists to avoid.
+  if (await revealWhenDecoded(image)) previewLoaded.value = true
 }
 
 /**
@@ -299,7 +322,7 @@ function resetZoom() {
  */
 function clampOffset() {
   const { width, height } = frameSize()
-  const ratio = aspect.value ?? previewAspect()
+  const ratio = knownAspect()
 
   const fittedWidth = ratio ? Math.min(width, height * ratio) : width
   const fittedHeight = ratio ? fittedWidth / ratio : height
@@ -690,8 +713,9 @@ function step(delta) {
 watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
+  previewLoaded.value = false
   instantSwap.value = false
-  aspect.value = null
+  aspect.value = mediaAspect(current.value)
   tagsExpanded.value = false
   descriptionExpanded.value = false
   resetZoom()
@@ -772,6 +796,19 @@ function previewAspect() {
 }
 
 /**
+ * The proportions the fitting maths works from.
+ *
+ * The API states them, so they are known before anything has been fetched; the
+ * preview is only a fallback for a file that carries none. Everything that has
+ * to decide where the picture goes asks here, and asking anywhere else is what
+ * used to make the answer depend on whether an image happened to have finished
+ * loading at that instant.
+ */
+function knownAspect() {
+  return aspect.value ?? previewAspect()
+}
+
+/**
  * Decides the overflow now rather than at the next render.
  *
  * The expander's margin is part of the footer's height, so a measurement taken
@@ -802,9 +839,7 @@ function settleTagOverflow() {
  * back to the older, approximate route.
  */
 function exactBand() {
-  // if (!motionReduced()) return null
-
-  const ratio = previewAspect()  
+  const ratio = knownAspect()
   if (!ratio) return null
 
   const rect = band.value?.getBoundingClientRect()
@@ -864,7 +899,7 @@ function measureBand() {
   const band = height - top - bottom
   // The preview knows its proportions before `aspect` has been told them, and
   // at the moment this first runs that is usually the only place to ask.
-  const ratio = aspect.value ?? previewAspect()
+  const ratio = knownAspect()
 
   if (!ratio || band <= 0) {
     uiFitScale.value = 1
@@ -1116,24 +1151,37 @@ onBeforeUnmount(() => {
         class="lightbox-cell absolute inset-0 flex items-center justify-center"
       >
         <!--
-          `max-h-full max-w-full` on top of the fitting rules: a video reports no
-          dimensions until its metadata arrives, and until then the fitting maths
-          has only a guessed aspect ratio to work with — which is how a clip
-          ended up taller than its cell and slid under the bars. The caps are the
-          content box of the cell, so they hold whatever the guess turns out to be.
+          Clipped into the band between the bars by the same transform that
+          places a picture there, so the controls along its bottom edge stay
+          above the footer instead of behind it. There is nothing to zoom here,
+          so the transform never moves off its resting value.
         -->
-        <video
-          :key="current.id ?? current.fileName"
-          :src="stream"
-          :poster="preview"
-          controls
-          playsinline
-          preload="metadata"
-          class="max-h-full max-w-full object-contain"
-          :class="fitClass"
-          :style="aspectStyle"
-          @loadedmetadata="onVideoMeta"
-        />
+        <div
+          class="flex h-full w-full items-center justify-center"
+          :class="animating ? 'transition-transform duration-200' : ''"
+          :style="zoomStyle"
+        >
+          <!--
+            `aspect-ratio` written out, unlike a picture: a video has no
+            proportions of its own until its metadata arrives, so `height: auto`
+            would be settled from the 300×150 every video element starts life at.
+            The file states its shape, so the element is given it outright.
+
+            `max-h-full max-w-full` behind that, for a file that states nothing.
+          -->
+          <video
+            :key="current.id ?? current.fileName"
+            :src="stream"
+            :poster="preview"
+            controls
+            playsinline
+            preload="metadata"
+            class="max-h-full max-w-full object-contain"
+            :class="fitClass"
+            :style="fitBoxStyle"
+            @loadedmetadata="onVideoMeta"
+          />
+        </div>
       </div>
 
       <div
@@ -1174,11 +1222,19 @@ onBeforeUnmount(() => {
 
           <div class="lightbox-cell absolute inset-0 flex items-center justify-center">
             <!--
-              Two stages. The full-size image is always fully opaque underneath;
-              the preview the grid already fetched covers it and fades out once
-              the full-screen image has arrived. Fading the top layer out — rather than
-              fading the bottom one in — means there is never a frame where
-              neither is opaque, which is what made the picture flash on the swap.
+              Three layers, sharpest at the bottom, and each upper one steps
+              aside only once what is under it is ready to be seen. One of them
+              is always solid, so nothing ever flashes and no half-drawn image is
+              ever on show — the same arrangement a grid tile uses, with the
+              preview added in the middle.
+
+              The ground is the miniature. It ships inline with the file, so it
+              is there before a single request has been made — which matters most
+              on the one path where nothing is cached: a shared link, opened
+              cold, where even the preview arrives over emptiness. Blurred,
+              because it is a handful of pixels, and scaled past the blur inside
+              a box that clips it, or its softened edges would fray against the
+              dark.
 
               `draggable="false"` matters: without it a mouse press starts the
               browser's own image drag and the pan never receives its moves.
@@ -1195,11 +1251,12 @@ onBeforeUnmount(() => {
                 ref="picture"
                 draggable="false"
                 class="object-contain"
-                :class="fitClass"
+                :class="[fitClass, fullLoaded ? 'opacity-100' : 'opacity-0']"
                 :style="aspectStyle"
                 @load="onFullLoaded"
                 @error="onFullFailed"
               />
+
               <img
                 v-if="preview"
                 ref="previewImage"
@@ -1217,6 +1274,21 @@ onBeforeUnmount(() => {
                 :style="aspectStyle"
                 @load="onPreviewLoaded"
               />
+
+              <div
+                v-if="miniature"
+                class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden transition-opacity duration-300"
+                :class="[fitClass, previewLoaded || fullLoaded ? 'opacity-0' : 'opacity-100']"
+                :style="fitBoxStyle"
+                aria-hidden="true"
+              >
+                <img
+                  :src="miniature"
+                  alt=""
+                  draggable="false"
+                  class="h-full w-full scale-110 object-cover blur-[24px]"
+                />
+              </div>
             </div>
           </div>
 
@@ -1490,7 +1562,7 @@ onBeforeUnmount(() => {
               class="lightbox-icon rounded-full p-2.5"
               :title="t('media.openDay')"
               :aria-label="t('media.openDay')"
-                          >
+            >
               <svg
                 class="h-4 w-4"
                 viewBox="0 0 20 20"

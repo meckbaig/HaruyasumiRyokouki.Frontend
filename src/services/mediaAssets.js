@@ -54,6 +54,18 @@ export function downloadSrc(media) {
   return (isVideo(media) ? media.videoUrls?.download : media.imageUrls?.download) ?? ''
 }
 
+/**
+ * Proportions of the file, as width over height — 0.75 for a 3:4 portrait.
+ *
+ * The API measures this, so nothing has to wait for a picture to arrive and
+ * report its own size, and no layout is built on a guess and then corrected.
+ * Null when a file does not carry it, which leaves the caller to fall back.
+ */
+export function mediaAspect(media) {
+  const ratio = Number(media?.aspectRatio)
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : null
+}
+
 /** The day a file belongs to, as an ISO date, derived from its timestamp. */
 export function mediaDate(media) {
   return typeof media?.created === 'string' ? media.created.slice(0, 10) : null
