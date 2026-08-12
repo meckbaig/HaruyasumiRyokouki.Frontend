@@ -331,6 +331,7 @@ onBeforeUnmount(() => {
         <button
           v-for="(media, index) in hung"
           :key="`${media.id}-${index}`"
+          :data-media-id="media.id"
           type="button"
           class="group relative h-full shrink-0 overflow-hidden rounded-md bg-edge/40 ring-1 ring-edge transition hover:ring-ink-faint"
           :style="{ aspectRatio: ratioOf(media) }"

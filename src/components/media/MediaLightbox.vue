@@ -793,7 +793,163 @@ function preventGhostClick(x, y) {
   }, 350)
 }
 
+/*
+  Growing out of the tile that was clicked, and shrinking back into it.
+
+  A single element flies between the two: an image of the file, laid over
+  everything, moved and resized from the tile's box to the picture's and back.
+  It is the preview the tile is already showing, so it costs no request.
+
+  The crop takes care of itself, which is the whole trick. A tile shows a square
+  cut out of the file — `object-fit: cover` — and the box it flies to has the
+  file's own proportions, where covering and containing are the same thing. So
+  the same `cover` that crops it at the start shows all of it at the end, and
+  the crop opens out along the way with nothing animating it.
+
+  Nothing here is measured off the viewer's own layout: the box the picture will
+  occupy is worked out from the numbers that place it, so this can run before the
+  picture exists and after it has gone.
+*/
+
+/** What a grid tile wears; `rounded-md`, and gone by the time it lands. */
+const TILE_RADIUS = '0.375rem'
+const HERO_MS = 260
+
+const heroEl = ref(null)
+const hero = ref(null)
+let heroAnimation = null
+/** A tile box captured as the viewer opens, waiting for somewhere to fly to. */
+let heroOrigin = null
+
+/** The box a file occupies on the page underneath, if it is on screen at all. */
+function tileBox(item, { offscreen = false } = {}) {
+  if (item?.id == null) return null
+
+  // Every match, not the first: the front page's wall is hung twice so that it
+  // can drift endlessly, and the copy that comes first in the document is as
+  // likely as not to be the one scrolled off the side.
+  const tiles = document.querySelectorAll(`[data-media-id="${CSS.escape(String(item.id))}"]`)
+  let hidden = null
+
+  for (const tile of tiles) {
+    const rect = tile.getBoundingClientRect()
+    if (!rect.width || !rect.height) continue
+
+    const box = { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+    const onScreen =
+      rect.bottom > 0 &&
+      rect.top < window.innerHeight &&
+      rect.right > 0 &&
+      rect.left < window.innerWidth
+
+    if (onScreen) return box
+    hidden ??= box
+  }
+
+  /*
+    A tile the reader cannot see is an origin only in one direction. Arriving
+    from beyond the edge is a swoop across the whole window out of nothing, and
+    reads as a glitch; leaving towards it is the picture going back where it
+    belongs, and the reader is meant to see it go that way even if what it is
+    going to is scrolled away.
+  */
+  return offscreen ? hidden : null
+}
+
+/**
+ * The box the open picture is drawn in, from the numbers that place it rather
+ * than from the element — which has none until it has loaded.
+ */
+function pictureBox() {
+  const ratio = knownAspect()
+  if (!ratio) return null
+
+  const width = Math.min(window.innerWidth, window.innerHeight * ratio) * scale.value
+  const height = width / ratio
+  return {
+    left: (window.innerWidth - width) / 2 + offsetX.value,
+    top: (window.innerHeight - height) / 2 + offsetY.value,
+    width,
+    height,
+  }
+}
+
+/**
+ * The sharpest image of a file the browser can paint without asking for it.
+ *
+ * The flight ends at full size, so a stand-in flown all the way there arrives
+ * visibly soft — and where the file itself is already in hand there is no reason
+ * to fly the stand-in at all. Where it is not, the preview is still the only
+ * thing that can set off at once, and it hands over below.
+ */
+function heroSource(item) {
+  const full = fullScreenSrc(item)
+  return isCached(full) ? full : stripSrc(item)
+}
+
+/*
+  A file that finishes arriving mid-flight takes over from its stand-in.
+
+  `fullLoaded` is only raised once the image has been decoded as well as
+  fetched, so by the time this runs the browser can paint it in the frame it is
+  asked to — which is what makes swapping the source safely invisible.
+*/
+watch(fullLoaded, (loaded) => {
+  if (!loaded || !hero.value) return
+  const full = fullScreenSrc(current.value)
+  if (full) hero.value = { ...hero.value, src: full }
+})
+
+function flyHero({ src, from, to, fromRadius, toRadius }) {
+  if (!src || !from || !to || motionReduced()) return
+
+  heroAnimation?.cancel()
+  hero.value = { src, ...from, radius: fromRadius }
+  // Said on the document, where the viewer's own leaving subtree cannot be
+  // reached any more. See the rule it drives in main.css.
+  document.documentElement.setAttribute('data-lightbox-flying', '')
+
+  nextTick(() => {
+    const element = heroEl.value
+    if (!element) return
+
+    heroAnimation = element.animate(
+      [
+        { ...boxKeyframe(from), borderRadius: fromRadius },
+        { ...boxKeyframe(to), borderRadius: toRadius },
+      ],
+      { duration: HERO_MS, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' },
+    )
+    heroAnimation.onfinish = () => {
+      hero.value = null
+      heroAnimation = null
+      document.documentElement.removeAttribute('data-lightbox-flying')
+    }
+  })
+}
+
+function boxKeyframe(box) {
+  return {
+    left: `${box.left}px`,
+    top: `${box.top}px`,
+    width: `${box.width}px`,
+    height: `${box.height}px`,
+  }
+}
+
 function close({ ghostAt = null } = {}) {
+  // Captured before the file is let go of: `current` is about to be null, and
+  // with it every proportion the picture's box is worked out from.
+  if (!video.value) {
+    flyHero({
+      src: heroSource(current.value),
+      from: pictureBox(),
+      to: tileBox(current.value, { offscreen: true }),
+      fromRadius: '0px',
+      toRadius: TILE_RADIUS,
+    })
+  }
+
   if (ghostAt) preventGhostClick(ghostAt.x, ghostAt.y)
   emit('update:index', null)
   emit('close')
@@ -924,6 +1080,19 @@ watch(
     // Before the sizing, so a cached picture is already the one being sized.
     revealIfCached()
     measureChrome()
+
+    if (heroOrigin) {
+      const from = heroOrigin
+      heroOrigin = null
+      flyHero({
+        src: heroSource(current.value),
+        from,
+        to: pictureBox(),
+        fromRadius: TILE_RADIUS,
+        toRadius: '0px',
+      })
+    }
+
     beforeFirstPaint = false
   },
   { flush: 'post' },
@@ -1368,6 +1537,7 @@ function onKeydown(event) {
 }
 
 function resetGestures() {
+  heroOrigin = null
   queuedTurn = 0
   turning = false
   pendingSettle = null
@@ -1413,6 +1583,8 @@ watch(
 
 watch(open, async (isOpen) => {
   if (isOpen) {
+    // Read now, with the page underneath still laid out as the reader left it.
+    heroOrigin = video.value ? null : tileBox(current.value)
     chromeReady.value = false
     lastFocused = document.activeElement
     document.addEventListener('keydown', onKeydown)
@@ -1430,13 +1602,23 @@ watch(open, async (isOpen) => {
     document.body.style.overflow = ''
     stopSpinner()
     resetGestures()
-    // Return focus to the tile that opened the lightbox.
-    lastFocused?.focus?.()
+    /*
+      Return focus to the tile that opened the viewer.
+
+      Without scrolling to it while a picture is flying there. Focusing an
+      element off the screen brings it into view, and the page moving under a
+      flight aimed at a fixed point left the picture sailing past where its tile
+      had been by the time it arrived. The flight is itself the answer to where
+      the file went, so the reader loses nothing by staying put.
+    */
+    lastFocused?.focus?.({ preventScroll: Boolean(hero.value) })
     lastFocused = null
   }
 })
 
 onBeforeUnmount(() => {
+  heroAnimation?.cancel()
+  document.documentElement.removeAttribute('data-lightbox-flying')
   document.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = ''
   stopSpinner()
@@ -1524,7 +1706,7 @@ onBeforeUnmount(() => {
         -->
           <div
             class="lightbox-strip absolute inset-0"
-            :class="animating ? 'transition-transform duration-200' : ''"
+            :class="[animating ? 'transition-transform duration-200' : '', hero ? 'opacity-0' : '']"
             :style="stripStyle"
           >
             <div
@@ -1949,5 +2131,27 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </Transition>
+
+    <!--
+      The flight between the tile and the picture. Outside the viewer's own
+      `v-if` on purpose: on the way out it has to outlive the room it is leaving,
+      and it is drawn above it either way.
+    -->
+    <img
+      v-if="hero"
+      ref="heroEl"
+      :src="hero.src"
+      alt=""
+      aria-hidden="true"
+      draggable="false"
+      class="pointer-events-none fixed z-[2050] object-cover"
+      :style="{
+        left: `${hero.left}px`,
+        top: `${hero.top}px`,
+        width: `${hero.width}px`,
+        height: `${hero.height}px`,
+        borderRadius: hero.radius,
+      }"
+    />
   </Teleport>
 </template>

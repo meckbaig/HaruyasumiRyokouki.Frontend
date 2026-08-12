@@ -575,6 +575,22 @@
 }
 
 /*
+  Unless the picture is flying back to its tile, in which case the room simply
+  goes. Fading it out at the same time gave the reader two departures to watch
+  at once — the picture leaving towards where it came from, and everything
+  including the picture dissolving where it stood.
+
+  Marked on the document and not on the viewer itself: by the time a flight
+  begins the viewer is already being taken away, and a subtree on its way out is
+  never patched again — a class bound on it would be written into a vnode that
+  is never applied to the element that is actually leaving.
+*/
+:root[data-lightbox-flying] .lightbox-leave-active,
+:root[data-lightbox-flying] .lightbox-leave-active .lightbox-strip {
+  animation: none;
+}
+
+/*
   The map filling the window, and leaving it again. Animations rather than
   transitions for the same reason the page transitions use them — see above.
 */
