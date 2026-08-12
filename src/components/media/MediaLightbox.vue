@@ -508,6 +508,11 @@ function withAnimation(change, done, duration = ANIM_MS) {
 let wheelTimer = null
 
 function onWheel(event) {
+  // A video is in the strip but takes no gestures from it; the page below is
+  // locked anyway, so the wheel simply does nothing there.
+  if (video.value) return
+  event.preventDefault()
+
   // Firefox reports lines rather than pixels; normalise before scaling.
   const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY
 
@@ -573,6 +578,8 @@ function updatePinch() {
 }
 
 function onPointerDown(event) {
+  if (video.value) return
+
   // A gesture that ended off the frame fires no click, so a flag set then would
   // linger and eat the next real tap.
   suppressClick = false
@@ -940,15 +947,13 @@ function boxKeyframe(box) {
 function close({ ghostAt = null } = {}) {
   // Captured before the file is let go of: `current` is about to be null, and
   // with it every proportion the picture's box is worked out from.
-  if (!video.value) {
-    flyHero({
-      src: heroSource(current.value),
-      from: pictureBox(),
-      to: tileBox(current.value, { offscreen: true }),
-      fromRadius: '0px',
-      toRadius: TILE_RADIUS,
-    })
-  }
+  flyHero({
+    src: heroSource(current.value),
+    from: pictureBox(),
+    to: tileBox(current.value, { offscreen: true }),
+    fromRadius: '0px',
+    toRadius: TILE_RADIUS,
+  })
 
   if (ghostAt) preventGhostClick(ghostAt.x, ghostAt.y)
   emit('update:index', null)
@@ -1584,7 +1589,7 @@ watch(
 watch(open, async (isOpen) => {
   if (isOpen) {
     // Read now, with the page underneath still laid out as the reader left it.
-    heroOrigin = video.value ? null : tileBox(current.value)
+    heroOrigin = tileBox(current.value)
     chromeReady.value = false
     lastFocused = document.activeElement
     document.addEventListener('keydown', onKeydown)
@@ -1651,47 +1656,19 @@ onBeforeUnmount(() => {
         :aria-label="label"
         tabindex="-1"
       >
-        <div v-if="video" class="lightbox-cell absolute inset-0 flex items-center justify-center">
-          <!--
-          Clipped into the band between the bars by the same transform that
-          places a picture there, so the controls along its bottom edge stay
-          above the footer instead of behind it. There is nothing to zoom here,
-          so the transform never moves off its resting value.
+        <!--
+          Every file lives in the filmstrip, video included. It used to sit in a
+          branch of its own, and the cost was plain the moment a reader stepped
+          off one: with no strip on screen there was nothing to slide, so a turn
+          away from a video simply swapped, while a turn towards it slid. The
+          gestures are what actually differ, and they are turned off per file
+          rather than by leaving the strip behind.
         -->
-          <div
-            class="flex h-full w-full items-center justify-center"
-            :class="animating ? 'transition-transform duration-200' : ''"
-            :style="zoomStyle"
-          >
-            <!--
-            `aspect-ratio` written out, unlike a picture: a video has no
-            proportions of its own until its metadata arrives, so `height: auto`
-            would be settled from the 300×150 every video element starts life at.
-            The file states its shape, so the element is given it outright.
-
-            `max-h-full max-w-full` behind that, for a file that states nothing.
-          -->
-            <video
-              :key="current.id ?? current.fileName"
-              :src="stream"
-              :poster="preview"
-              controls
-              playsinline
-              preload="metadata"
-              class="max-h-full max-w-full object-contain"
-              :class="fitClass"
-              :style="fitBoxStyle"
-              @loadedmetadata="onVideoMeta"
-            />
-          </div>
-        </div>
-
         <div
-          v-else
           ref="frame"
-          class="absolute inset-0 touch-none overflow-hidden"
-          :class="zoomed ? 'cursor-grab' : ''"
-          @wheel.prevent="onWheel"
+          class="absolute inset-0 overflow-hidden"
+          :class="[video ? '' : 'touch-none', zoomed ? 'cursor-grab' : '']"
+          @wheel="onWheel"
           @pointerdown="onPointerDown"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
@@ -1731,6 +1708,38 @@ onBeforeUnmount(() => {
 
             <div class="lightbox-cell absolute inset-0 flex items-center justify-center">
               <!--
+                Clipped into the band between the bars by the same transform that
+                places a picture there, so the controls along a video's bottom
+                edge stay above the footer instead of behind it. There is nothing
+                to zoom, so the transform never moves off its resting value.
+
+                `aspect-ratio` written out, unlike a picture: a video has no
+                proportions of its own until its metadata arrives, so
+                `height: auto` would be settled from the 300×150 every video
+                element starts life at. The file states its shape, so the element
+                is given it outright.
+              -->
+              <div
+                v-if="video"
+                class="flex h-full w-full items-center justify-center"
+                :class="animating ? 'transition-transform duration-200' : ''"
+                :style="zoomStyle"
+              >
+                <video
+                  :key="current.id ?? current.fileName"
+                  :src="stream"
+                  :poster="preview"
+                  controls
+                  playsinline
+                  preload="metadata"
+                  class="max-h-full max-w-full object-contain"
+                  :class="fitClass"
+                  :style="fitBoxStyle"
+                  @loadedmetadata="onVideoMeta"
+                />
+              </div>
+
+              <!--
               Three layers, sharpest at the bottom, and each upper one steps
               aside only once what is under it is ready to be seen. One of them
               is always solid, so nothing ever flashes and no half-drawn image is
@@ -1749,6 +1758,7 @@ onBeforeUnmount(() => {
               browser's own image drag and the pan never receives its moves.
             -->
               <div
+                v-else
                 class="relative flex h-full w-full items-center justify-center"
                 :class="animating ? 'transition-transform duration-200' : ''"
                 :style="zoomStyle"
