@@ -466,7 +466,25 @@ let animationTimer = null
  * state in `done` and merely sets up for it in `change`, which is what makes
  * running the two together the same thing arrived at sooner.
  */
+let pendingSettle = null
+
+/** Ends the running animation and writes the state it was on its way to. */
+function settleAnimation() {
+  clearTimeout(animationTimer)
+  animationTimer = null
+  animating.value = false
+
+  const done = pendingSettle
+  pendingSettle = null
+  done?.()
+}
+
 function withAnimation(change, done, duration = ANIM_MS) {
+  // Whatever the last one was going to settle is settled first. Dropping it is
+  // how a turn interrupted by a zoom used to strand the strip a frame off
+  // centre, with the file underneath it never swapped.
+  if (pendingSettle) settleAnimation()
+
   if (motionReduced()) {
     change()
     done?.()
@@ -474,12 +492,10 @@ function withAnimation(change, done, duration = ANIM_MS) {
   }
 
   animating.value = true
+  pendingSettle = done ?? null
   change()
   clearTimeout(animationTimer)
-  animationTimer = setTimeout(() => {
-    animating.value = false
-    done?.()
-  }, duration)
+  animationTimer = setTimeout(settleAnimation, duration)
 }
 
 /*
@@ -615,16 +631,10 @@ function settleStrip(dx) {
     return
   }
 
-  // Slide the strip by one full frame; the neighbour riding there lands dead
-  // centre. Swapping the index afterwards and zeroing the offset leaves the
-  // picture exactly where the animation left it, so the turn looks continuous.
-  withAnimation(
-    () => (dragX.value = -direction * width),
-    () => {
-      step(direction)
-      dragX.value = 0
-    },
-  )
+  // The same turn an arrow makes: the strip slides a whole frame, the
+  // neighbour riding there lands dead centre, and the index changes underneath
+  // it so the picture stays exactly where the animation left it.
+  slideOneFrame(direction)
 }
 
 /** Decides whether a released downward drag dismisses or springs back. */
@@ -813,6 +823,40 @@ function step(delta) {
  * for — there the finger is panning.
  */
 let queuedTurn = 0
+/**
+ * True while a turn's slide is running.
+ *
+ * Not `animating`, which is on for anything that moves — a zoom, a spring back,
+ * the picture following the bars as the chrome is toggled. A turn only has to
+ * wait for another turn, and asking the general flag meant hiding the interface
+ * swallowed the very next arrow press for a fifth of a second, whether or not
+ * there was an animation to wait for at all.
+ */
+let turning = false
+
+/** Slides the strip one frame along and swaps the file when it lands. */
+function slideOneFrame(delta) {
+  turning = true
+  const { width } = frameSize()
+
+  withAnimation(
+    () => (dragX.value = -delta * width),
+    () => {
+      step(delta)
+      dragX.value = 0
+      turning = false
+
+      if (!queuedTurn) return
+      const waiting = queuedTurn
+      queuedTurn = 0
+      // Next tick, so the strip is rendered back at rest — untransformed, and
+      // without its transition — before the following slide starts from there.
+      // Started in the same breath, the browser would never see the resting
+      // position and the second slide would have nowhere to travel from.
+      nextTick(() => page(waiting))
+    },
+  )
+}
 
 function page(delta) {
   const next = props.index + delta
@@ -825,16 +869,14 @@ function page(delta) {
     return
   }
 
-  if (animating.value) {
+  if (turning) {
     /*
       Asked for while a turn is still running, it waits its own turn.
 
       Cutting the running one short is not an option: the strip only swaps the
       file underneath it once the slide has finished, and interrupting halfway
       shifts the contents by a frame while the transform still says otherwise —
-      the picture jumps forward by a whole screen. Letting the second turn
-      simply happen was the old behaviour, and it is what put two files through
-      one movement.
+      the picture jumps forward by a whole screen.
 
       Only one is remembered. A held-down arrow sends a stream of them, and a
       queue that took them all would carry on turning long after the key came up.
@@ -843,23 +885,7 @@ function page(delta) {
     return
   }
 
-  const { width } = frameSize()
-  withAnimation(
-    () => (dragX.value = -delta * width),
-    () => {
-      step(delta)
-      dragX.value = 0
-
-      if (!queuedTurn) return
-      const waiting = queuedTurn
-      queuedTurn = 0
-      // Next tick, so the strip is rendered back at rest — untransformed, and
-      // without its transition — before the following slide starts from there.
-      // Started in the same breath, the browser would never see the resting
-      // position and the second slide would have nowhere to travel from.
-      nextTick(() => page(waiting))
-    },
-  )
+  slideOneFrame(delta)
 }
 
 watch(current, () => {
@@ -911,10 +937,15 @@ let restTimer = null
  * left exactly as they left it.
  */
 watch(uiVisible, () => {
-  if (!open.value || !atInitialFit) return
+  if (!open.value || !atInitialFit || motionReduced()) return
   animating.value = true
   clearTimeout(restTimer)
-  restTimer = setTimeout(() => (animating.value = false), ANIM_MS)
+  restTimer = setTimeout(() => {
+    // Unless something with a settling of its own has started meanwhile: that
+    // one owns the flag now, and switching it off would drop its transition
+    // partway through.
+    if (!pendingSettle) animating.value = false
+  }, ANIM_MS)
 })
 
 /*
@@ -1338,6 +1369,8 @@ function onKeydown(event) {
 
 function resetGestures() {
   queuedTurn = 0
+  turning = false
+  pendingSettle = null
   clearTimeout(restTimer)
   pointers.clear()
   drag = null
