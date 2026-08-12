@@ -1821,11 +1821,20 @@ onBeforeUnmount(() => {
               </div>
 
               <!--
-              Three layers, sharpest at the bottom, and each upper one steps
-              aside only once what is under it is ready to be seen. One of them
-              is always solid, so nothing ever flashes and no half-drawn image is
-              ever on show — the same arrangement a grid tile uses, with the
-              preview added in the middle.
+              Three layers, sharpest at the bottom. Each is transparent until
+              it is whole and steps aside once something sharper is, so exactly
+              one of them is ever solid — the same arrangement a grid tile uses,
+              with the preview added in the middle.
+
+              Transparent *until it is whole* is the half of it that matters:
+              a picture still arriving is painted as far as it has got and left
+              blank below, and one left visible while it downloaded showed as a
+              half-drawn photograph on white.
+
+              Each fades out and none fades in. A layer fading in over one fading
+              out leaves a moment where neither is solid and the dark shows
+              between them; fading only the upper one away means the one beneath
+              is already whole and waiting.
 
               The ground is the miniature. It ships inline with the file, so it
               is there before a single request has been made — which matters most
@@ -1868,8 +1877,8 @@ onBeforeUnmount(() => {
                   class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
                   :class="[
                     fitClass,
-                    fullLoaded ? 'opacity-0' : 'opacity-100',
-                    instantSwap ? '' : 'transition-opacity duration-300',
+                    previewLoaded && !fullLoaded ? 'opacity-100' : 'opacity-0',
+                    fullLoaded && !instantSwap ? 'transition-opacity duration-300' : '',
                   ]"
                   :style="aspectStyle"
                   @load="onPreviewLoaded"
