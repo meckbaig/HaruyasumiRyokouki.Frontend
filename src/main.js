@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import { router, installAuthRedirect, prefetchViews } from './router'
-import { i18n, SUPPORTED_LOCALES, persistLocaleIfUnset } from './i18n'
+import { i18n } from './i18n'
 import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
 import { useMotionStore } from './stores/motion'
@@ -24,22 +24,9 @@ installAuthRedirect()
 
 app.use(router)
 
+// A shared link's `?lang=` is read and removed in @/i18n, before the router is
+// built — see the note there for why it must not be a navigation.
 document.documentElement.setAttribute('lang', i18n.global.locale.value)
-
-// A shared link may carry ?lang=; detectLocale() has already used it to pick the
-// initial locale. Once routing is ready, persist that choice only for a visitor
-// who has none of their own (so a returning visitor's preference is untouched),
-// then strip the param so it does not linger in the address bar or get re-shared.
-router.isReady().then(() => {
-  const route = router.currentRoute.value
-  const lang = route.query.lang
-  if (typeof lang === 'string' && SUPPORTED_LOCALES.includes(lang)) {
-    persistLocaleIfUnset(lang)
-    const query = { ...route.query }
-    delete query.lang
-    router.replace({ path: route.path, query, hash: route.hash })
-  }
-})
 
 app.mount('#app')
 
