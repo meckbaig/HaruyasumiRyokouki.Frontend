@@ -7,6 +7,7 @@
  * major and minor alone. CHANGELOG.md is the long version of this list.
  */
 const NAMES = {
+  '0.11': 'animated transitions',
   '0.10': 'favorites and links to a photo',
   '0.9': 'an app with a face',
   '0.8': 'zoom-based framing',

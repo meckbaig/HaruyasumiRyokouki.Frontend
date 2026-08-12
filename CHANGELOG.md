@@ -4,6 +4,24 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero says
 the site is still finding its shape.
 
+## 0.11.0 — pre-release: animated transitions
+
+Navigation, the image viewer and loading content are animated instead of
+switching in a single frame. Every animation honours the system's reduce-motion
+setting and is skipped outright when it is on.
+
+- Pages and days animate on navigation; days move in the direction stepped
+- The viewer animates on open, on close and when paging between files
+- The blurred placeholder fades into the picture instead of being replaced abruptly
+- The viewer's bars animate when their height changes between files
+- Favourites expand into place on the front page without displacing the calendar
+- Search results and the pending queue appear from top to bottom
+- The placeholder grid uses the day's media count and cross-fades into the real grid
+- Hiding the interface responds to a tap immediately on mobile
+- On a phone in landscape, the next image is sized correctly while paging
+- The scrollbar is drawn as an overlay and no longer takes layout width
+- The installed app uses the name in the language selected on the site
+
 ## 0.10.0 — pre-release: favorites and links to a photo
 
 The front page opens with a wall of photos picked out by hand, drifting past and
