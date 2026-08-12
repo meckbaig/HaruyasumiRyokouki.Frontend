@@ -43,7 +43,31 @@ const hasNext = computed(() => open.value && props.index < props.items.length - 
 const prevItem = computed(() => (hasPrev.value ? props.items[props.index - 1] : null))
 const nextItem = computed(() => (hasNext.value ? props.items[props.index + 1] : null))
 
+/*
+  Full-size images this session has already had in hand.
+
+  A neighbour riding in the filmstrip is drawn from its preview, because that is
+  the one thing certain to be there. But a file already looked at is in the
+  browser's cache at full size, and sliding its preview past showed it soft for
+  the length of the turn before swapping at the end — which is exactly what a
+  reader notices going back through an album.
+
+  Kept as a list of what has been seen rather than asked of the browser each
+  time. Asking means setting `src` on a probe, and for a file that is *not*
+  cached that is a request — one per neighbour, on every turn, for pictures
+  nobody has opened. Fine for the file being opened, which is about to be
+  fetched anyway; not fine for the two either side of it.
+*/
+const inHand = new Set()
+
+/** Whether this file's full-size image can be drawn with no request at all. */
+function haveFullSize(item) {
+  const full = fullScreenSrc(item)
+  return Boolean(full) && inHand.has(full)
+}
+
 function stripSrc(item) {
+  if (haveFullSize(item)) return fullScreenSrc(item)
   return previewSrc(item) || miniatureSrc(item)
 }
 
@@ -235,6 +259,7 @@ const groundInstant = ref(false)
 function settleLayers({ full = false, preview = false, instant = false }) {
   if (full) {
     fullLoaded.value = true
+    if (fullScreen.value) inHand.add(fullScreen.value)
     if (instant) instantSwap.value = true
     stopSpinner()
   }
@@ -275,6 +300,8 @@ async function onFullLoaded(event) {
   rememberAspect(image)
   if (await revealWhenDecoded(image)) {
     fullLoaded.value = true
+    // Remembered so this file slides past sharp the next time it is a neighbour.
+    inHand.add(image.getAttribute('src'))
     stopSpinner()
   }
 }
@@ -891,7 +918,8 @@ function pictureBox() {
  */
 function heroSource(item) {
   const full = fullScreenSrc(item)
-  return isCached(full) ? full : stripSrc(item)
+  if (!full) return stripSrc(item)
+  return haveFullSize(item) || isCached(full) ? full : stripSrc(item)
 }
 
 /*
