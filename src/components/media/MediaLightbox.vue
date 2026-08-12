@@ -327,9 +327,16 @@ const TAP_WINDOW = 210
 const TAP_SLOP = 40
 const DRAG_SLOP = 8
 const ANIM_MS = 220
-/** Share of the frame a sideways drag must cross before the page turns. */
-const SWIPE_COMMIT = 0.22
-/** Downward travel that dismisses the viewer. */
+/**
+ * Share of the frame a sideways drag must cross before the page turns.
+ *
+ * Deliberately short. There is nothing else a sideways drag on a picture can
+ * mean, and the two ways of getting it wrong are not equal: a turn the reader
+ * did not want costs them one swipe back, while a turn that refuses to happen
+ * makes them repeat the whole gesture harder.
+ */
+const SWIPE_COMMIT = 0.12
+/** Travel, up or down, that dismisses the viewer. */
 const DISMISS_DISTANCE = 120
 
 const frame = ref(null)
@@ -361,9 +368,9 @@ const zoomStyle = computed(() => ({
   transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value})`,
 }))
 
-/** Dragging down dims the surroundings, so the dismissal reads as deliberate. */
+/** Dragging away dims the surroundings, so the dismissal reads as deliberate. */
 const dismissOpacity = computed(() =>
-  dragY.value > 0 ? Math.max(0.35, 1 - dragY.value / (DISMISS_DISTANCE * 3)) : 1,
+  Math.max(0.35, 1 - Math.abs(dragY.value) / (DISMISS_DISTANCE * 3)),
 )
 
 function frameSize() {
@@ -671,10 +678,23 @@ function settleStrip(dx) {
   slideOneFrame(direction)
 }
 
-/** Decides whether a released downward drag dismisses or springs back. */
-function settleDismiss(dy, point) {
-  if (dy > DISMISS_DISTANCE) {
-    close({ ghostAt: point })
+/**
+ * Decides whether a released vertical drag dismisses or springs back.
+ *
+ * Either way up. Pushing a picture off the top and pushing it off the bottom say
+ * the same thing, and a reader who has just swiped down to leave one file often
+ * swipes back up out of the next — asking which way they threw it would be
+ * asking about nothing.
+ */
+function settleDismiss(dy) {
+  if (Math.abs(dy) > DISMISS_DISTANCE) {
+    /*
+      No flight back to the tile. The reader has just pushed the picture off the
+      screen themselves, which is a departure of its own and the one they are
+      watching; adding a second one sent the picture sliding away and shrinking
+      towards its tile at the same time, in two directions at once.
+    */
+    close({ fly: false })
     return
   }
   withAnimation(() => (dragY.value = 0))
@@ -707,11 +727,11 @@ function onPointerUp(event) {
   if (moved) {
     suppressClick = true
     if (zoomed.value) return
-    if (axis === 'y') settleDismiss(dy, { x: event.clientX, y: event.clientY })
+    if (axis === 'y') settleDismiss(dy)
     else if (axis === 'x') settleStrip(dx)
     else if (
       pointerType !== 'mouse' &&
-      Math.abs(dx) > 60 &&
+      Math.abs(dx) > 40 &&
       Math.abs(dx) > Math.abs(dy) * 1.5 &&
       Date.now() - time < 800
     ) {
@@ -790,41 +810,6 @@ function onFrameClickCapture(event) {
   event.stopPropagation()
   event.preventDefault()
   suppressClick = false
-}
-
-/**
- * Stops the click a touch gesture leaves behind.
- *
- * A browser synthesises a click a moment after a touch ends, aimed at whatever
- * is under the finger. Dismissing with a downward swipe removes the viewer
- * before it arrives, so it lands on the grid beneath and re-opens the file that
- * was just dismissed.
- *
- * Cancelling the touch sequence is the precise cure — a prevented `touchend`
- * produces no compatibility click at all. The click guard behind it is only a
- * backstop for browsers that synthesise one anyway, and it is deliberately
- * narrow: it ignores anything more than a finger's width from where the gesture
- * ended, so a deliberate tap somewhere else is never swallowed.
- */
-function preventGhostClick(x, y) {
-  const stopTouch = (event) => {
-    if (event.cancelable) event.preventDefault()
-  }
-  const stopClick = (event) => {
-    if (Math.hypot(event.clientX - x, event.clientY - y) > 40) return
-    event.stopPropagation()
-    event.preventDefault()
-  }
-
-  document.addEventListener('touchend', stopTouch, {
-    capture: true,
-    passive: false,
-  })
-  document.addEventListener('click', stopClick, { capture: true })
-  setTimeout(() => {
-    document.removeEventListener('touchend', stopTouch, { capture: true })
-    document.removeEventListener('click', stopClick, { capture: true })
-  }, 350)
 }
 
 /*
@@ -972,18 +957,23 @@ function boxKeyframe(box) {
   }
 }
 
-function close({ ghostAt = null } = {}) {
+/**
+ * @param {{ fly?: boolean }} options `fly` is false when the reader has already
+ *   thrown the picture somewhere themselves — see `settleDismiss`.
+ */
+function close({ fly = true } = {}) {
   // Captured before the file is let go of: `current` is about to be null, and
   // with it every proportion the picture's box is worked out from.
-  flyHero({
-    src: heroSource(current.value),
-    from: pictureBox(),
-    to: tileBox(current.value, { offscreen: true }),
-    fromRadius: '0px',
-    toRadius: TILE_RADIUS,
-  })
+  if (fly) {
+    flyHero({
+      src: heroSource(current.value),
+      from: pictureBox(),
+      to: tileBox(current.value, { offscreen: true }),
+      fromRadius: '0px',
+      toRadius: TILE_RADIUS,
+    })
+  }
 
-  if (ghostAt) preventGhostClick(ghostAt.x, ghostAt.y)
   emit('update:index', null)
   emit('close')
 }
@@ -1418,6 +1408,19 @@ function applyRestingFit() {
 const barHeights = new WeakMap()
 const barAnimations = new WeakMap()
 
+/**
+ * True while heights are only being written down, not acted on.
+ *
+ * A tag list opening or closing eases its own height, in CSS, over its own
+ * three hundred milliseconds. Easing the bar around it as well set a second
+ * animation running over the first — from the height the bar had before all
+ * this, back down to where the list was already taking it — which is the little
+ * bounce at the end of a collapse. The reading is still wanted, so the next real
+ * change is measured from where things actually ended up; only the movement is
+ * not.
+ */
+let recordBarsOnly = false
+
 function easeBarHeight(element) {
   if (!element) return
 
@@ -1429,7 +1432,7 @@ function easeBarHeight(element) {
   const next = element.offsetHeight
   const previous = barHeights.get(element)
   barHeights.set(element, next)
-  if (previous == null || previous === next || motionReduced()) return
+  if (recordBarsOnly || previous == null || previous === next || motionReduced()) return
 
   barAnimations.set(
     element,
@@ -1493,13 +1496,20 @@ function observeChrome() {
 let chromeSettling = false
 let chromeSettleTimer = null
 
+/** Longer than the 300ms the tag list and the description take to open or shut. */
+const CHROME_SETTLE_MS = 340
+
 function settleChrome() {
   chromeSettling = true
   clearTimeout(chromeSettleTimer)
   chromeSettleTimer = setTimeout(() => {
     chromeSettling = false
+    // Written down, not animated: the bar has just finished moving of its own
+    // accord, and is already exactly where this would have sent it.
+    recordBarsOnly = true
     measureChrome()
-  }, 260)
+    recordBarsOnly = false
+  }, CHROME_SETTLE_MS)
 }
 
 function toggleTags() {
@@ -1614,6 +1624,45 @@ watch(
   },
 )
 
+/*
+  The page behind the viewer is held still while it is up, and let go of a moment
+  after it comes down.
+
+  A moment, and not at once, because a dismissal ends on `pointerup` — and the
+  `touchend` that completes the sequence has not been dispatched yet. Unlocking
+  there hands the browser a page that became scrollable in the middle of a
+  gesture it is still reading, and a quick flick is handed to it as a fling. At
+  the top of the page that fling has nowhere to go and moves nothing, which is
+  why no scrolling was ever visible — but the next tap is spent stopping it
+  instead of pressing what it landed on, and no click is made at all.
+
+  It also explains the shape of the fault exactly: a slow drag ends with no
+  speed to fling, and answered the next tap perfectly.
+*/
+const UNLOCK_DELAY = 120
+let unlockTimer = null
+
+function lockScroll() {
+  clearTimeout(unlockTimer)
+  unlockTimer = null
+  document.body.style.overflow = 'hidden'
+}
+
+function unlockScroll({ now = false } = {}) {
+  clearTimeout(unlockTimer)
+  unlockTimer = null
+
+  if (now) {
+    document.body.style.overflow = ''
+    return
+  }
+
+  unlockTimer = setTimeout(() => {
+    unlockTimer = null
+    document.body.style.overflow = ''
+  }, UNLOCK_DELAY)
+}
+
 watch(open, async (isOpen) => {
   if (isOpen) {
     // Read now, with the page underneath still laid out as the reader left it.
@@ -1622,7 +1671,7 @@ watch(open, async (isOpen) => {
     lastFocused = document.activeElement
     document.addEventListener('keydown', onKeydown)
     // Locking the body keeps the page behind from scrolling under the overlay.
-    document.body.style.overflow = 'hidden'
+    lockScroll()
     await nextTick()
     dialog.value?.focus()
     observeChrome()
@@ -1632,19 +1681,23 @@ watch(open, async (isOpen) => {
     clearTimeout(chromeSettleTimer)
     chromeSettling = false
     document.removeEventListener('keydown', onKeydown)
-    document.body.style.overflow = ''
+    unlockScroll()
     stopSpinner()
     resetGestures()
     /*
       Return focus to the tile that opened the viewer.
 
-      Without scrolling to it while a picture is flying there. Focusing an
-      element off the screen brings it into view, and the page moving under a
-      flight aimed at a fixed point left the picture sailing past where its tile
-      had been by the time it arrived. The flight is itself the answer to where
-      the file went, so the reader loses nothing by staying put.
+      Never scrolling to it. Focusing an element brings it into view, and the
+      page here scrolls smoothly — so a close could set a scroll running that
+      outlasted it. That cost twice over: a picture flying to a fixed point
+      sailed past its tile as the page moved under it, and, worse, a browser
+      throws away the click of any touch that began or ended while the page was
+      moving. Which is a tap that does nothing, for no reason the reader can see.
+
+      Nothing is lost by staying put: the reader closed the viewer, and being
+      pulled somewhere else is not what they asked for.
     */
-    lastFocused?.focus?.({ preventScroll: Boolean(hero.value) })
+    lastFocused?.focus?.({ preventScroll: true })
     lastFocused = null
   }
 })
@@ -1653,7 +1706,7 @@ onBeforeUnmount(() => {
   heroAnimation?.cancel()
   document.documentElement.removeAttribute('data-lightbox-flying')
   document.removeEventListener('keydown', onKeydown)
-  document.body.style.overflow = ''
+  unlockScroll({ now: true })
   stopSpinner()
   resetGestures()
   chromeObserver?.disconnect()

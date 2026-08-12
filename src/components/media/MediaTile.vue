@@ -125,11 +125,64 @@ function onContextMenu(event) {
   emit('context', { media: props.media, x: event.clientX, y: event.clientY })
 }
 
+/*
+  A tap is read here rather than waited for.
+
+  `click` is not an event a touchscreen produces — a browser invents one out of
+  a touch, and only if it decides that touch belonged to the page. After a quick
+  swipe it decides otherwise: the whole invented sequence is suppressed, mouse
+  events and all, and a tile tapped straight after a picture was flicked away
+  answered nothing at all. Nothing was cancelling it and nothing was covering the
+  page; the click was simply never made.
+
+  So the tap is recognised from the touch itself — pressed and released in the
+  same place — and a browser that does invent a click afterwards finds it already
+  answered. A mouse still comes through `click` as it always did.
+*/
+const TAP_SLOP = 10
+
+let tap = null
+let tapAnswered = false
+
+function onTouchStart(event) {
+  const touch = event.changedTouches[0]
+  tap = touch ? { x: touch.clientX, y: touch.clientY, selecting: editor.selectionMode } : null
+  tapAnswered = false
+}
+
+function onTouchEnd(event) {
+  const start = tap
+  tap = null
+
+  const touch = event.changedTouches[0]
+  if (!start || !touch) return
+  if (Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_SLOP) return
+
+  // A press held long enough to open selection mode is a long press, and the
+  // grid has already answered it by selecting this very tile.
+  if (!start.selecting && editor.selectionMode) return
+
+  tapAnswered = true
+  activate()
+}
+
+function onTouchCancel() {
+  tap = null
+}
+
+function onClick() {
+  if (tapAnswered) {
+    tapAnswered = false
+    return
+  }
+  activate()
+}
+
 /**
  * Plain activation only. The press-and-drag paint gesture and the long-press
  * that enters selection mode both live in MediaGrid, which owns the pointer
- * events across the whole grid; this handler just decides open-vs-toggle for a
- * simple click.
+ * events across the whole grid; this decides open-vs-toggle once a press has
+ * been settled as a plain one.
  */
 function activate() {
   if (props.editable && editor.selectionMode) {
@@ -151,7 +204,10 @@ function activate() {
       :class="outlineClass"
       :aria-label="label"
       :aria-pressed="editor.selectionMode ? selected : undefined"
-      @click="activate"
+      @click="onClick"
+      @touchstart.passive="onTouchStart"
+      @touchend="onTouchEnd"
+      @touchcancel="onTouchCancel"
       @contextmenu.prevent="onContextMenu"
     >
       <!-- Fixed square keeps the grid from reflowing while previews arrive. -->
