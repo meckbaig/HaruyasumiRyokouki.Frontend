@@ -13,6 +13,7 @@ import { useUiStore } from '@/stores/ui'
 import { useDaysStore } from '@/stores/days'
 import { useEditorStore } from '@/stores/editor'
 import { formatLongDate } from '@/services/dates'
+import { cascadeDelay } from '@/services/cascade'
 
 const { t } = useI18n()
 const ui = useUiStore()
@@ -141,6 +142,7 @@ function dayTitle(day) {
           :items="pending.media"
           editable
           show-date
+          cascade
           @open="editing = $event"
           @edit="editing = $event"
         />
@@ -158,9 +160,10 @@ function dayTitle(day) {
 
         <div v-if="pending.days.length" class="space-y-3">
           <div
-            v-for="day in pending.days"
+            v-for="(day, index) in pending.days"
             :key="day.date"
-            class="rounded-lg border border-edge bg-paper-raised"
+            class="cascade-item rounded-lg border border-edge bg-paper-raised"
+            :style="cascadeDelay(index)"
           >
             <button
               type="button"

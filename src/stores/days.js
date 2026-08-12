@@ -47,24 +47,40 @@ export const useDaysStore = defineStore('days', () => {
   }
 
   /**
+   * Requests already on their way, so two callers asking for the same day get
+   * one fetch between them. That is what lets the router start a day loading
+   * the moment a navigation begins while the page still asks for it on mount —
+   * see `prefetchRoute` in the router.
+   */
+  const inFlight = new Map()
+
+  /**
    * Loads one day, reusing the cache unless `force` is set.
    * Errors are recorded per date and rethrown so callers can react.
    */
-  async function loadDay(date, force = false) {
-    if (!force && details.value.has(date)) return details.value.get(date)
-
-    try {
-      const day = await fetchDay(date)
-      details.value.set(date, day)
-      detailErrors.value.delete(date)
-      // Map mutations are not reactive by themselves; swap the reference.
-      details.value = new Map(details.value)
-      return day
-    } catch (error) {
-      detailErrors.value.set(date, error)
-      detailErrors.value = new Map(detailErrors.value)
-      throw error
+  function loadDay(date, force = false) {
+    if (!force) {
+      if (details.value.has(date)) return Promise.resolve(details.value.get(date))
+      if (inFlight.has(date)) return inFlight.get(date)
     }
+
+    const request = fetchDay(date)
+      .then((day) => {
+        details.value.set(date, day)
+        detailErrors.value.delete(date)
+        // Map mutations are not reactive by themselves; swap the reference.
+        details.value = new Map(details.value)
+        return day
+      })
+      .catch((error) => {
+        detailErrors.value.set(date, error)
+        detailErrors.value = new Map(detailErrors.value)
+        throw error
+      })
+      .finally(() => inFlight.delete(date))
+
+    inFlight.set(date, request)
+    return request
   }
 
   function getDay(date) {
@@ -84,6 +100,7 @@ export const useDaysStore = defineStore('days', () => {
 
   /** Drops every cached response. Used when the content language changes. */
   function invalidate() {
+    inFlight.clear()
     details.value = new Map()
     detailErrors.value = new Map()
     listLoaded.value = false

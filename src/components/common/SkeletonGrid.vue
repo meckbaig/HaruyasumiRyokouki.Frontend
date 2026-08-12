@@ -2,8 +2,15 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
-  /** How many rows of placeholders to draw. */
+  /** How many rows of placeholders to draw when the count is not known. */
   rows: { type: Number, default: 2 },
+  /**
+   * How many files are actually coming, when that is known ahead of time — the
+   * day list carries `mediaCount` for every day, so the day page knows before
+   * the day itself has arrived. Drawing exactly that many makes the placeholder
+   * the same shape as what replaces it, and the page stops jumping.
+   */
+  count: { type: Number, default: null },
 })
 
 /**
@@ -31,7 +38,21 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 const columns = computed(
   () => BREAKPOINTS.find((breakpoint) => width.value >= breakpoint.min)?.columns ?? 2,
 )
-const count = computed(() => columns.value * props.rows)
+
+/**
+ * A day of three hundred photographs is still only a screenful of waiting, and
+ * drawing three hundred pulsing squares to say so costs more than it tells. The
+ * cap is generous enough to fill any screen twice over.
+ */
+const MAX_PLACEHOLDERS = 30
+
+const placeholders = computed(() => {
+  if (props.count == null) return columns.value * props.rows
+  // Rounded up to a whole row: a ragged last row reads as content rather than
+  // as something still on its way.
+  const wanted = Math.min(props.count, MAX_PLACEHOLDERS)
+  return Math.ceil(wanted / columns.value) * columns.value
+})
 </script>
 
 <template>
@@ -40,7 +61,7 @@ const count = computed(() => columns.value * props.rows)
     aria-hidden="true"
   >
     <div
-      v-for="index in count"
+      v-for="index in placeholders"
       :key="index"
       class="aspect-square animate-pulse rounded-md bg-edge/60"
     />

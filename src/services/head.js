@@ -32,6 +32,20 @@ function setMeta(keyAttr, keyValue, content) {
 }
 
 /**
+ * Points the manifest link at the locale's own file.
+ *
+ * A browser reads the manifest when it offers to install, so the name under the
+ * icon follows whatever language the reader had chosen by then — not the one the
+ * page was served in. In development there are no per-locale manifests (the
+ * build writes them), so a missing file is left alone rather than pointed at.
+ */
+function applyManifest(locale) {
+  const link = document.querySelector('link[rel="manifest"]')
+  if (!link || !import.meta.env.PROD) return
+  link.setAttribute('href', `/manifest.${locale}.webmanifest`)
+}
+
+/**
  * Applies a localised head. `title` is the page-specific part (omitted on the
  * home page); `description` overrides the default tagline when a page has one.
  */
@@ -54,5 +68,6 @@ export function applyHead({ title, description } = {}) {
   setMeta('name', 'twitter:title', fullTitle)
   setMeta('name', 'twitter:description', desc)
 
+  applyManifest(locale.value)
   document.documentElement.setAttribute('lang', locale.value)
 }

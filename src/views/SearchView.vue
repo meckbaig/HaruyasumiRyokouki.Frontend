@@ -16,6 +16,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
+import { cascadeDelay } from '@/services/cascade'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -158,8 +159,10 @@ function openLightbox({ items, index }) {
       <div v-show="tab === 'media'" role="tabpanel">
         <div v-if="mediaDays.length" class="space-y-8">
           <MediaResultGroup
-            v-for="group in mediaDays"
+            v-for="(group, index) in mediaDays"
             :key="group.date"
+            class="cascade-item"
+            :style="cascadeDelay(index)"
             :group="group"
             :editable="auth.isEditor"
             :highlighted-id="highlightedId"
@@ -174,8 +177,10 @@ function openLightbox({ items, index }) {
       <div v-show="tab === 'notes'" role="tabpanel">
         <div v-if="noteDays.length" class="space-y-8">
           <NoteResultCard
-            v-for="day in noteDays"
+            v-for="(day, index) in noteDays"
             :key="day.date"
+            class="cascade-item"
+            :style="cascadeDelay(index)"
             :day="day"
             :tokens="search.results.tokens"
           />

@@ -64,9 +64,7 @@ const dayQuery = computed(() =>
 )
 
 /** The day button is an offer to go somewhere; on that day there is nowhere to go. */
-const onOwnDay = computed(
-  () => route.name === 'day' && String(route.params.date) === dayDate.value,
-)
+const onOwnDay = computed(() => route.name === 'day' && String(route.params.date) === dayDate.value)
 
 /*
   Sharing the file rather than the page.
@@ -224,18 +222,30 @@ const instantSwap = ref(false)
 /** The same, for the miniature under it. */
 const groundInstant = ref(false)
 
-/** Marks every layer a ready one stands on as done with, fades and all. */
-function settleLayers({ full = false, preview = false }) {
+/**
+ * Marks every layer a ready one stands on as done with.
+ *
+ * `instant` is the difference between a layer that was superseded before it was
+ * ever painted and one that had its turn on screen. The first has nothing to
+ * fade from and should simply not be there; the second is being taken away from
+ * a reader who is looking at it, and taking it away in one frame is the snap
+ * this whole arrangement exists to avoid. Only a decision made before the first
+ * paint may claim the first case.
+ */
+function settleLayers({ full = false, preview = false, instant = false }) {
   if (full) {
     fullLoaded.value = true
-    instantSwap.value = true
+    if (instant) instantSwap.value = true
     stopSpinner()
   }
   if (full || preview) {
     previewLoaded.value = true
-    groundInstant.value = true
+    if (instant) groundInstant.value = true
   }
 }
+
+/** True until this file's first post-flush pass, which is its last chance. */
+let beforeFirstPaint = true
 
 /**
  * Second chance at the same question, once the elements exist.
@@ -249,14 +259,14 @@ function revealIfCached() {
   const full = picture.value
   if (full?.complete && full.naturalWidth) {
     rememberAspect(full)
-    settleLayers({ full: true })
+    settleLayers({ full: true, instant: beforeFirstPaint })
     return
   }
 
   const preview = previewImage.value
   if (preview?.complete && preview.naturalWidth) {
     rememberAspect(preview)
-    settleLayers({ preview: true })
+    settleLayers({ preview: true, instant: beforeFirstPaint })
   }
 }
 
@@ -286,7 +296,7 @@ function onFullFailed() {
 */
 const MAX_SCALE = 4
 const TAP_ZOOM = 2.5
-const TAP_WINDOW = 300
+const TAP_WINDOW = 210
 const TAP_SLOP = 40
 const DRAG_SLOP = 8
 const ANIM_MS = 220
@@ -406,7 +416,10 @@ function isOnPicture(clientX, clientY) {
 function toFramePoint(clientX, clientY) {
   const { rect } = frameSize()
   if (!rect) return { x: 0, y: 0 }
-  return { x: clientX - rect.left - rect.width / 2, y: clientY - rect.top - rect.height / 2 }
+  return {
+    x: clientX - rect.left - rect.width / 2,
+    y: clientY - rect.top - rect.height / 2,
+  }
 }
 
 /**
@@ -440,8 +453,26 @@ function zoomTo(next, point) {
 
 let animationTimer = null
 
-/** Runs a change with a transition, then drops back to direct manipulation. */
+/**
+ * Runs a change with a transition, then drops back to direct manipulation.
+ *
+ * With motion turned off there is no transition to wait out, and waiting anyway
+ * is the whole animation's length of nothing happening. Turning a page was the
+ * plainest case: the strip was moved a frame along and the file underneath it
+ * swapped a fifth of a second later, so what the reader looked at in between was
+ * the neighbour's preview — even where the picture itself was already in hand.
+ *
+ * So the settling happens at once instead. Every caller here writes the finished
+ * state in `done` and merely sets up for it in `change`, which is what makes
+ * running the two together the same thing arrived at sooner.
+ */
 function withAnimation(change, done, duration = ANIM_MS) {
+  if (motionReduced()) {
+    change()
+    done?.()
+    return
+  }
+
   animating.value = true
   change()
   clearTimeout(animationTimer)
@@ -667,10 +698,20 @@ function onPointerUp(event) {
     return
   }
 
+  /*
+    A tap hides the chrome; a pair of them magnifies instead.
+
+    The toggle is held for as long as it takes to find out which of the two this
+    was, and the whole question is how long that is. Acting at once and undoing
+    it on the second tap needs no wait at all, but shows the chrome leaving and
+    coming back inside a single double tap; letting the first tap's work stand
+    means a double tap quietly toggles the bars as well. Waiting is the honest
+    answer — the wait just has to be short enough not to be felt.
+  */
   const now = Date.now()
   if (now - lastTapAt < TAP_WINDOW && Math.abs(event.clientX - lastTapX) < TAP_SLOP) {
-    // The second tap of a pair magnifies; cancel the chrome toggle the first one
-    // queued, or the picture would zoom and the bars would vanish at once.
+    // The second of the pair: call off the toggle the first one queued, or the
+    // picture would magnify and the bars would leave in the same breath.
     clearTimeout(uiTapTimer)
     withAnimation(() =>
       zoomed.value ? resetZoom() : zoomTo(TAP_ZOOM, toFramePoint(event.clientX, event.clientY)),
@@ -731,7 +772,10 @@ function preventGhostClick(x, y) {
     event.preventDefault()
   }
 
-  document.addEventListener('touchend', stopTouch, { capture: true, passive: false })
+  document.addEventListener('touchend', stopTouch, {
+    capture: true,
+    passive: false,
+  })
   document.addEventListener('click', stopClick, { capture: true })
   setTimeout(() => {
     document.removeEventListener('touchend', stopTouch, { capture: true })
@@ -751,6 +795,73 @@ function step(delta) {
   emit('update:index', next)
 }
 
+/**
+ * Turning the page from an arrow or a key, by the movement a released swipe
+ * already makes: the strip slides one whole frame, the neighbour riding there
+ * lands dead centre, and the index changes underneath it — so the same picture
+ * ends up in the same place whichever way it was asked for.
+ *
+ * This was tried once before and taken out again, because the neighbours were
+ * then laid out by different rules from the open file and arrived at a size and
+ * a height of their own. Sliding only made that plain. They are fitted the same
+ * way now, and the movement reads as one strip rather than as two pictures.
+ *
+ * Two cases are taken plainly instead. A turn asked for while one is already
+ * running: holding an arrow down would otherwise cut each animation short and
+ * strand the strip, since the swap only happens once the animation ends. And a
+ * turn asked for while the picture is magnified, which a swipe cannot even ask
+ * for — there the finger is panning.
+ */
+let queuedTurn = 0
+
+function page(delta) {
+  const next = props.index + delta
+  if (next < 0 || next >= props.items.length) return
+
+  // A magnified picture cannot be slid sideways — that is what the finger is
+  // doing there — so an arrow simply takes the reader to the next file.
+  if (zoomed.value) {
+    step(delta)
+    return
+  }
+
+  if (animating.value) {
+    /*
+      Asked for while a turn is still running, it waits its own turn.
+
+      Cutting the running one short is not an option: the strip only swaps the
+      file underneath it once the slide has finished, and interrupting halfway
+      shifts the contents by a frame while the transform still says otherwise —
+      the picture jumps forward by a whole screen. Letting the second turn
+      simply happen was the old behaviour, and it is what put two files through
+      one movement.
+
+      Only one is remembered. A held-down arrow sends a stream of them, and a
+      queue that took them all would carry on turning long after the key came up.
+    */
+    queuedTurn = Math.sign(delta)
+    return
+  }
+
+  const { width } = frameSize()
+  withAnimation(
+    () => (dragX.value = -delta * width),
+    () => {
+      step(delta)
+      dragX.value = 0
+
+      if (!queuedTurn) return
+      const waiting = queuedTurn
+      queuedTurn = 0
+      // Next tick, so the strip is rendered back at rest — untransformed, and
+      // without its transition — before the following slide starts from there.
+      // Started in the same breath, the browser would never see the resting
+      // position and the second slide would have nowhere to travel from.
+      nextTick(() => page(waiting))
+    },
+  )
+}
+
 watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
@@ -759,9 +870,11 @@ watch(current, () => {
   groundInstant.value = false
   // Asked before this file has been rendered even once, so a layer the browser
   // already holds is never given a frame it would have to be taken back out of.
+  beforeFirstPaint = true
   settleLayers({
     full: isCached(fullScreen.value),
     preview: isCached(preview.value),
+    instant: true,
   })
   aspect.value = mediaAspect(current.value)
   tagsExpanded.value = false
@@ -785,6 +898,7 @@ watch(
     // Before the sizing, so a cached picture is already the one being sized.
     revealIfCached()
     measureChrome()
+    beforeFirstPaint = false
   },
   { flush: 'post' },
 )
@@ -802,7 +916,6 @@ watch(uiVisible, () => {
   clearTimeout(restTimer)
   restTimer = setTimeout(() => (animating.value = false), ANIM_MS)
 })
-
 
 /*
   Chrome measurements.
@@ -886,24 +999,70 @@ function settleTagOverflow() {
  * Returns null whenever the recipe cannot be followed, which hands the caller
  * back to the older, approximate route.
  */
-function exactBand() {
-  const ratio = knownAspect()
+/**
+ * Where the bars leave off, as the layout last had them.
+ *
+ * Held in state rather than read on demand, because the fit is now asked for
+ * per file — the open one and both of its neighbours — and all three want the
+ * same reading of the same bars. Keeping it here also makes every fit that
+ * follows from it recompute when the bars change, which a `getBoundingClientRect`
+ * buried in a function never would.
+ */
+const bandTop = ref(0)
+const bandBottom = ref(0)
+
+function readBand() {
+  const rect = band.value?.getBoundingClientRect()
+  if (!rect || rect.height <= 0) return
+  bandTop.value = Math.round(rect.top)
+  bandBottom.value = Math.round(window.innerHeight - rect.bottom)
+}
+
+function exactBand(ratio) {
   if (!ratio) return null
 
-  const rect = band.value?.getBoundingClientRect()
-  if (!rect || rect.height <= 0) return null
+  const top = bandTop.value
+  const bottom = bandBottom.value
+  if (top + bottom <= 0) return null
 
-  const barsDifference = Math.abs(Math.round(rect.top) - Math.round(window.innerHeight - rect.bottom))
-  const available = window.innerHeight - (Math.round(rect.top) + Math.round(window.innerHeight - rect.bottom)) - barsDifference
+  const barsDifference = Math.abs(top - bottom)
+  const available = window.innerHeight - (top + bottom) - barsDifference
   if (available <= 0) return null
   if (ratio >= window.innerWidth / available) return null
 
-  settleTagOverflow()
+  return { top, bottom }
+}
+
+/**
+ * The scale and the shift that put a file of these proportions where it rests:
+ * pulled back far enough to clear the bars, and moved into the middle of what
+ * they leave. Pure — nothing but the ratio and the bars decides it — which is
+ * what lets the neighbours in the filmstrip be placed by the very same sum.
+ */
+function fitWithin(insets, ratio) {
+  const top = insets?.top ?? 0
+  const bottom = insets?.bottom ?? 0
+
+  const height = window.innerHeight
+  const width = window.innerWidth
+  const band = height - top - bottom
+
+  if (!ratio || band <= 0) return { scale: 1, offsetY: 0 }
+
+  // Widths of the picture fitted to the window and fitted to the band; their
+  // ratio is what the bars cost.
+  const toWindow = Math.min(width, height * ratio)
+  const toBand = Math.min(width, band * ratio)
 
   return {
-    top: Math.round(rect.top),
-    bottom: Math.round(window.innerHeight - rect.bottom),
+    scale: toWindow > 0 ? toBand / toWindow : 1,
+    offsetY: (top - bottom) / 2,
   }
+}
+
+/** The resting fit of a file, from its proportions alone. */
+function restingFitFor(ratio) {
+  return fitWithin(exactBand(ratio), ratio)
 }
 
 const chromeReady = ref(false)
@@ -938,31 +1097,63 @@ const restingScale = computed(() => (uiVisible.value ? uiFitScale.value : 1))
 const restingOffsetY = computed(() => (uiVisible.value ? bandOffsetY.value : 0))
 
 function measureBand() {
-  const exact = exactBand()
-  const top = exact?.top ?? 0
-  const bottom = exact?.bottom ?? 0
-
-  const height = window.innerHeight
-  const width = window.innerWidth
-  const band = height - top - bottom
   // The preview knows its proportions before `aspect` has been told them, and
   // at the moment this first runs that is usually the only place to ask.
   const ratio = knownAspect()
+  const insets = exactBand(ratio)
 
-  if (!ratio || band <= 0) {
-    uiFitScale.value = 1
-    bandOffsetY.value = 0
-    return
-  }
+  // Only when the bars actually bind: the expander's margin is part of the
+  // footer's height, so this settles the height that is about to be read again.
+  if (insets) settleTagOverflow()
 
-  // Widths of the picture fitted to the window and fitted to the band; their
-  // ratio is what the bars cost.
-  const toWindow = Math.min(width, height * ratio)
-  const toBand = Math.min(width, band * ratio)
-
-  uiFitScale.value = toWindow > 0 ? toBand / toWindow : 1
-  bandOffsetY.value = (top - bottom) / 2
+  const fit = fitWithin(insets, ratio)
+  uiFitScale.value = fit.scale
+  bandOffsetY.value = fit.offsetY
 }
+
+/**
+ * The same placement, for a neighbour riding in the filmstrip.
+ *
+ * It is the open file's own sum with a different ratio put into it, and the
+ * ratio has to be its own: whether the bars reach a picture is decided by its
+ * shape. A landscape file runs out of width before it runs out of height and
+ * never meets them; the portrait one beside it always does, and borrowing the
+ * open file's scale would leave one of the two in the wrong place.
+ *
+ * With the chrome away there is nothing to clear, and the neighbour fills the
+ * window exactly as the open file does.
+ */
+function neighbourFit(item) {
+  if (!uiVisible.value) return undefined
+  const { scale, offsetY } = restingFitFor(mediaAspect(item))
+  if (scale === 1 && offsetY === 0) return undefined
+  return { transform: `translate(0px, ${offsetY}px) scale(${scale})` }
+}
+
+/**
+ * And sized by the same rule too — `.fit-media` against the cell, not merely
+ * capped at it.
+ *
+ * `max-width`/`max-height` only ever shrink. The preview is sized by the server
+ * for this display, so on a window larger than it the neighbour was drawn at
+ * whatever size had been sent and arrived smaller than the picture it replaced;
+ * on a small window the cap bound and the two happened to agree. `.fit-media`
+ * enlarges as well, which is what the open file has always been doing.
+ */
+function stripFit(item) {
+  const ratio = mediaAspect(item)
+  if (!ratio) return { class: 'max-h-full max-w-full', style: undefined }
+
+  return {
+    class: 'fit-media',
+    // Spelled out: `height: auto` has no proportions to follow until the preview
+    // has loaded, and a neighbour is drawn before it ever does.
+    style: { '--ar': ratio, aspectRatio: String(ratio) },
+  }
+}
+
+const prevFit = computed(() => stripFit(prevItem.value))
+const nextFit = computed(() => stripFit(nextItem.value))
 
 /** Settles the picture at rest for the chrome as it currently stands. */
 function applyRestingFit() {
@@ -973,6 +1164,49 @@ function applyRestingFit() {
   atInitialFit = true
 }
 
+/*
+  Bars easing from one height to another.
+
+  Turning the page can change how much they have to say — a longer description,
+  another row of tags — and the layout answers that in a single frame. What the
+  reader saw was the picture flinching as the bar it sits under changed size
+  under a file that had only just arrived.
+
+  The animation is run on the elements themselves rather than through CSS: a bar
+  has no height of its own to transition between, only whatever its contents come
+  to, and a keyframe can be handed the two numbers where a stylesheet cannot.
+  Both the height a bar is leaving and the one it is arriving at are measured
+  here, and nothing else in the file has to know it is happening.
+
+  The picture needs no animation of its own. Its placement is read from the bars,
+  and the observer watching them reports every step of the way — so it follows
+  frame by frame rather than being sent to where they are going to end up.
+*/
+const barHeights = new WeakMap()
+const barAnimations = new WeakMap()
+
+function easeBarHeight(element) {
+  if (!element) return
+
+  // While one is running the heights being read are its own doing, and taking
+  // them for a change would start another animation on every frame of this one.
+  const running = barAnimations.get(element)
+  if (running?.playState === 'running') return
+
+  const next = element.offsetHeight
+  const previous = barHeights.get(element)
+  barHeights.set(element, next)
+  if (previous == null || previous === next || motionReduced()) return
+
+  barAnimations.set(
+    element,
+    element.animate([{ height: `${previous}px` }, { height: `${next}px` }], {
+      duration: ANIM_MS,
+      easing: 'ease-out',
+    }),
+  )
+}
+
 function measureChrome() {
   const root = dialog.value
 
@@ -980,6 +1214,7 @@ function measureChrome() {
   // expansion is meant to cover the picture, and following the bar back down
   // would drag the picture along with the collapse.
   if (root && !tagsExpanded.value && !descriptionExpanded.value && !chromeSettling) {
+    readBand()
     measureBand()
     // Only until the reader takes over. After that the numbers above are just
     // the limit their zoom is held to.
@@ -987,6 +1222,11 @@ function measureChrome() {
     else clampOffset()
 
     chromeReady.value = true
+
+    // After the placement, not before: the bars are read at the height they have
+    // settled on, and only then told to arrive there from where they were.
+    easeBarHeight(header.value)
+    easeBarHeight(footer.value)
   }
 
   const tags = tagList.value
@@ -1084,11 +1324,11 @@ function onKeydown(event) {
       break
     case 'ArrowLeft':
       event.preventDefault()
-      step(-1)
+      page(-1)
       break
     case 'ArrowRight':
       event.preventDefault()
-      step(1)
+      page(1)
       break
     case 'Tab':
       trapFocus(event)
@@ -1097,6 +1337,7 @@ function onKeydown(event) {
 }
 
 function resetGestures() {
+  queuedTurn = 0
   clearTimeout(restTimer)
   pointers.clear()
   drag = null
@@ -1162,7 +1403,6 @@ watch(open, async (isOpen) => {
   }
 })
 
-
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = ''
@@ -1182,34 +1422,33 @@ onBeforeUnmount(() => {
       Leaflet's panes (z-index ~1000), which otherwise poke through on the day
       page.
     -->
-    <div
-      v-if="open && current"
-      ref="dialog"
-      class="lightbox fixed inset-0 z-[2000] overflow-hidden"
-      :style="{
-        opacity: chromeReady ? dismissOpacity : 0
-      }"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="label"
-      tabindex="-1"
-    >
+    <Transition name="lightbox">
       <div
-        v-if="video"
-        class="lightbox-cell absolute inset-0 flex items-center justify-center"
+        v-if="open && current"
+        ref="dialog"
+        class="lightbox fixed inset-0 z-[2000] overflow-hidden"
+        :class="chromeReady ? 'lightbox-measured' : ''"
+        :style="{
+          opacity: chromeReady ? dismissOpacity : 0,
+        }"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="label"
+        tabindex="-1"
       >
-        <!--
+        <div v-if="video" class="lightbox-cell absolute inset-0 flex items-center justify-center">
+          <!--
           Clipped into the band between the bars by the same transform that
           places a picture there, so the controls along its bottom edge stay
           above the footer instead of behind it. There is nothing to zoom here,
           so the transform never moves off its resting value.
         -->
-        <div
-          class="flex h-full w-full items-center justify-center"
-          :class="animating ? 'transition-transform duration-200' : ''"
-          :style="zoomStyle"
-        >
-          <!--
+          <div
+            class="flex h-full w-full items-center justify-center"
+            :class="animating ? 'transition-transform duration-200' : ''"
+            :style="zoomStyle"
+          >
+            <!--
             `aspect-ratio` written out, unlike a picture: a video has no
             proportions of its own until its metadata arrives, so `height: auto`
             would be settled from the 300×150 every video element starts life at.
@@ -1217,59 +1456,66 @@ onBeforeUnmount(() => {
 
             `max-h-full max-w-full` behind that, for a file that states nothing.
           -->
-          <video
-            :key="current.id ?? current.fileName"
-            :src="stream"
-            :poster="preview"
-            controls
-            playsinline
-            preload="metadata"
-            class="max-h-full max-w-full object-contain"
-            :class="fitClass"
-            :style="fitBoxStyle"
-            @loadedmetadata="onVideoMeta"
-          />
+            <video
+              :key="current.id ?? current.fileName"
+              :src="stream"
+              :poster="preview"
+              controls
+              playsinline
+              preload="metadata"
+              class="max-h-full max-w-full object-contain"
+              :class="fitClass"
+              :style="fitBoxStyle"
+              @loadedmetadata="onVideoMeta"
+            />
+          </div>
         </div>
-      </div>
 
-      <div
-        v-else
-        ref="frame"
-        class="absolute inset-0 touch-none overflow-hidden"
-        :class="zoomed ? 'cursor-grab' : ''"
-        @wheel.prevent="onWheel"
-        @pointerdown="onPointerDown"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @pointercancel="onPointerCancel"
-        @click.capture="onFrameClickCapture"
-      >
-        <!--
+        <div
+          v-else
+          ref="frame"
+          class="absolute inset-0 touch-none overflow-hidden"
+          :class="zoomed ? 'cursor-grab' : ''"
+          @wheel.prevent="onWheel"
+          @pointerdown="onPointerDown"
+          @pointermove="onPointerMove"
+          @pointerup="onPointerUp"
+          @pointercancel="onPointerCancel"
+          @click.capture="onFrameClickCapture"
+        >
+          <!--
           A filmstrip: the neighbouring files sit one frame away on either side,
           so dragging sideways reveals the next picture as the current one leaves
           rather than swapping them once the gesture ends. They are drawn from the
           previews the grid already cached, so they cost nothing to keep there.
         -->
-        <div
-          class="absolute inset-0"
-          :class="animating ? 'transition-transform duration-200' : ''"
-          :style="stripStyle"
-        >
           <div
-            v-if="prevItem"
-            class="lightbox-cell absolute inset-0 flex -translate-x-full items-center justify-center"
+            class="lightbox-strip absolute inset-0"
+            :class="animating ? 'transition-transform duration-200' : ''"
+            :style="stripStyle"
           >
-            <img
-              :src="stripSrc(prevItem)"
-              alt=""
-              aria-hidden="true"
-              draggable="false"
-              class="max-h-full max-w-full object-contain"
-            />
-          </div>
+            <div
+              v-if="prevItem"
+              class="lightbox-cell absolute inset-0 flex -translate-x-full items-center justify-center"
+            >
+              <div
+                class="flex h-full w-full items-center justify-center"
+                :style="neighbourFit(prevItem)"
+              >
+                <img
+                  :src="stripSrc(prevItem)"
+                  alt=""
+                  aria-hidden="true"
+                  draggable="false"
+                  class="object-contain"
+                  :class="prevFit.class"
+                  :style="prevFit.style"
+                />
+              </div>
+            </div>
 
-          <div class="lightbox-cell absolute inset-0 flex items-center justify-center">
-            <!--
+            <div class="lightbox-cell absolute inset-0 flex items-center justify-center">
+              <!--
               Three layers, sharpest at the bottom, and each upper one steps
               aside only once what is under it is ready to be seen. One of them
               is always solid, so nothing ever flashes and no half-drawn image is
@@ -1287,97 +1533,104 @@ onBeforeUnmount(() => {
               `draggable="false"` matters: without it a mouse press starts the
               browser's own image drag and the pan never receives its moves.
             -->
-            <div
-              class="relative flex h-full w-full items-center justify-center"
-              :class="animating ? 'transition-transform duration-200' : ''"
-              :style="zoomStyle"
-            >
-              <img
-                :key="current.id ?? current.fileName"
-                :src="fullScreen"
-                :alt="label"
-                ref="picture"
-                draggable="false"
-                class="object-contain"
-                :class="[fitClass, fullLoaded ? 'opacity-100' : 'opacity-0']"
-                :style="aspectStyle"
-                @load="onFullLoaded"
-                @error="onFullFailed"
-              />
-
-              <img
-                v-if="preview"
-                ref="previewImage"
-                :key="`preview-${current.id ?? current.fileName}`"
-                :src="preview"
-                alt=""
-                aria-hidden="true"
-                draggable="false"
-                class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
-                :class="[
-                  fitClass,
-                  fullLoaded ? 'opacity-0' : 'opacity-100',
-                  instantSwap ? '' : 'transition-opacity duration-300',
-                ]"
-                :style="aspectStyle"
-                @load="onPreviewLoaded"
-              />
-
               <div
-                v-if="miniature"
-                class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
-                :class="[
-                  fitClass,
-                  previewLoaded || fullLoaded ? 'opacity-0' : 'opacity-100',
-                  groundInstant ? '' : 'transition-opacity duration-300',
-                ]"
-                :style="fitBoxStyle"
-                aria-hidden="true"
+                class="relative flex h-full w-full items-center justify-center"
+                :class="animating ? 'transition-transform duration-200' : ''"
+                :style="zoomStyle"
               >
                 <img
-                  :src="miniature"
-                  alt=""
+                  :key="current.id ?? current.fileName"
+                  :src="fullScreen"
+                  :alt="label"
+                  ref="picture"
                   draggable="false"
-                  class="h-full w-full scale-110 object-cover blur-[24px]"
+                  class="object-contain"
+                  :class="[fitClass, fullLoaded ? 'opacity-100' : 'opacity-0']"
+                  :style="aspectStyle"
+                  @load="onFullLoaded"
+                  @error="onFullFailed"
+                />
+
+                <img
+                  v-if="preview"
+                  ref="previewImage"
+                  :key="`preview-${current.id ?? current.fileName}`"
+                  :src="preview"
+                  alt=""
+                  aria-hidden="true"
+                  draggable="false"
+                  class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
+                  :class="[
+                    fitClass,
+                    fullLoaded ? 'opacity-0' : 'opacity-100',
+                    instantSwap ? '' : 'transition-opacity duration-300',
+                  ]"
+                  :style="aspectStyle"
+                  @load="onPreviewLoaded"
+                />
+
+                <div
+                  v-if="miniature"
+                  class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+                  :class="[
+                    fitClass,
+                    previewLoaded || fullLoaded ? 'opacity-0' : 'opacity-100',
+                    groundInstant ? '' : 'transition-opacity duration-300',
+                  ]"
+                  :style="fitBoxStyle"
+                  aria-hidden="true"
+                >
+                  <img
+                    :src="miniature"
+                    alt=""
+                    draggable="false"
+                    class="h-full w-full scale-110 object-cover blur-[24px]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="nextItem"
+              class="lightbox-cell absolute inset-0 flex translate-x-full items-center justify-center"
+            >
+              <div
+                class="flex h-full w-full items-center justify-center"
+                :style="neighbourFit(nextItem)"
+              >
+                <img
+                  :src="stripSrc(nextItem)"
+                  alt=""
+                  aria-hidden="true"
+                  draggable="false"
+                  class="object-contain"
+                  :class="nextFit.class"
+                  :style="nextFit.style"
                 />
               </div>
             </div>
           </div>
 
-          <div
-            v-if="nextItem"
-            class="lightbox-cell absolute inset-0 flex translate-x-full items-center justify-center"
-          >
-            <img
-              :src="stripSrc(nextItem)"
-              alt=""
-              aria-hidden="true"
-              draggable="false"
-              class="max-h-full max-w-full object-contain"
-            />
-          </div>
-        </div>
-
-        <!-- Outside the strip, so neither dragging nor zooming moves it. -->
-        <Transition
-          enter-from-class="opacity-0"
-          enter-active-class="transition-opacity duration-200"
-          leave-to-class="opacity-0"
-          leave-active-class="transition-opacity duration-150"
-        >
-          <span
-            v-if="showSpinner"
-            class="pointer-events-none absolute inset-0 flex items-center justify-center"
-            aria-hidden="true"
+          <!-- Outside the strip, so neither dragging nor zooming moves it. -->
+          <Transition
+            enter-from-class="opacity-0"
+            enter-active-class="transition-opacity duration-200"
+            leave-to-class="opacity-0"
+            leave-active-class="transition-opacity duration-150"
           >
             <span
-              class="spinner h-9 w-9 rounded-full border-2 border-[var(--lb-edge)] border-t-[var(--lb-accent)]"
-            />
-          </span>
-        </Transition>
-      </div>
+              v-if="showSpinner"
+              class="pointer-events-none absolute inset-0 flex items-center justify-center"
+              aria-hidden="true"
+            >
+              <span
+                class="spinner h-9 w-9 rounded-full border-2 border-[var(--lb-edge)] border-t-[var(--lb-accent)]"
+              />
+            </span>
+          </Transition>
+        </div>
 
-      <!--
+        <!--
         Chrome floating over the picture.
 
         The bars slide out of view rather than fading. A backdrop filter and an
@@ -1389,15 +1642,15 @@ onBeforeUnmount(() => {
         The wrapper ignores pointer events so the space between the bars still
         belongs to the gesture surface; each bar takes them back for itself.
       -->
-      <div class="pointer-events-none absolute inset-0 flex flex-col overflow-hidden">
-        <div
-          ref="header"
-          class="lightbox-bar flex items-start justify-between gap-4 px-3 py-2 transition-transform duration-200"
-          :class="uiVisible ? 'pointer-events-auto' : '-translate-y-full'"
-        >
-          <div class="min-w-0 pt-1">
-            <p class="truncate text-sm font-medium">{{ label }}</p>
-            <!--
+        <div class="pointer-events-none absolute inset-0 flex flex-col overflow-hidden">
+          <div
+            ref="header"
+            class="lightbox-bar flex items-start justify-between gap-4 overflow-hidden px-3 py-2 transition-transform duration-200"
+            :class="uiVisible ? 'pointer-events-auto' : '-translate-y-full'"
+          >
+            <div class="min-w-0 pt-1">
+              <p class="truncate text-sm font-medium">{{ label }}</p>
+              <!--
               Tapping a clipped description opens it, and again puts it back.
 
               Two limits at once, and each earns its place: the line clamp is
@@ -1407,42 +1660,42 @@ onBeforeUnmount(() => {
               moves. The height is also what the overflow check reads, which is
               what offers the description as something to tap.
             -->
-            <p
-              v-if="current.description"
-              ref="description"
-              class="mt-1 overflow-hidden text-xs text-[var(--lb-accent)] transition-[max-height] duration-200"
-              :class="[
-                descriptionExpanded
-                  ? 'line-clamp-none max-h-[40vh] overflow-y-auto'
-                  : 'line-clamp-2 max-h-[2.25rem]',
-                descriptionOverflow ? 'cursor-pointer' : '',
-              ]"
-              @click="toggleDescription"
+              <p
+                v-if="current.description"
+                ref="description"
+                class="mt-1 overflow-hidden text-xs text-[var(--lb-accent)] transition-[max-height] duration-200"
+                :class="[
+                  descriptionExpanded
+                    ? 'line-clamp-none max-h-[40vh] overflow-y-auto'
+                    : 'line-clamp-2 max-h-[2.25rem]',
+                  descriptionOverflow ? 'cursor-pointer' : '',
+                ]"
+                @click="toggleDescription"
+              >
+                {{ current.description }}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="lightbox-icon shrink-0 rounded-full p-2"
+              :aria-label="t('media.close')"
+              @click="close"
             >
-              {{ current.description }}
-            </p>
+              <svg
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
+              </svg>
+            </button>
           </div>
 
-          <button
-            type="button"
-            class="lightbox-icon shrink-0 rounded-full p-2"
-            :aria-label="t('media.close')"
-            @click="close"
-          >
-            <svg
-              class="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              aria-hidden="true"
-            >
-              <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
-            </svg>
-          </button>
-        </div>
-
-        <!--
+          <!--
           Positioned against the window rather than laid out between the bars:
           the arrows belong to the screen, and letting the bars decide their
           height moved them whenever a description or a row of tags did.
@@ -1451,75 +1704,75 @@ onBeforeUnmount(() => {
           theirs — and, like them, sliding rather than fading is what keeps the
           blur behind them alive through the animation.
         -->
-        <div
-          class="absolute inset-x-2 top-1/2 flex -translate-y-1/2 items-center justify-between"
-        >
-          <!--
+          <div
+            class="absolute inset-x-2 top-1/2 flex -translate-y-1/2 items-center justify-between"
+          >
+            <!--
             Both stay mounted whether or not there is a file that way: reaching
             the end of the list should retire an arrow the same way hiding the
             chrome does, and a `v-if` would snatch it away instead of letting it
             leave. `disabled` keeps a retired one off the keyboard's path.
           -->
-          <button
-            type="button"
-            :disabled="!hasPrev"
-            class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
-            :class="
-              uiVisible && hasPrev ? 'pointer-events-auto' : '-translate-x-[calc(100%+1rem)]'
-            "
-            :aria-label="t('media.prev')"
-            @click="step(-1)"
-          >
-            <svg
-              class="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              aria-hidden="true"
+            <button
+              type="button"
+              :disabled="!hasPrev"
+              class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
+              :class="
+                uiVisible && hasPrev ? 'pointer-events-auto' : '-translate-x-[calc(100%+1rem)]'
+              "
+              :aria-label="t('media.prev')"
+              @click="page(-1)"
             >
-              <path d="M12.5 4 6.5 10l6 6" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
+              <svg
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path d="M12.5 4 6.5 10l6 6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
 
-          <button
-            type="button"
-            :disabled="!hasNext"
-            class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
-            :class="
-              uiVisible && hasNext ? 'pointer-events-auto' : 'translate-x-[calc(100%+1rem)]'
-            "
-            :aria-label="t('media.next')"
-            @click="step(1)"
-          >
-            <svg
-              class="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              aria-hidden="true"
+            <button
+              type="button"
+              :disabled="!hasNext"
+              class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
+              :class="
+                uiVisible && hasNext ? 'pointer-events-auto' : 'translate-x-[calc(100%+1rem)]'
+              "
+              :aria-label="t('media.next')"
+              @click="page(1)"
             >
-              <path d="M7.5 4l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        </div>
+              <svg
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path d="M7.5 4l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
 
-        <!--
+          <!--
           Pushes the footer to the bottom now that the arrows float free — and,
           because it is in flow between the two bars, it *is* the space left for
           the picture. Asking it where it ended up is how that space is learnt:
           the browser works it out as part of laying the bars out, so the answer
           needs no arithmetic on their heights and no second pass to correct.
         -->
-        <div ref="band" class="flex-1" />
+          <div ref="band" class="flex-1" />
 
-        <div
-          ref="footer"
-          class="lightbox-bar relative flex items-center justify-between gap-3 px-3 py-2 transition-transform duration-200"
-          :class="uiVisible ? 'pointer-events-auto' : 'translate-y-full'"
-        >
-          <!--
+          <div
+            ref="footer"
+            class="lightbox-bar relative flex items-center justify-between gap-3 px-3 py-2 transition-transform duration-200"
+            :class="uiVisible ? 'pointer-events-auto' : 'translate-y-full'"
+          >
+            <!--
             Offered only when the tags do not fit. Answers a press or a pull:
             up opens the list, down folds it back to two rows.
 
@@ -1528,78 +1781,78 @@ onBeforeUnmount(() => {
             is nothing to hit by mistake. It stays shallow below, because that is
             where the tags themselves begin.
           -->
-          <button
-            v-if="tagsOverflow"
-            type="button"
-            class="absolute -top-2 left-1/2 -translate-x-1/2 px-10 pb-2 pt-4"
-            :aria-expanded="tagsExpanded"
-            :aria-label="t('media.moreTags')"
-            @pointerdown="onHandleDown"
-            @pointerup="onHandleUp"
-          >
-            <span class="block h-1 w-10 rounded-full bg-[var(--lb-accent)] opacity-50" />
-          </button>
-
-          <div
-            ref="tagList"
-            class="flex min-w-0 flex-wrap gap-1.5 overflow-hidden transition-[max-height] duration-300"
-            :class="[
-              tagsExpanded ? 'max-h-[40vh] overflow-y-auto' : 'max-h-[3.4rem]',
-              tagsOverflow ? 'mt-3.5' : '',
-            ]"
-          >
-            <!-- A tag navigates to its search; the route watcher above is what
-                 takes the viewer off the results it lands on. -->
-            <TagChip
-              v-for="tag in current.tags ?? []"
-              :key="tag"
-              :tag="tag"
-              class="lightbox-tag"
-            />
-          </div>
-
-          <div class="relative flex shrink-0 items-center gap-1.5">
-            <!-- Above the row rather than in a corner of the screen, so it is
-                 plainly the answer to the button that was just pressed. -->
-            <Transition
-              enter-from-class="translate-y-1 opacity-0"
-              enter-active-class="transition duration-150"
-              leave-to-class="translate-y-1 opacity-0"
-              leave-active-class="transition duration-150"
-            >
-              <span
-                v-if="shareFeedback"
-                role="status"
-                class="lightbox-bar absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-md px-2.5 py-1 text-xs"
-              >
-                {{ shareFeedback }}
-              </span>
-            </Transition>
-
             <button
-              v-if="shareable"
+              v-if="tagsOverflow"
               type="button"
-              class="lightbox-icon rounded-full p-2.5"
-              :title="t('common.share')"
-              :aria-label="t('common.share')"
-              @click="share"
+              class="absolute -top-2 left-1/2 -translate-x-1/2 px-10 pb-2 pt-4"
+              :aria-expanded="tagsExpanded"
+              :aria-label="t('media.moreTags')"
+              @pointerdown="onHandleDown"
+              @pointerup="onHandleUp"
             >
-              <svg
-                class="h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                aria-hidden="true"
-              >
-                <path d="M7.5 11.5 12.5 8.5M7.5 8.5l5 3" stroke-linecap="round" />
-                <circle cx="5.5" cy="10" r="2.2" />
-                <circle cx="14.5" cy="6.5" r="2.2" />
-                <circle cx="14.5" cy="13.5" r="2.2" />
-              </svg>
+              <span class="block h-1 w-10 rounded-full bg-[var(--lb-accent)] opacity-50" />
             </button>
 
-            <!--
+            <div
+              ref="tagList"
+              class="flex min-w-0 flex-wrap gap-1.5 overflow-hidden transition-[max-height] duration-300"
+              :class="[
+                tagsExpanded ? 'max-h-[40vh] overflow-y-auto' : 'max-h-[3.4rem]',
+                tagsOverflow ? 'mt-3.5' : '',
+              ]"
+            >
+              <!-- A tag navigates to its search; the route watcher above is what
+                 takes the viewer off the results it lands on. -->
+              <TagChip
+                v-for="tag in current.tags ?? []"
+                :key="tag"
+                :tag="tag"
+                class="lightbox-tag"
+              />
+            </div>
+
+            <div class="relative flex shrink-0 items-center gap-1.5">
+              <!-- Above the row rather than in a corner of the screen, so it is
+                 plainly the answer to the button that was just pressed. -->
+              <Transition
+                enter-from-class="translate-y-1 opacity-0"
+                enter-active-class="transition duration-150"
+                leave-to-class="translate-y-1 opacity-0"
+                leave-active-class="transition duration-150"
+              >
+                <span
+                  v-if="shareFeedback"
+                  role="status"
+                  class="lightbox-bar absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-md px-2.5 py-1 text-xs"
+                >
+                  {{ shareFeedback }}
+                </span>
+              </Transition>
+
+              <button
+                v-if="shareable"
+                type="button"
+                class="lightbox-icon rounded-full p-2.5"
+                :title="t('common.share')"
+                :aria-label="t('common.share')"
+                @click="share"
+              >
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path d="M7.5 11.5 12.5 8.5M7.5 8.5l5 3" stroke-linecap="round" />
+                  <circle cx="5.5" cy="10" r="2.2" />
+                  <circle cx="14.5" cy="6.5" r="2.2" />
+                  <circle cx="14.5" cy="13.5" r="2.2" />
+                </svg>
+              </button>
+
+              <!--
               Carries the file into the day so it arrives outlined among the
               rest — a picture met on the front page keeps its identity once it
               is back among its neighbours. Without `o`: it was just being looked
@@ -1608,55 +1861,60 @@ onBeforeUnmount(() => {
               Left out on that day's own page: the button would lead where the
               reader already is.
             -->
-            <RouterLink
-              v-if="dayDate && !onOwnDay"
-              :to="{ name: 'day', params: { date: dayDate }, query: dayQuery }"
-              class="lightbox-icon rounded-full p-2.5"
-              :title="t('media.openDay')"
-              :aria-label="t('media.openDay')"
-            >
-              <svg
-                class="h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                aria-hidden="true"
+              <RouterLink
+                v-if="dayDate && !onOwnDay"
+                :to="{
+                  name: 'day',
+                  params: { date: dayDate },
+                  query: dayQuery,
+                }"
+                class="lightbox-icon rounded-full p-2.5"
+                :title="t('media.openDay')"
+                :aria-label="t('media.openDay')"
               >
-                <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
-                <path d="M3 8h14M7 3v3M13 3v3" stroke-linecap="round" />
-              </svg>
-            </RouterLink>
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
+                  <path d="M3 8h14M7 3v3M13 3v3" stroke-linecap="round" />
+                </svg>
+              </RouterLink>
 
-            <a
-              v-if="download"
-              :href="download"
-              download
-              target="_blank"
-              rel="noopener noreferrer"
-              class="lightbox-icon rounded-full p-2.5"
-              :title="t('media.download')"
-              :aria-label="t('media.download')"
-            >
-              <svg
-                class="h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                aria-hidden="true"
+              <a
+                v-if="download"
+                :href="download"
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                class="lightbox-icon rounded-full p-2.5"
+                :title="t('media.download')"
+                :aria-label="t('media.download')"
               >
-                <path
-                  d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path d="M4 15.5h12" stroke-linecap="round" />
-              </svg>
-            </a>
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path d="M4 15.5h12" stroke-linecap="round" />
+                </svg>
+              </a>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>

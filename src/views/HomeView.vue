@@ -84,19 +84,28 @@ function openFavorite(media) {
     </section>
 
     <!--
-      The wall arrives after its request, so it would otherwise appear under the
-      calendar and shove it down the page. Rising into place says the same thing
-      the movement itself would have said accidentally — that something has
-      arrived — while the space is reserved before the pictures land in it.
+      The wall arrives after its request, and what jarred was not the pictures
+      appearing but the calendar being shoved down the page to make room for
+      them. So the room is what is animated: a grid row grown from nothing to its
+      content's height, with the contents fading in as it opens.
+
+      `0fr`→`1fr` rather than a height, because the height is whatever the
+      pictures turn out to need and cannot be written down in advance. The child
+      clips, or the wall would spill out of a row not yet tall enough to hold it.
     -->
-    <Transition
-      enter-from-class="translate-y-3 opacity-0"
-      enter-active-class="transition duration-500 ease-out"
+    <div
+      class="grid transition-[grid-template-rows] duration-500 ease-out"
+      :class="favorites.length ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
     >
-      <section v-if="favorites.length" class="pb-12">
-        <FavoritesShowcase :items="favorites" @open="openFavorite" />
-      </section>
-    </Transition>
+      <div class="overflow-hidden">
+        <section
+          class="pb-12 transition-opacity duration-500 ease-out"
+          :class="favorites.length ? 'opacity-100' : 'opacity-0'"
+        >
+          <FavoritesShowcase :items="favorites" @open="openFavorite" />
+        </section>
+      </div>
+    </div>
 
     <ErrorState v-if="days.listError" :error="days.listError" @retry="days.loadList(true)" />
 

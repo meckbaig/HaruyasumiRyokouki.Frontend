@@ -115,24 +115,26 @@ watch(() => ui.locale, refresh)
     <TripMap :media="media" :route="routeLine" height="560px" class="mb-8" />
 
     <Teleport to="body">
-      <div v-if="expanded" class="fixed inset-0 z-[2100] flex flex-col bg-paper">
-        <TripMap
-          :media="media"
-          :route="routeLine"
-          height="100%"
-          :framed="false"
-          wheel-zoom
-          class="min-h-0 flex-1"
-        />
+      <Transition name="map-full">
+        <div v-if="expanded" class="fixed inset-0 z-[2100] flex flex-col bg-paper">
+          <TripMap
+            :media="media"
+            :route="routeLine"
+            height="100%"
+            :framed="false"
+            wheel-zoom
+            class="min-h-0 flex-1"
+          />
 
-        <button
-          type="button"
-          class="btn-ghost absolute right-4 top-4 z-[1000] bg-paper-raised shadow-sm"
-          @click="expanded = false"
-        >
-          {{ t('map.collapse') }}
-        </button>
-      </div>
+          <button
+            type="button"
+            class="btn-ghost absolute right-4 top-4 z-[1000] bg-paper-raised shadow-sm"
+            @click="expanded = false"
+          >
+            {{ t('map.collapse') }}
+          </button>
+        </div>
+      </Transition>
     </Teleport>
 
     <EmptyState v-if="!loading && media.length === 0" :message="t('map.noPoints')" class="mb-8" />

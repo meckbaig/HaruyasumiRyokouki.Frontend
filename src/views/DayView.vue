@@ -64,6 +64,12 @@ const locatedMedia = computed(() =>
     (item) => Number.isFinite(item?.latitude) && Number.isFinite(item?.longitude),
   ),
 )
+/**
+ * How many files this day holds, known from the day list before the day itself
+ * has been fetched — which is what lets the placeholder be the right size. Null
+ * until the list has arrived, and the placeholder falls back to two rows.
+ */
+const expectedMedia = computed(() => days.byDate.get(props.date)?.mediaCount ?? null)
 const neighbours = computed(() => days.neighbours(props.date))
 const showFallbackNotice = computed(() => isFallbackLanguage(day.value, ui.locale))
 
@@ -219,7 +225,7 @@ function onNoteSaved() {
       <div>
         <p class="text-xs uppercase tracking-wide text-ink-faint">{{ weekday }}</p>
         <h1 class="mt-1 text-2xl font-semibold tracking-tight text-ink">{{ heading }}</h1>
-        <p v-if="media.length" class="mt-1 text-sm text-ink-faint">
+        <p class="mt-1 text-sm text-ink-faint" :class="media.length ? 'opacity-100' : 'opacity-0'">
           {{ t('day.mediaCount', { count: media.length }, media.length) }}
         </p>
       </div>
@@ -291,18 +297,27 @@ function onNoteSaved() {
         </template>
       </section>
 
-      <section class="mb-12">
-        <SkeletonGrid v-if="loading && !day" />
-        <MediaGrid
-          v-else-if="media.length"
-          :items="media"
-          :editable="auth.isEditor"
-          :highlighted-id="highlightedId"
-          @open="lightboxIndex = media.indexOf($event)"
-          @edit="editing = $event"
-          @context="contextTarget = $event"
-        />
-        <EmptyState v-else :message="t('day.noMedia')" />
+      <!--
+        The placeholder and the grid share one grid cell, so they overlap for the
+        length of the hand-over instead of one being taken away before the other
+        arrives. With the placeholder drawn to the day's own file count, the two
+        are the same height and nothing moves as they cross.
+      -->
+      <section class="mb-12 grid [&>*]:col-start-1 [&>*]:row-start-1">
+        <Transition name="soft">
+          <SkeletonGrid v-if="loading && !day" key="skeleton" :count="expectedMedia" />
+          <MediaGrid
+            v-else-if="media.length"
+            key="grid"
+            :items="media"
+            :editable="auth.isEditor"
+            :highlighted-id="highlightedId"
+            @open="lightboxIndex = media.indexOf($event)"
+            @edit="editing = $event"
+            @context="contextTarget = $event"
+          />
+          <EmptyState v-else key="empty" :message="t('day.noMedia')" />
+        </Transition>
       </section>
 
       <section v-if="locatedMedia.length" class="mb-12">

@@ -33,6 +33,20 @@
     scroll-behavior: smooth;
     /* Pre-JS default; the theme store sets color-scheme inline per theme. */
     color-scheme: light;
+
+    /*
+      No scrollbar of the browser's own; AppScrollbar draws one over the page
+      instead. A native bar on a desktop takes a lane of its own out of the
+      layout, and a lane that comes and goes moves the whole page sideways —
+      which is what made the picture jump as the viewer opened and locked the
+      page behind it. One drawn on top takes no width, so there is nothing to
+      reserve and nothing to move.
+    */
+    scrollbar-width: none;
+  }
+
+  html::-webkit-scrollbar {
+    display: none;
   }
 
   body {
@@ -185,6 +199,49 @@
   */
   .spinner {
     animation: spinner-rotate 1s linear infinite;
+  }
+
+  /*
+    The drawn scrollbar (components/layout/AppScrollbar.vue).
+
+    Never on a touchscreen: those already overlay their own bar at no cost, and
+    a four-pixel target is no use to a thumb. `hover: none` rather than a width
+    breakpoint, because what decides this is the pointer, not the screen.
+  */
+  .app-scrollbar {
+    position: fixed;
+    top: 0;
+    right: 2px;
+    bottom: 0;
+    z-index: 40;
+    width: 10px;
+    pointer-events: none;
+  }
+
+  @media (hover: none) {
+    .app-scrollbar {
+      display: none;
+    }
+  }
+
+  .app-scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    right: 2px;
+    width: 6px;
+    border-radius: 999px;
+    background-color: color-mix(in oklab, var(--color-ink), transparent 72%);
+    pointer-events: auto;
+    cursor: default;
+    transition:
+      background-color 150ms,
+      width 150ms;
+  }
+
+  .app-scrollbar:hover .app-scrollbar-thumb,
+  .app-scrollbar-thumb-active {
+    width: 8px;
+    background-color: color-mix(in oklab, var(--color-ink), transparent 45%);
   }
 
   /*
@@ -396,6 +453,203 @@
   }
 }
 
+/*
+  Page transitions.
+
+  Written as animations rather than transitions on purpose. The reduced-motion
+  rules below cut every animation to a hundredth of a millisecond, which still
+  ends and still fires `animationend` — and `animationend` is what Vue waits for
+  before taking the old page out. A transition switched off with
+  `transition-property: none` fires nothing at all, and the page would be left
+  hanging on an event that never comes.
+
+  The shape: the page leaving fades and slides a hundred pixels away, the page
+  arriving fades in from a hundred pixels on the other side. Which side is the
+  only thing that changes between the three — see `navDirection` in the router.
+*/
+@keyframes page-leave {
+  to {
+    opacity: 0;
+    transform: translate(var(--page-leave-x, 0), var(--page-leave-y, 0));
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translate(var(--page-enter-x, 0), var(--page-enter-y, 0));
+  }
+}
+
+.page-up-leave-active,
+.page-forward-leave-active,
+.page-back-leave-active {
+  /* `both` holds the faded-out state until the element is actually removed. */
+  animation: page-leave 160ms ease-in both;
+}
+
+.page-up-enter-active,
+.page-forward-enter-active,
+.page-back-enter-active {
+  animation: page-enter 220ms ease-out;
+}
+
+/* Somewhere else on the site: up and away, in from below. */
+.page-up-leave-active {
+  --page-leave-y: -100px;
+}
+
+.page-up-enter-active {
+  --page-enter-y: 100px;
+}
+
+/* Later day: the pages travel the way the reader is going. */
+.page-forward-leave-active {
+  --page-leave-x: -100px;
+}
+
+.page-forward-enter-active {
+  --page-enter-x: 100px;
+}
+
+/* Earlier day: the same, backwards. */
+.page-back-leave-active {
+  --page-leave-x: 100px;
+}
+
+.page-back-enter-active {
+  --page-enter-x: -100px;
+}
+
+/*
+  The viewer opening and closing.
+
+  The room fades; the picture rises into it and settles back out. The scale is
+  deliberately on the filmstrip and not on the viewer itself: a transform on an
+  ancestor moves every `getBoundingClientRect` beneath it, and the whole of the
+  viewer's sizing is read that way. The strip is inside the frame that gets
+  measured, not around it, so it is the one thing here that can be moved safely.
+
+  The entrance is also held back until the sizing has been done — see
+  `chromeReady` — or the first frames of the fade would show a picture at a size
+  it is about to leave.
+*/
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes lightbox-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes lightbox-strip-in {
+  from {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes lightbox-strip-out {
+  to {
+    transform: scale(0.97);
+  }
+}
+
+.lightbox-enter-active.lightbox-measured {
+  animation: lightbox-in 220ms ease-out;
+}
+
+.lightbox-leave-active {
+  animation: lightbox-out 160ms ease-in both;
+}
+
+.lightbox-enter-active .lightbox-strip {
+  animation: lightbox-strip-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.lightbox-leave-active .lightbox-strip {
+  animation: lightbox-strip-out 160ms ease-in both;
+}
+
+/*
+  The map filling the window, and leaving it again. Animations rather than
+  transitions for the same reason the page transitions use them — see above.
+*/
+@keyframes map-full-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes map-full-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.map-full-enter-active {
+  animation: map-full-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.map-full-leave-active {
+  animation: map-full-out 180ms ease-in both;
+}
+
+/*
+  One thing giving way to another in the same place — a placeholder handing over
+  to what it stood for. Both are in the layout at once for the length of it, so
+  nothing collapses in between, which is what a mode="out-in" swap would do.
+*/
+@keyframes soft-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes soft-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.soft-enter-active {
+  animation: soft-in 120ms ease-out;
+}
+
+.soft-leave-active {
+  animation: soft-out 100ms ease-in both;
+}
+
+/*
+  A list arriving in a cascade rather than all at once.
+
+  The same rise the front page's wall makes, handed to each entry in turn. A
+  page of a hundred thumbnails appearing in one frame reads as a jolt however
+  gently the frame is faded; arriving from the top down reads as the page being
+  filled in, and it says which end to start reading from.
+
+  `both` is what holds an entry at the start of its keyframes through its delay —
+  without it every one of them would be visible from the first frame and only the
+  movement would be staggered. The delay is capped by whoever sets it, or the
+  hundredth thumbnail would still be waiting several seconds later.
+*/
+@keyframes cascade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.cascade-item {
+  animation: cascade-in 300ms ease-out both;
+  animation-delay: var(--cascade-delay, 0ms);
+}
+
 @keyframes spinner-rotate {
   to {
     transform: rotate(360deg);
@@ -429,6 +683,8 @@
   :root:not([data-motion='always']) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /* Without this a staggered list still waits out its stagger, invisible. */
+    animation-delay: 0ms !important;
     transition-property: none !important;
   }
 

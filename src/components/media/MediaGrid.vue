@@ -3,6 +3,7 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaTile from './MediaTile.vue'
 import { useEditorStore } from '@/stores/editor'
+import { cascadeDelay } from '@/services/cascade'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -12,6 +13,12 @@ const props = defineProps({
   highlightedId: { type: Number, default: null },
   /** Stamps each tile with the day its file was taken; see MediaTile. */
   showDate: { type: Boolean, default: false },
+  /**
+   * Lets the tiles arrive one after another instead of all at once. For a page
+   * that is nothing but a grid; where the grid is one section among many, the
+   * page's own arrival already covers it.
+   */
+  cascade: { type: Boolean, default: false },
   /** How many tiles to reveal at a time. */
   chunkSize: { type: Number, default: 60 },
 })
@@ -307,6 +314,8 @@ onBeforeUnmount(() => {
         v-for="(media, i) in visibleItems"
         :key="media.id ?? media.fileName"
         :data-media-index="i"
+        :class="cascade ? 'cascade-item' : ''"
+        :style="cascade ? cascadeDelay(i) : undefined"
         :media="media"
         :variant="variant"
         :editable="editable"

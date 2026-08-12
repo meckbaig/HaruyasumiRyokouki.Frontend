@@ -1,5 +1,7 @@
+import { ref } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useDaysStore } from '@/stores/days'
 import { setUnauthorizedHandler } from '@/api/authState'
 import { i18n } from '@/i18n'
 import { applyHead } from '@/services/head'
@@ -54,6 +56,50 @@ export const router = createRouter({
     if (to.path === from.path) return false
     return { top: 0 }
   },
+})
+
+/*
+  Which way the page transition should travel, read by App.vue.
+
+  Almost every move is "somewhere else on the site", and the pages simply rise
+  past each other. Stepping between days is the exception: those are neighbours
+  on a line, and a step that slid the wrong way would say the reader had gone
+  back when they had gone on. Arrows and swipes both come through here, so
+  neither needs to know about it.
+*/
+export const navDirection = ref('up')
+
+function directionBetween(to, from) {
+  if (to.name !== 'day' || from.name !== 'day') return 'up'
+  if (!to.params.date || !from.params.date) return 'up'
+  return to.params.date > from.params.date ? 'forward' : 'back'
+}
+
+/*
+  Starts a page's data on its way as the navigation begins.
+
+  The transition between pages runs the departure first and mounts the arriving
+  page only once it has finished, so a page that asks for its data on mount asks
+  a sixth of a second late — and the reader watches an empty frame for exactly as
+  long as the animation was meant to be covering. Asking here instead puts the
+  request and the animation side by side.
+
+  Fire and forget: the page asks for the same day itself, and the store hands
+  both of them the one request. A failure here is not this hook's to report — the
+  page will ask, and will show its own error state.
+*/
+function prefetchRoute(to) {
+  if (to.name === 'day' && typeof to.params.date === 'string') {
+    useDaysStore()
+      .loadDay(to.params.date)
+      .catch(() => {})
+  }
+}
+
+router.beforeEach((to, from) => {
+  navDirection.value = directionBetween(to, from)
+  prefetchRoute(to)
+  return true
 })
 
 router.beforeEach((to) => {
