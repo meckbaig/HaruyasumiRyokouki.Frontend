@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { copyMediaUrl } from '@/services/share'
+import { isPrivate } from '@/services/privacy'
 
 const props = defineProps({
   /** `{ media, x, y }` while a menu is up, null while none is. */
@@ -27,6 +28,15 @@ const { t } = useI18n()
 */
 const menu = ref(null)
 const size = ref({ width: 0, height: 0 })
+
+/**
+ * A file kept back from the public has nothing to offer here, since the one
+ * thing on the menu is a link to it. The menu still opens, and says why: the
+ * browser's own menu has been suppressed on these tiles since long before this,
+ * so a right-click that produced nothing at all would read as the page being
+ * broken rather than as an answer.
+ */
+const hidden = computed(() => isPrivate(props.target?.media))
 
 const position = computed(() => {
   if (!props.target) return { left: '0px', top: '0px' }
@@ -111,7 +121,12 @@ onBeforeUnmount(() => {
       @pointerdown.stop
       @contextmenu.prevent
     >
+      <p v-if="hidden" class="px-3 py-2 text-xs text-ink-faint">
+        {{ t('media.hiddenNoShare') }}
+      </p>
+
       <button
+        v-else
         type="button"
         role="menuitem"
         class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-soft transition hover:bg-edge/50 hover:text-ink"

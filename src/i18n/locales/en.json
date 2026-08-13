@@ -82,7 +82,9 @@
     "shownOf": "Showing {shown} of {total}",
     "favorite": "Mark for the front page",
     "unfavorite": "Remove from the front page",
-    "shareFile": "Share this file"
+    "shareFile": "Share this file",
+    "hidden": "Hidden",
+    "hiddenNoShare": "This file is hidden — there is no link to share"
   },
   "language": {
     "label": "Language",
@@ -163,7 +165,10 @@
     "neighborPoints": "Grey pins are files already placed on this day and the ones either side, to go by",
     "dayThumbs": "Photos of this day",
     "favorite": "Featured — show on the front page",
-    "favoriteBulkHint": "Ticking this marks every selected file. Taking a mark off is done with the star on the file itself."
+    "favoriteBulkHint": "Ticking this marks every selected file. Taking a mark off is done with the star on the file itself.",
+    "hidden": "Hide — keep out of public view",
+    "hiddenHint": "The file stays visible to you, but not in the day, the search, or behind a link.",
+    "hiddenBulkHint": "Ticking this hides every selected file. Letting one back out is done one file at a time."
   },
   "footer": {
     "about": "About",

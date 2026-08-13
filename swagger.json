@@ -168,15 +168,6 @@
         "tags": [
           "Days"
         ],
-        "parameters": [
-          {
-            "name": "query",
-            "in": "query",
-            "schema": {
-              "$ref": "#/components/schemas/GetDaysQuery"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -418,6 +409,16 @@
               "type": "string"
             },
             "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
           }
         ],
         "responses": {
@@ -612,6 +613,10 @@
             "type": "boolean",
             "nullable": true
           },
+          "private": {
+            "type": "boolean",
+            "nullable": true
+          },
           "favorite": {
             "type": "boolean",
             "nullable": true
@@ -669,10 +674,6 @@
             "$ref": "#/components/schemas/DayDto"
           }
         },
-        "additionalProperties": false
-      },
-      "GetDaysQuery": {
-        "type": "object",
         "additionalProperties": false
       },
       "GetDaysResponse": {
@@ -841,6 +842,10 @@
             "type": "string",
             "nullable": true
           },
+          "private": {
+            "type": "boolean",
+            "nullable": true
+          },
           "favorite": {
             "type": "boolean",
             "description": "null when user is not admin.",
@@ -901,6 +906,9 @@
           "miniature": {
             "type": "string",
             "nullable": true
+          },
+          "private": {
+            "type": "boolean"
           },
           "favorite": {
             "type": "boolean"

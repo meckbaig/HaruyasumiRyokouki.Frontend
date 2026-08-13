@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { miniatureSrc, previewSrc, mediaDate } from '@/services/mediaAssets'
 import { formatShortDate } from '@/services/dates'
 import { isVideo } from '@/services/mediaType'
+import { isPrivate } from '@/services/privacy'
 import { toggleFavorite } from '@/services/favorites'
 import { useEditorStore } from '@/stores/editor'
 import { useUiStore } from '@/stores/ui'
@@ -34,6 +35,7 @@ const editor = useEditorStore()
 const ui = useUiStore()
 
 const video = computed(() => isVideo(props.media))
+const hidden = computed(() => isPrivate(props.media))
 const takenOn = computed(() =>
   props.showDate ? formatShortDate(mediaDate(props.media), ui.locale) : '',
 )
@@ -270,14 +272,52 @@ function activate() {
           {{ takenOn }}
         </span>
 
+        <!--
+          Badges share the bottom-left corner in one row rather than each
+          claiming a corner of their own: a file can be both a video and a
+          hidden one, and two absolutely-placed badges would have sat on top of
+          each other the one time it mattered.
+
+          The hidden mark comes first and carries its word, not just a symbol.
+          It is the only badge here that is a warning rather than a description,
+          and an editor scanning a day has to be able to read it without
+          stopping to work out what a crossed-out eye is doing on a photograph.
+        -->
         <span
-          v-if="video"
-          class="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+          v-if="video || hidden"
+          class="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1"
         >
-          <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-            <path d="M3.5 2.5v7l6-3.5z" />
-          </svg>
-          {{ t('media.video') }}
+          <span
+            v-if="hidden"
+            class="flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-paper"
+          >
+            <svg
+              class="h-3 w-3"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              aria-hidden="true"
+            >
+              <path
+                d="M2.2 8s2.3-3.8 5.8-3.8S13.8 8 13.8 8s-2.3 3.8-5.8 3.8S2.2 8 2.2 8z"
+                stroke-linejoin="round"
+              />
+              <circle cx="8" cy="8" r="1.6" />
+              <path d="M3 13 13 3" stroke-linecap="round" />
+            </svg>
+            {{ t('media.hidden') }}
+          </span>
+
+          <span
+            v-if="video"
+            class="flex items-center gap-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+          >
+            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+              <path d="M3.5 2.5v7l6-3.5z" />
+            </svg>
+            {{ t('media.video') }}
+          </span>
         </span>
 
         <span

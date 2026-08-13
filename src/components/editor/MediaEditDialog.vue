@@ -13,6 +13,7 @@ import { parseTags, formatTags } from '@/services/translations'
 import { SUPPORTED_LOCALES } from '@/i18n'
 import { addDays, parseIsoDate, toIsoDate } from '@/services/dates'
 import { useDelayed } from '@/composables/useDelayed'
+import { isPrivate } from '@/services/privacy'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -53,6 +54,7 @@ const coords = ref(null)
 const coordsTouched = ref(false)
 const approved = ref(true)
 const favorite = ref(false)
+const hidden = ref(false)
 const autoTranslate = ref(false)
 const saving = ref(false)
 const error = ref(null)
@@ -240,6 +242,7 @@ watch(
     // start neutral — there an unticked box means "leave these alone".
     approved.value = !isBulk.value
     favorite.value = !isBulk.value && single.value?.favorite === true
+    hidden.value = !isBulk.value && isPrivate(single.value)
     coords.value =
       !isBulk.value &&
       Number.isFinite(single.value?.latitude) &&
@@ -294,11 +297,17 @@ function buildChanges() {
     // box leaves each file as it was. Taking a mark off is the star's job, one
     // file at a time — which is also the only place it is ever wanted.
     if (favorite.value) changes.favorite = true
+    // And the same rule again for hiding, which is the direction that matters:
+    // a batch just pulled off a camera is hidden wholesale, and let back out one
+    // at a time once it has been looked at. An untouched box cannot mean "show
+    // these", or a bulk edit of anything else would quietly publish the lot.
+    if (hidden.value) changes.private = true
   } else {
     changes.latitude = coords.value?.lat ?? null
     changes.longitude = coords.value?.lng ?? null
     changes.isApproved = approved.value
     changes.favorite = favorite.value
+    changes.private = hidden.value
   }
   return changes
 }
@@ -409,6 +418,16 @@ async function save() {
           {{ t('editor.favorite') }}
         </label>
         <p v-if="isBulk" class="field-hint">{{ t('editor.favoriteBulkHint') }}</p>
+      </div>
+
+      <div>
+        <label class="flex items-center gap-2 text-sm text-ink-soft">
+          <input v-model="hidden" type="checkbox" class="rounded border-edge" />
+          {{ t('editor.hidden') }}
+        </label>
+        <p class="field-hint">
+          {{ isBulk ? t('editor.hiddenBulkHint') : t('editor.hiddenHint') }}
+        </p>
       </div>
 
       <div>

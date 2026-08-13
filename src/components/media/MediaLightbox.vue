@@ -12,6 +12,7 @@ import {
   streamSrc,
 } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
+import { isPrivate } from '@/services/privacy'
 import { isMobileLayout } from '@/services/display'
 import { withMediaLink, pageIdentity } from '@/composables/useMediaLink'
 import { copyMediaUrl } from '@/services/share'
@@ -99,8 +100,20 @@ const onOwnDay = computed(() => route.name === 'day' && String(route.params.date
   nothing — there the file's own day is what gets shared instead.
 */
 const canResolveLink = computed(() => route.name === 'day' || route.name === 'search')
+
+/**
+ * A file kept back from the public has no link worth handing out — whoever
+ * received it would be sent to a day that does not contain it as far as they are
+ * concerned. Taking the button away is also the plainest way of saying so: an
+ * offer that is not there cannot be taken up by mistake, which a disabled one
+ * still invites.
+ */
+const hidden = computed(() => isPrivate(current.value))
 const shareable = computed(
-  () => current.value?.id != null && (canResolveLink.value || Boolean(dayDate.value)),
+  () =>
+    current.value?.id != null &&
+    !hidden.value &&
+    (canResolveLink.value || Boolean(dayDate.value)),
 )
 
 const shareFeedback = ref(null)
@@ -1964,6 +1977,30 @@ onBeforeUnmount(() => {
             :class="uiVisible ? 'pointer-events-auto' : '-translate-y-full'"
           >
             <div class="min-w-0 pt-1">
+              <!-- Above the title rather than beside it: the title is truncated
+                   to whatever room is left, and a mark sharing that line would
+                   be the first thing squeezed out on a phone. -->
+              <p
+                v-if="hidden"
+                class="mb-1 inline-flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-paper"
+              >
+                <svg
+                  class="h-3 w-3"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2.2 8s2.3-3.8 5.8-3.8S13.8 8 13.8 8s-2.3 3.8-5.8 3.8S2.2 8 2.2 8z"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="8" cy="8" r="1.6" />
+                  <path d="M3 13 13 3" stroke-linecap="round" />
+                </svg>
+                {{ t('media.hidden') }}
+              </p>
               <p class="truncate text-sm font-medium">{{ label }}</p>
               <!--
               Tapping a clipped description opens it, and again puts it back.
