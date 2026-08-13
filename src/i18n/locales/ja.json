@@ -160,7 +160,7 @@
     "expandMap": "地図を拡大",
     "collapseMap": "地図を縮小",
     "clearPoint": "ピンを削除",
-    "neighborPoints": "前後の日の地点",
+    "neighborPoints": "グレーのピンは、この日と前後の日にすでに置かれた写真です（位置の目安）",
     "dayThumbs": "この日の写真",
     "favorite": "お気に入り — トップページに表示",
     "favoriteBulkHint": "チェックすると選択したすべてのファイルに印が付きます。印を外すのはファイル上の星から。"

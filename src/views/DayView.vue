@@ -274,27 +274,35 @@ function onNoteSaved() {
           </button>
         </div>
 
-        <DayEditForm
-          v-if="editingNote && day"
-          :day="day"
-          :date="date"
-          @saved="onNoteSaved"
-          @cancel="editingNote = false"
-        />
-        <template v-else>
-          <div v-if="loading && !day" class="space-y-2">
-            <div class="h-4 w-3/4 animate-pulse rounded bg-edge/60" />
-            <div class="h-4 w-full animate-pulse rounded bg-edge/60" />
-            <div class="h-4 w-5/6 animate-pulse rounded bg-edge/60" />
+        <!--
+          The note folds away and the editor unfolds in its place. `out-in`,
+          because the two are nothing like the same height and playing them at
+          once would have the section jumping between the two while they cross.
+        -->
+        <Transition name="reveal" mode="out-in">
+          <div v-if="editingNote && day" key="edit" class="reveal reveal-stagger">
+            <DayEditForm
+              :day="day"
+              :date="date"
+              @saved="onNoteSaved"
+              @cancel="editingNote = false"
+            />
           </div>
-          <p
-            v-else-if="day?.note"
-            class="whitespace-pre-wrap text-sm leading-relaxed text-ink-soft"
-          >
-            {{ day.note }}
-          </p>
-          <p v-else class="text-sm text-ink-faint">{{ t('day.noNote') }}</p>
-        </template>
+          <div v-else key="note" class="reveal">
+            <div v-if="loading && !day" class="space-y-2">
+              <div class="h-4 w-3/4 animate-pulse rounded bg-edge/60" />
+              <div class="h-4 w-full animate-pulse rounded bg-edge/60" />
+              <div class="h-4 w-5/6 animate-pulse rounded bg-edge/60" />
+            </div>
+            <p
+              v-else-if="day?.note"
+              class="whitespace-pre-wrap text-sm leading-relaxed text-ink-soft"
+            >
+              {{ day.note }}
+            </p>
+            <p v-else class="text-sm text-ink-faint">{{ t('day.noNote') }}</p>
+          </div>
+        </Transition>
       </section>
 
       <!--
@@ -320,48 +328,61 @@ function onNoteSaved() {
         </Transition>
       </section>
 
-      <section v-if="locatedMedia.length" class="mb-12">
-        <div class="mb-3 flex items-center justify-between gap-4">
-          <!-- Heading becomes a show/hide button when the map is hidden by default. -->
-          <button
-            v-if="mapHiddenByDefault"
-            type="button"
-            class="text-sm font-semibold text-ink-soft transition hover:text-ink"
-            @click="mapShown = !mapShown"
-          >
-            {{ mapShown ? t('day.hideMap') : t('day.showMap') }}
-          </button>
-          <h2 v-else class="text-sm font-semibold text-ink-soft">{{ t('day.onMap') }}</h2>
+      <!--
+        Two folds, one inside the other. The outer one is the day itself
+        arriving: until it has been fetched nobody knows whether it holds any
+        located files, and a whole map section appearing under the grid the
+        instant it does is the jolt this smooths over. The inner one is the
+        reader asking for the map, or putting it away.
 
-          <!-- Preference toggle, always available while the day has locations. -->
-          <label class="flex cursor-pointer items-center gap-2 text-xs text-ink-faint">
-            {{ t('day.mapDefaultHidden') }}
-            <input
-              type="checkbox"
-              class="peer sr-only"
-              :checked="mapHiddenByDefault"
-              @change="toggleMapDefault"
-            />
-            <span
-              class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
-              aria-hidden="true"
-            >
-              <span
-                class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition"
-              />
-            </span>
-          </label>
+        They never play together. The outer has no `appear`, so a day already in
+        the cache draws its map with no animation at all; a day that arrives
+        later unfolds the section with the map already inside it.
+      -->
+      <Transition name="reveal">
+        <div v-if="locatedMedia.length" class="reveal">
+          <section class="mb-12">
+            <div class="mb-3 flex items-center justify-between gap-4">
+              <!-- Heading becomes a show/hide button when the map is hidden by default. -->
+              <button
+                v-if="mapHiddenByDefault"
+                type="button"
+                class="text-sm font-semibold text-ink-soft transition hover:text-ink"
+                @click="mapShown = !mapShown"
+              >
+                {{ mapShown ? t('day.hideMap') : t('day.showMap') }}
+              </button>
+              <h2 v-else class="text-sm font-semibold text-ink-soft">{{ t('day.onMap') }}</h2>
+
+              <!-- Preference toggle, always available while the day has locations. -->
+              <label class="flex cursor-pointer items-center gap-2 text-xs text-ink-faint">
+                {{ t('day.mapDefaultHidden') }}
+                <input
+                  type="checkbox"
+                  class="peer sr-only"
+                  :checked="mapHiddenByDefault"
+                  @change="toggleMapDefault"
+                />
+                <span
+                  class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
+                  aria-hidden="true"
+                >
+                  <span
+                    class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition"
+                  />
+                </span>
+              </label>
+            </div>
+
+            <Transition name="reveal">
+              <div v-if="mapShown" class="reveal">
+                <!-- `data-no-swipe`: panning the map must not page to another day. -->
+                <TripMap data-no-swipe :media="locatedMedia" :date="date" height="360px" />
+              </div>
+            </Transition>
+          </section>
         </div>
-
-        <!-- `data-no-swipe`: panning the map must not page to another day. -->
-        <TripMap
-          v-if="mapShown"
-          data-no-swipe
-          :media="locatedMedia"
-          :date="date"
-          height="360px"
-        />
-      </section>
+      </Transition>
 
       <section class="mb-8">
         <h2 class="mb-6 text-center text-sm font-semibold text-ink-soft">

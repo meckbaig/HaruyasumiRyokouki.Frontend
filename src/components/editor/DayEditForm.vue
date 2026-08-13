@@ -7,6 +7,8 @@ import { useUiStore } from '@/stores/ui'
 import { useDaysStore } from '@/stores/days'
 import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { SUPPORTED_LOCALES } from '@/i18n'
+import { cascadeDelay } from '@/services/cascade'
+import { useDelayed } from '@/composables/useDelayed'
 
 const props = defineProps({
   /** DayDto (read model) or DayEditDto (pending list) — both are accepted. */
@@ -32,6 +34,9 @@ const saving = ref(false)
 const loading = ref(false)
 const error = ref(null)
 const thumbs = ref([])
+
+// Said out loud only if the wait actually lasts — see composables/useDelayed.
+const showLoading = useDelayed(() => loading.value)
 
 const active = computed(() => form[activeLang.value] ?? { note: '' })
 const canSave = computed(() => !loading.value && !saving.value)
@@ -156,8 +161,16 @@ async function save() {
 </script>
 
 <template>
+  <!--
+    The fields arrive one under another rather than as a block, and go the same
+    way — the stagger is `.cascade-item`, the fold around them is `.reveal` on
+    whoever mounts this form. The delays are written by hand rather than counted
+    off the loop, so a notice that only sometimes appears cannot shift the
+    others' place in the order; the two that do appear mid-editing carry none at
+    all, since a message about what just happened must not be held back.
+  -->
   <form class="space-y-4" @submit.prevent="save">
-    <div v-if="thumbs.length">
+    <div v-if="thumbs.length" class="cascade-item" :style="cascadeDelay(0)">
       <span class="field-label">{{ t('editor.dayThumbs') }}</span>
       <div class="flex flex-wrap gap-1.5">
         <img
@@ -171,9 +184,14 @@ async function save() {
       </div>
     </div>
 
-    <LanguageTabs v-model="activeLang" :disabled="loading" />
+    <LanguageTabs
+      v-model="activeLang"
+      :disabled="loading"
+      class="cascade-item"
+      :style="cascadeDelay(1)"
+    />
 
-    <div>
+    <div class="cascade-item" :style="cascadeDelay(2)">
       <label class="field-label" :for="`day-note-${date}`">{{ t('editor.note') }}</label>
       <textarea
         :id="`day-note-${date}`"
@@ -182,15 +200,18 @@ async function save() {
         class="field-input"
         :disabled="loading"
       />
-      <p v-if="loading" class="field-hint">{{ t('common.loading') }}</p>
+      <p v-if="showLoading" class="field-hint">{{ t('common.loading') }}</p>
     </div>
 
-    <label class="flex items-center gap-2 text-sm text-ink-soft">
+    <label
+      class="cascade-item flex items-center gap-2 text-sm text-ink-soft"
+      :style="cascadeDelay(3)"
+    >
       <input v-model="isReady" type="checkbox" class="rounded border-edge" />
       {{ t('editor.isReady') }}
     </label>
 
-    <div>
+    <div class="cascade-item" :style="cascadeDelay(4)">
       <label class="flex items-center gap-2 text-sm text-ink-soft">
         <input v-model="autoTranslate" type="checkbox" class="rounded border-edge" />
         {{ t('editor.autoTranslate') }}
@@ -198,15 +219,15 @@ async function save() {
       <p class="field-hint">{{ t('editor.autoTranslateHint') }}</p>
     </div>
 
-    <p v-if="translated" class="rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
+    <p v-if="translated" class="cascade-item rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
       {{ t('editor.translationReview') }}
     </p>
 
-    <p v-if="error" role="alert" class="text-sm text-accent">
+    <p v-if="error" role="alert" class="cascade-item text-sm text-accent">
       {{ error.detail || error.title || t('errors.generic') }}
     </p>
 
-    <div class="flex justify-end gap-2">
+    <div class="cascade-item flex justify-end gap-2" :style="cascadeDelay(5)">
       <button type="button" class="btn-ghost" @click="emit('cancel')">
         {{ t('common.cancel') }}
       </button>

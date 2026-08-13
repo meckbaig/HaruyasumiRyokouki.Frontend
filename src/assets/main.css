@@ -660,6 +660,147 @@
 }
 
 /*
+  Something folding out of the page in place: the day's map when it is asked
+  for, the note handing over to its editor, a day in the queue opening up.
+
+  The fold is done on `grid-template-rows`, which is the one way to animate to a
+  height nobody has measured. A single-row grid holding the content, taken from
+  `0fr` to `1fr`: the row is what grows, and the content inside keeps the height
+  it would have had all along. `align-items: start` is what buys that — stretched
+  to a row of no height the content would be squashed to nothing and reflowed on
+  every frame of the way back out, and a map or a form doing that mid-fold is
+  the jitter this was meant to avoid. Kept off its natural height, it simply
+  hangs out of the top of the row and is clipped, which is what a fold looks
+  like.
+
+  Clipping only while it moves: a permanent `overflow: hidden` would cut the
+  focus ring off anything sitting at the edge of the panel for the rest of the
+  page's life.
+*/
+@keyframes reveal-in {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+@keyframes reveal-out {
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+.reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  align-items: start;
+}
+
+.reveal-enter-active,
+.reveal-leave-active {
+  overflow: hidden;
+}
+
+.reveal-enter-active {
+  animation: reveal-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.reveal-leave-active {
+  animation: reveal-out 180ms ease-in both;
+}
+
+/*
+  A fold whose contents arrive one under the other instead of as a block, and
+  leave the same way.
+
+  Coming in needs nothing extra: `.cascade-item` runs the moment an element is
+  inserted, and the fold opening underneath it is exactly the room the entries
+  are dropping into.
+
+  Going out is the part that has to be arranged. Vue watches the root and takes
+  the whole subtree away the instant *its* animation ends, so the fold is given
+  long enough for the last entry to have gone first — otherwise the stagger is
+  cut off partway and the rest simply vanish. The `animation` shorthand on the
+  entries is a full override of the one they arrived under, which is what makes
+  a finished animation start again as a different one.
+*/
+@keyframes cascade-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.reveal-stagger.reveal-leave-active {
+  animation-duration: 340ms;
+}
+
+.reveal-stagger.reveal-leave-active .cascade-item {
+  animation: cascade-out 160ms ease-in both;
+  animation-delay: var(--cascade-delay, 0ms);
+}
+
+/*
+  A dialog arriving over the page.
+
+  The room darkens and the panel comes up to meet it. On a phone the panel is a
+  sheet held to the bottom edge and on a desktop it is centred, so the movement
+  is a short rise either way — the one gesture that reads correctly in both.
+
+  The leaving panel stops answering the hand the moment it starts to go, for the
+  same reason the viewer does: an overlay that is merely fading still covers the
+  whole window, and the first thing reached for underneath it would be caught by
+  a dialog the reader has already dismissed.
+*/
+@keyframes modal-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+
+@keyframes modal-panel-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+
+.modal-enter-active {
+  animation: modal-in 180ms ease-out;
+}
+
+.modal-leave-active {
+  animation: modal-out 140ms ease-in both;
+}
+
+.modal-enter-active .modal-panel {
+  animation: modal-panel-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.modal-leave-active .modal-panel {
+  animation: modal-panel-out 140ms ease-in both;
+}
+
+.modal-leave-active,
+.modal-leave-active * {
+  pointer-events: none;
+}
+
+/*
   A list arriving in a cascade rather than all at once.
 
   The same rise the front page's wall makes, handed to each entry in turn. A

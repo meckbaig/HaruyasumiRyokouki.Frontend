@@ -160,7 +160,7 @@
     "expandMap": "Expand map",
     "collapseMap": "Collapse map",
     "clearPoint": "Clear pin",
-    "neighborPoints": "Points from neighbouring days",
+    "neighborPoints": "Grey pins are files already placed on this day and the ones either side, to go by",
     "dayThumbs": "Photos of this day",
     "favorite": "Featured — show on the front page",
     "favoriteBulkHint": "Ticking this marks every selected file. Taking a mark off is done with the star on the file itself."

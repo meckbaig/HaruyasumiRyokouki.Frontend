@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, onBeforeUnmount, markRaw, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
-import { createBaseMap, pinIcon, neighborIcon } from '@/services/leaflet'
+import { createBaseMap, pinIcon, neighborIcon, PIN_PATH, NEIGHBOR_COLOR } from '@/services/leaflet'
 
 const props = defineProps({
   /** Current point, or null when the file has no location yet. */
@@ -182,7 +182,20 @@ onBeforeUnmount(() => {
     </div>
 
     <p class="field-hint">{{ t('editor.mapHint') }}</p>
-    <p v-if="points.length" class="field-hint">{{ t('editor.neighborPoints') }}</p>
+
+    <!--
+      A legend, not a label. The muted drops are the only thing on the map
+      nobody put there deliberately, and named on their own — "points from
+      neighbouring days" — they explained neither which marks they were nor what
+      they were for. Drawn beside the sentence, the mark and its meaning arrive
+      together.
+    -->
+    <p v-if="points.length" class="field-hint flex items-start gap-1.5">
+      <svg class="mt-px h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+        <path :d="PIN_PATH" :fill="NEIGHBOR_COLOR" />
+      </svg>
+      {{ t('editor.neighborPoints') }}
+    </p>
 
     <!-- Fullscreen map: a separate instance in a body-level overlay. -->
     <Teleport to="body">

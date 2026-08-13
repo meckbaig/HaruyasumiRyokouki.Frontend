@@ -12,6 +12,7 @@ import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { parseTags, formatTags } from '@/services/translations'
 import { SUPPORTED_LOCALES } from '@/i18n'
 import { addDays, parseIsoDate, toIsoDate } from '@/services/dates'
+import { useDelayed } from '@/composables/useDelayed'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -57,6 +58,9 @@ const saving = ref(false)
 const error = ref(null)
 const translated = ref(false)
 const neighborPoints = ref([])
+
+// Said out loud only if the wait actually lasts — see composables/useDelayed.
+const showLoading = useDelayed(() => loading.value)
 
 const active = computed(() => form[activeLang.value] ?? { title: '', description: '', tags: '' })
 const thumbs = computed(() => editList.value)
@@ -419,7 +423,7 @@ async function save() {
         {{ t('editor.translationReview') }}
       </p>
 
-      <p v-if="loading" class="text-xs text-ink-faint">{{ t('common.loading') }}</p>
+      <p v-if="showLoading" class="text-xs text-ink-faint">{{ t('common.loading') }}</p>
 
       <p v-if="error" role="alert" class="text-sm text-accent">
         {{ error.detail || error.title || t('errors.generic') }}

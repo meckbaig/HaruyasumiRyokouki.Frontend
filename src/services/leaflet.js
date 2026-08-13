@@ -27,7 +27,8 @@ export const FALLBACK_ZOOM = 5
  * silhouette (the cluster is the same drop with a count in its head), and both
  * theme cleanly without shipping PNGs.
  */
-const PIN_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z'
+/** The drop every pin on the site is cut from, exported so a legend can draw one. */
+export const PIN_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z'
 
 export const PIN_COLOR = '#b3403f'
 export const NEIGHBOR_COLOR = '#8b8798'

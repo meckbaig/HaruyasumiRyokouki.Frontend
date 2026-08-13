@@ -175,14 +175,20 @@ function dayTitle(day) {
               <span class="text-xs text-ink-faint">{{ t('day.notReady') }}</span>
             </button>
 
-            <div v-if="openDayDate === day.date" class="border-t border-edge px-4 py-4">
-              <DayEditForm
-                :day="day"
-                :date="day.date"
-                @saved="onDaySaved"
-                @cancel="openDayDate = null"
-              />
-            </div>
+            <!-- The row folds open around the editor rather than snapping to
+                 its full height — see `.reveal` in assets/main.css. -->
+            <Transition name="reveal">
+              <div v-if="openDayDate === day.date" class="reveal reveal-stagger">
+                <div class="border-t border-edge px-4 py-4">
+                  <DayEditForm
+                    :day="day"
+                    :date="day.date"
+                    @saved="onDaySaved"
+                    @cancel="openDayDate = null"
+                  />
+                </div>
+              </div>
+            </Transition>
           </div>
         </div>
         <EmptyState v-else-if="!loading" :message="t('admin.allDone')" />

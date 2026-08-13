@@ -85,51 +85,55 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="open"
-      class="fixed inset-0 z-[2000] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
-      @pointerdown="onBackdropDown"
-      @pointerup="onBackdropUp"
-    >
+    <!-- Keyframes rather than transitions, so the reduced-motion rules still
+         leave Vue an `animationend` to wait for — see assets/main.css. -->
+    <Transition name="modal">
       <div
-        ref="panel"
-        class="max-h-[90vh] w-full overflow-y-auto rounded-t-xl bg-paper-raised shadow-xl sm:max-w-lg sm:rounded-xl"
-        role="dialog"
-        aria-modal="true"
-        :aria-label="title"
+        v-if="open"
+        class="fixed inset-0 z-[2000] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+        @pointerdown="onBackdropDown"
+        @pointerup="onBackdropUp"
       >
         <div
-          class="sticky top-0 flex items-center justify-between gap-4 border-b border-edge bg-paper-raised px-5 py-3"
+          ref="panel"
+          class="modal-panel max-h-[90vh] w-full overflow-y-auto rounded-t-xl bg-paper-raised shadow-xl sm:max-w-lg sm:rounded-xl"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="title"
         >
-          <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
-          <button
-            type="button"
-            class="rounded p-1 text-ink-faint transition hover:text-ink"
-            :aria-label="t('common.close')"
-            @click="emit('close')"
+          <div
+            class="sticky top-0 flex items-center justify-between gap-4 border-b border-edge bg-paper-raised px-5 py-3"
           >
-            <svg
-              class="h-4 w-4"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              aria-hidden="true"
+            <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
+            <button
+              type="button"
+              class="rounded p-1 text-ink-faint transition hover:text-ink"
+              :aria-label="t('common.close')"
+              @click="emit('close')"
             >
-              <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
-            </svg>
-          </button>
-        </div>
+              <svg
+                class="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
 
-        <div class="px-5 py-4"><slot /></div>
+          <div class="px-5 py-4"><slot /></div>
 
-        <div
-          v-if="$slots.footer"
-          class="sticky bottom-0 flex justify-end gap-2 border-t border-edge bg-paper-raised px-5 py-3"
-        >
-          <slot name="footer" />
+          <div
+            v-if="$slots.footer"
+            class="sticky bottom-0 flex justify-end gap-2 border-t border-edge bg-paper-raised px-5 py-3"
+          >
+            <slot name="footer" />
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
