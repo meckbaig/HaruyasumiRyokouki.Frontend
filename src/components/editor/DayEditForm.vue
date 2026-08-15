@@ -15,6 +15,15 @@ const props = defineProps({
   /** DayDto (read model) or DayEditDto (pending list) — both are accepted. */
   day: { type: Object, required: true },
   date: { type: String, required: true },
+  /**
+   * The strip of the day's photos above the note.
+   *
+   * It is here so the day can be written while looking at it, which the pending
+   * queue needs — nothing else on that screen shows what the day held. On the day
+   * page the same grid is already a few centimetres below the form, and a second
+   * copy of it says nothing the first did not.
+   */
+  showThumbs: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['saved', 'cancel'])
@@ -91,6 +100,9 @@ async function loadFullModel() {
  * from the cache to get the file names.
  */
 async function loadThumbs() {
+  thumbs.value = []
+  if (!props.showThumbs) return
+
   thumbs.value = props.day?.media ?? []
   if (thumbs.value.length) return
   try {
@@ -180,9 +192,13 @@ async function save() {
     <div v-if="thumbs.length" class="cascade-item" :style="cascadeDelay(0)">
       <span class="field-label">{{ t('editor.dayThumbs') }}</span>
       <div class="flex flex-wrap gap-1.5">
+        <!-- `data-media-id`: what the viewer looks for when it flies a picture
+             back to where it was opened from. Without it there was nowhere to
+             fly to, and closing simply blinked out. -->
         <button
           v-for="(item, index) in thumbs"
           :key="item.id ?? item.fileName"
+          :data-media-id="item.id"
           type="button"
           class="overflow-hidden rounded ring-1 ring-edge transition hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
           :aria-label="item.title || item.fileName"

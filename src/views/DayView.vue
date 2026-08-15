@@ -287,9 +287,11 @@ function onNoteSaved() {
         -->
         <Transition name="reveal" mode="out-in">
           <div v-if="editingNote && day" key="edit" class="reveal reveal-stagger">
+            <!-- No strip of thumbnails: the day's own grid is right below. -->
             <DayEditForm
               :day="day"
               :date="date"
+              :show-thumbs="false"
               @saved="onNoteSaved"
               @cancel="editingNote = false"
             />

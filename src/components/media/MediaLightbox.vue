@@ -852,29 +852,50 @@ const hero = ref(null)
 let heroAnimation = null
 /** A tile box captured as the viewer opens, waiting for somewhere to fly to. */
 let heroOrigin = null
+/**
+ * The very element the viewer was opened from, and the file it held.
+ *
+ * A file can be on the page more than once — the front page hangs its wall
+ * twice, and the pending queue can be showing the same photograph as the strip
+ * inside a day being written. Searching for it again on the way out finds *a*
+ * tile, not necessarily the one that was clicked, and the picture then flies off
+ * to somewhere the reader was not looking. Remembering which one it came from
+ * settles that, and only for the file it was opened on: paging away makes it
+ * meaningless, and the search takes over again.
+ */
+let originTile = null
+
+function boxOf(element) {
+  const rect = element?.getBoundingClientRect?.()
+  if (!rect?.width || !rect?.height) return null
+  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+}
+
+function onScreen(box) {
+  return (
+    box.top + box.height > 0 &&
+    box.top < window.innerHeight &&
+    box.left + box.width > 0 &&
+    box.left < window.innerWidth
+  )
+}
+
+/** Everything on the page standing for this file. */
+function tilesFor(item) {
+  if (item?.id == null) return []
+  return [...document.querySelectorAll(`[data-media-id="${CSS.escape(String(item.id))}"]`)]
+}
 
 /** The box a file occupies on the page underneath, if it is on screen at all. */
 function tileBox(item, { offscreen = false } = {}) {
-  if (item?.id == null) return null
-
-  // Every match, not the first: the front page's wall is hung twice so that it
-  // can drift endlessly, and the copy that comes first in the document is as
-  // likely as not to be the one scrolled off the side.
-  const tiles = document.querySelectorAll(`[data-media-id="${CSS.escape(String(item.id))}"]`)
   let hidden = null
 
-  for (const tile of tiles) {
-    const rect = tile.getBoundingClientRect()
-    if (!rect.width || !rect.height) continue
-
-    const box = { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
-    const onScreen =
-      rect.bottom > 0 &&
-      rect.top < window.innerHeight &&
-      rect.right > 0 &&
-      rect.left < window.innerWidth
-
-    if (onScreen) return box
+  for (const tile of tilesFor(item)) {
+    const box = boxOf(tile)
+    if (!box) continue
+    // Every match, not the first: a file hung twice is as likely as not to have
+    // its first copy scrolled off the side.
+    if (onScreen(box)) return box
     hidden ??= box
   }
 
@@ -886,6 +907,15 @@ function tileBox(item, { offscreen = false } = {}) {
     going to is scrolled away.
   */
   return offscreen ? hidden : null
+}
+
+/** Where a closing picture goes: back where it came from, if that still exists. */
+function tileBoxBack(item) {
+  if (originTile?.id === item?.id && originTile.el.isConnected) {
+    const box = boxOf(originTile.el)
+    if (box) return box
+  }
+  return tileBox(item, { offscreen: true })
 }
 
 /**
@@ -981,7 +1011,7 @@ function close({ fly = true } = {}) {
     flyHero({
       src: heroSource(current.value),
       from: pictureBox(),
-      to: tileBox(current.value, { offscreen: true }),
+      to: tileBoxBack(current.value),
       fromRadius: '0px',
       toRadius: TILE_RADIUS,
     })
@@ -1594,6 +1624,7 @@ function onKeydown(event) {
 
 function resetGestures() {
   heroOrigin = null
+  originTile = null
   queuedTurn = 0
   turning = false
   pendingSettle = null
@@ -1679,7 +1710,12 @@ function unlockScroll({ now = false } = {}) {
 watch(open, async (isOpen) => {
   if (isOpen) {
     // Read now, with the page underneath still laid out as the reader left it.
-    heroOrigin = tileBox(current.value)
+    const from = tilesFor(current.value).find((tile) => {
+      const box = boxOf(tile)
+      return box && onScreen(box)
+    })
+    originTile = from ? { el: from, id: current.value?.id } : null
+    heroOrigin = from ? boxOf(from) : null
     chromeReady.value = false
     lastFocused = document.activeElement
     document.addEventListener('keydown', onKeydown)
