@@ -3,13 +3,16 @@ import { ref, reactive, watch, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import LanguageTabs from './LanguageTabs.vue'
+import TagPicker from './TagPicker.vue'
 // Lazy so Leaflet is not pulled into the main bundle — this dialog is mounted
 // app-wide via the selection toolbar, and the map only loads when it opens.
 const MediaLocationPicker = defineAsyncComponent(() => import('./MediaLocationPicker.vue'))
 import { editMedia, fetchMediaEdit, fetchMediaLocations } from '@/api/media'
 import { useUiStore } from '@/stores/ui'
 import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
-import { parseTags, formatTags } from '@/services/translations'
+import { tagSlugsOf } from '@/services/tags'
+import { useTagsStore } from '@/stores/tags'
+import { applySavedMedia } from '@/services/mediaEdits'
 import { SUPPORTED_LOCALES } from '@/i18n'
 import { addDays, parseIsoDate, toIsoDate } from '@/services/dates'
 import { useDelayed } from '@/composables/useDelayed'
@@ -31,6 +34,7 @@ const emit = defineEmits(['close', 'saved', 'delete'])
 
 const { t } = useI18n()
 const ui = useUiStore()
+const tagsStore = useTagsStore()
 
 // The two entry points share one dialog: single edit prefills every field, bulk
 // leaves them blank and only writes the ones actually filled in.
@@ -52,6 +56,19 @@ let initialLang = ui.locale
 const activeLang = ref(ui.locale)
 const coords = ref(null)
 const coordsTouched = ref(false)
+/*
+  Tags belong to the file rather than to any one of its translations, so they sit
+  outside the language tabs and a save carries them beside `translations` rather
+  than inside it. Nothing about them needs translating: the tag already knows its
+  own three captions.
+
+  Held as slugs, because that is the only name the media models carry — public
+  and editor alike. The numeric ids the save wants exist solely in the tag
+  dictionary, and are looked up there at the moment of saving; see
+  `resolveTagIds`.
+*/
+const tagSlugs = ref([])
+const tagsTouched = ref(false)
 const approved = ref(true)
 const favorite = ref(false)
 const hidden = ref(false)
@@ -64,7 +81,7 @@ const neighborPoints = ref([])
 // Said out loud only if the wait actually lasts — see composables/useDelayed.
 const showLoading = useDelayed(() => loading.value)
 
-const active = computed(() => form[activeLang.value] ?? { title: '', description: '', tags: '' })
+const active = computed(() => form[activeLang.value] ?? { title: '', description: '' })
 const thumbs = computed(() => editList.value)
 const canSave = computed(() => !loading.value && !saving.value && models.value.length > 0)
 
@@ -75,7 +92,7 @@ function isEditModel(entity) {
 
 function blankForm() {
   for (const locale of SUPPORTED_LOCALES) {
-    form[locale] = { title: '', description: '', tags: '' }
+    form[locale] = { title: '', description: '' }
     rowIds[locale] = null
   }
 }
@@ -89,11 +106,7 @@ function rowFor(model, locale) {
 function hydrateAll(model) {
   for (const locale of SUPPORTED_LOCALES) {
     const row = rowFor(model, locale)
-    form[locale] = {
-      title: row?.title ?? '',
-      description: row?.description ?? '',
-      tags: formatTags(row?.tags),
-    }
+    form[locale] = { title: row?.title ?? '', description: row?.description ?? '' }
     rowIds[locale] = row?.id ?? null
   }
 }
@@ -102,7 +115,7 @@ function hydrateAll(model) {
 function firstWithContent(models, locale) {
   for (const model of models) {
     const row = rowFor(model, locale)
-    if (row && (row.title?.trim() || row.description?.trim() || row.tags?.length)) return row
+    if (row && (row.title?.trim() || row.description?.trim())) return row
   }
   return null
 }
@@ -116,22 +129,14 @@ function firstWithContent(models, locale) {
 function prefillBulk(models) {
   for (const locale of SUPPORTED_LOCALES) {
     const row = firstWithContent(models, locale)
-    form[locale] = {
-      title: row?.title ?? '',
-      description: row?.description ?? '',
-      tags: formatTags(row?.tags),
-    }
+    form[locale] = { title: row?.title ?? '', description: row?.description ?? '' }
   }
 }
 
 /** Prefills only the initially-selected language from the flat public model. */
 function prefillSelected(media) {
   blankForm()
-  form[initialLang] = {
-    title: media?.title ?? '',
-    description: media?.description ?? '',
-    tags: formatTags(media?.tags),
-  }
+  form[initialLang] = { title: media?.title ?? '', description: media?.description ?? '' }
 }
 
 /**
@@ -146,11 +151,7 @@ function mergeOthers(model) {
     const row = rowFor(model, locale)
     rowIds[locale] = row?.id ?? null
     if (locale === initialLang) continue
-    form[locale] = {
-      title: row?.title ?? '',
-      description: row?.description ?? '',
-      tags: formatTags(row?.tags),
-    }
+    form[locale] = { title: row?.title ?? '', description: row?.description ?? '' }
   }
 }
 
@@ -243,6 +244,20 @@ watch(
     approved.value = !isBulk.value
     favorite.value = !isBulk.value && single.value?.favorite === true
     hidden.value = !isBulk.value && isPrivate(single.value)
+
+    /*
+      Tags start from what the selection already carries — for one file that is
+      its own set, for many it is the union of theirs.
+
+      The union is shown rather than a blank field because the alternative is
+      worse in both directions: an empty field looks like "these have no tags",
+      and saving from it would be read as "and now they have none". Seeing the
+      whole of what the selection holds is the only honest starting point.
+
+      Whether any of it is *written* is a separate question — see `buildChanges`.
+    */
+    tagsTouched.value = false
+    tagSlugs.value = [...new Set(editList.value.flatMap((item) => tagSlugsOf(item)))]
     coords.value =
       !isBulk.value &&
       Number.isFinite(single.value?.latitude) &&
@@ -261,18 +276,41 @@ function onCoords(value) {
   coordsTouched.value = true
 }
 
+function onTags(value) {
+  tagSlugs.value = value
+  tagsTouched.value = true
+}
+
+/**
+ * Slugs back into the ids `changes.tagIds` is specified in.
+ *
+ * The dictionary is the only place holding both, which makes this the one point
+ * where a tag the client does not know about can go missing. It is reported
+ * rather than dropped: the save replaces the whole set, so a silently skipped
+ * slug would not be a tag left alone — it would be a tag taken off the file.
+ */
+function resolveTagIds() {
+  const ids = []
+  const missing = []
+  for (const slug of tagSlugs.value) {
+    const id = tagsStore.getBySlug(slug)?.id
+    if (id == null) missing.push(slug)
+    else ids.push(id)
+  }
+  return { ids, missing }
+}
+
 /** Every language with any content becomes a translation row, keeping its id. */
 function buildTranslations() {
   const rows = []
   for (const locale of SUPPORTED_LOCALES) {
     const entry = form[locale]
     if (!entry) continue
-    if (!entry.title.trim() && !entry.description.trim() && !entry.tags.trim()) continue
+    if (!entry.title.trim() && !entry.description.trim()) continue
     const row = {
       languageCode: locale,
       title: entry.title.trim(),
       description: entry.description.trim(),
-      tags: parseTags(entry.tags),
     }
     // Single edit updates existing rows in place; bulk has no per-row id.
     if (!isBulk.value && rowIds[locale] != null) row.id = rowIds[locale]
@@ -302,12 +340,24 @@ function buildChanges() {
     // at a time once it has been looked at. An untouched box cannot mean "show
     // these", or a bulk edit of anything else would quietly publish the lot.
     if (hidden.value) changes.private = true
+    /*
+      Tags are the one field where a bulk save cannot be additive: the command
+      *replaces* the set on every file it touches. Sending the union that was
+      shown as the starting point would therefore hand every selected file every
+      tag any of them had — a silent merge nobody asked for.
+
+      So the untouched case sends nothing at all, and each file keeps what it
+      had. Once the editor has actually changed the list they have said what the
+      whole selection should carry, and that is what is written.
+    */
+    if (tagsTouched.value) changes.tagIds = resolveTagIds().ids
   } else {
     changes.latitude = coords.value?.lat ?? null
     changes.longitude = coords.value?.lng ?? null
     changes.isApproved = approved.value
     changes.favorite = favorite.value
     changes.private = hidden.value
+    changes.tagIds = resolveTagIds().ids
   }
   return changes
 }
@@ -330,9 +380,43 @@ function applyTranslated(items) {
   return true
 }
 
+/**
+ * Writes what came back onto the very objects the page is showing.
+ *
+ * The files being edited *are* the ones in the grid behind this dialog — the
+ * same objects, handed down as props — so assigning to them is what puts a new
+ * title, tag or mark under the photograph the instant the dialog closes. The
+ * page is then told whether this happened, and only refetches if it did not.
+ *
+ * @returns {boolean} false when the response carried nothing to write.
+ */
+function applySaved(items) {
+  if (!Array.isArray(items) || items.length === 0) return false
+
+  const targets = new Map(
+    editList.value.filter((media) => media?.id != null).map((media) => [media.id, media]),
+  )
+
+  let written = 0
+  for (const saved of items) {
+    const target = targets.get(saved?.id)
+    if (!target) continue
+    applySavedMedia(target, saved, ui.locale)
+    written += 1
+  }
+  return written > 0
+}
+
 async function save() {
   const ids = models.value.map((model) => model.id).filter((id) => id != null)
   if (ids.length === 0) return
+
+  // Refused rather than half-applied: see `resolveTagIds`.
+  const unresolved = resolveTagIds().missing
+  if (unresolved.length) {
+    ui.notify(t('tags.unresolved', { tags: unresolved.join(', ') }), 'error')
+    return
+  }
 
   saving.value = true
   error.value = null
@@ -347,8 +431,11 @@ async function save() {
       return
     }
 
+    const applied = applySaved(response?.items)
     ui.notify(t('admin.saved'), 'success')
-    emit('saved', ids)
+    // `approved` is what takes a file out of the pending queue, and the answer
+    // carries no such field — only this dialog knows whether the box was ticked.
+    emit('saved', { ids, applied, approved: approved.value })
     emit('close')
   } catch (caught) {
     error.value = caught
@@ -399,10 +486,11 @@ async function save() {
         />
       </div>
 
+      <!-- Outside the language tabs on purpose: a tag is the same tag in all
+           three, and putting it under a tab would suggest otherwise. -->
       <div>
-        <label class="field-label" for="media-tags">{{ t('editor.tags') }}</label>
-        <input id="media-tags" v-model="active.tags" type="text" class="field-input" :disabled="loading" />
-        <p class="field-hint">{{ t('editor.tagsHint') }}</p>
+        <TagPicker :model-value="tagSlugs" :disabled="loading" @update:model-value="onTags" />
+        <p v-if="isBulk" class="field-hint">{{ t('tags.bulkHint') }}</p>
       </div>
 
       <MediaLocationPicker :model-value="coords" :points="neighborPoints" @update:model-value="onCoords" />

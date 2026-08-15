@@ -279,15 +279,6 @@
         "tags": [
           "Media"
         ],
-        "parameters": [
-          {
-            "name": "command",
-            "in": "query",
-            "schema": {
-              "$ref": "#/components/schemas/SyncMediaCommand"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -321,6 +312,16 @@
               "type": "string"
             },
             "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
           }
         ],
         "responses": {
@@ -444,7 +445,21 @@
           {
             "name": "text",
             "in": "query",
-            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tagId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -482,10 +497,250 @@
           }
         }
       }
+    },
+    "/v1/tags/suggestion": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTagSuggestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tags": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTagsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tags"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTagCommand.BodyParameters"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTagCommand.BodyParameters"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTagCommand.BodyParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddTagResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tags/completion": {
+      "post": {
+        "tags": [
+          "Tags"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetTagCompletionCommand.BodyParameters"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetTagCompletionCommand.BodyParameters"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetTagCompletionCommand.BodyParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTagCompletionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tags/{id}": {
+      "patch": {
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditTagCommand.BodyParameters"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditTagCommand.BodyParameters"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditTagCommand.BodyParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditTagResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AddTagCommand.BodyParameters": {
+        "required": [
+          "tag"
+        ],
+        "type": "object",
+        "properties": {
+          "tag": {
+            "$ref": "#/components/schemas/CreateTagDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AddTagResponse": {
+        "required": [
+          "tag"
+        ],
+        "type": "object",
+        "properties": {
+          "tag": {
+            "$ref": "#/components/schemas/TagDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateTagDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "nullable": true
+          },
+          "translations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTranslationDto"
+            },
+            "nullable": true
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTranslationDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "DayDto": {
         "type": "object",
         "properties": {
@@ -621,6 +876,14 @@
             "type": "boolean",
             "nullable": true
           },
+          "tagIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
           "translations": {
             "type": "array",
             "items": {
@@ -663,6 +926,54 @@
               "$ref": "#/components/schemas/MediaFileEditDto"
             },
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditTagCommand.BodyParameters": {
+        "required": [
+          "tag"
+        ],
+        "type": "object",
+        "properties": {
+          "tag": {
+            "$ref": "#/components/schemas/EditTagDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditTagDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "nullable": true
+          },
+          "translations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTranslationDto"
+            },
+            "nullable": true
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTranslationDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "EditTagResponse": {
+        "required": [
+          "tag"
+        ],
+        "type": "object",
+        "properties": {
+          "tag": {
+            "$ref": "#/components/schemas/TagDto"
           }
         },
         "additionalProperties": false
@@ -769,6 +1080,72 @@
         },
         "additionalProperties": false
       },
+      "GetTagCompletionCommand.BodyParameters": {
+        "required": [
+          "tag"
+        ],
+        "type": "object",
+        "properties": {
+          "tag": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetTagCompletionResponse": {
+        "required": [
+          "similarExisting",
+          "tag"
+        ],
+        "type": "object",
+        "properties": {
+          "tag": {
+            "$ref": "#/components/schemas/TagDto"
+          },
+          "similarExisting": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetTagSuggestionResponse": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagSuggestionDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetTagsQuery": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "GetTagsResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ImageUrlsDto": {
         "type": "object",
         "properties": {
@@ -854,7 +1231,7 @@
           "tags": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/TagPublicDto"
             },
             "nullable": true
           },
@@ -917,6 +1294,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MediaTranslationEditDto"
+            },
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagPublicDto"
             },
             "nullable": true
           },
@@ -995,13 +1379,6 @@
           "description": {
             "type": "string",
             "nullable": true
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -1021,6 +1398,93 @@
       },
       "SyncMediaCommand": {
         "type": "object",
+        "additionalProperties": false
+      },
+      "TagDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slug": {
+            "type": "string",
+            "nullable": true
+          },
+          "translations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTranslationDto"
+            },
+            "nullable": true
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagTranslationDto"
+            },
+            "nullable": true
+          },
+          "usageCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TagPublicDto": {
+        "required": [
+          "slug",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TagSuggestionDto": {
+        "required": [
+          "slug",
+          "usageCount",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
+          },
+          "usageCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TagTranslationDto": {
+        "type": "object",
+        "properties": {
+          "languageCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          }
+        },
         "additionalProperties": false
       },
       "VideoUrlsDto": {
@@ -1073,6 +1537,10 @@
       "description": "Manages media parameters."
     },
     {
+      "name": "Tags",
+      "description": "Manages media parameters."
+    },
+    {
       "name": "Admin",
       "description": "Manages media parameters."
     },
@@ -1086,6 +1554,10 @@
     },
     {
       "name": "Search",
+      "description": "Manages media parameters."
+    },
+    {
+      "name": "Tags",
       "description": "Manages media parameters."
     }
   ]

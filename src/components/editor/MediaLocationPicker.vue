@@ -160,8 +160,16 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <!-- Inline map: always mounted, never reparented. -->
-    <div class="relative">
+    <!--
+      Inline map: always mounted, never reparented.
+
+      `isolate`: Leaflet stacks its own panes from 200 up to 800, and without a
+      stacking context of their own those numbers compete with everything else in
+      the dialog — which is how the map came to paint over the tag suggestions
+      dropping out of the field above it. Isolating pins every one of them inside
+      this box.
+    -->
+    <div class="relative isolate">
       <div
         ref="inlineEl"
         class="h-[220px] w-full overflow-hidden rounded-md ring-1 ring-edge"

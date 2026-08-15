@@ -14,9 +14,11 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { useSearchStore } from '@/stores/search'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useTagsStore } from '@/stores/tags'
 import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
 import { cascadeDelay } from '@/services/cascade'
+import { tagLabel } from '@/services/tags'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -24,6 +26,7 @@ const router = useRouter()
 const search = useSearchStore()
 const auth = useAuthStore()
 const ui = useUiStore()
+const tags = useTagsStore()
 
 const TABS = ['media', 'notes']
 
@@ -34,6 +37,9 @@ const editing = ref(null)
 const contextTarget = ref(null)
 
 const query = computed(() => String(route.query.text ?? ''))
+/** The other half of the contract: an exact tag, named by its slug. */
+const tagSlug = computed(() => String(route.query.tag ?? '').trim())
+const byTag = computed(() => Boolean(tagSlug.value))
 // The active tab lives in the URL so a shared link reopens on the same one.
 const tab = computed(() => (TABS.includes(route.query.tab) ? route.query.tab : 'media'))
 
@@ -45,12 +51,33 @@ const counts = computed(() => ({
   notes: noteDays.value.length,
 }))
 
+/**
+ * What to call the tag in the heading.
+ *
+ * Read out of the answer rather than looked up: the dictionary is behind the
+ * login, and a visitor following a shared tag link has none. Every file in the
+ * results carries the tag that fetched them, already in the right language, so
+ * the caption is in the response by definition. The dictionary is only the
+ * fallback for the one case the response cannot cover — a tag that matched
+ * nothing at all.
+ */
+const tagName = computed(() => {
+  if (!byTag.value) return ''
+  return search.tagName || tagLabel(tags.getBySlug(tagSlug.value), ui.locale)
+})
+
+const heading = computed(() =>
+  byTag.value
+    ? t('search.headingTag', { tag: tagName.value || tagSlug.value })
+    : t('search.heading', { query: query.value }),
+)
+
 function run() {
-  search.run(query.value, ui.locale)
+  search.run({ text: query.value, tag: tagSlug.value }, ui.locale)
 }
 
 onMounted(run)
-watch(query, run)
+watch([query, tagSlug], run)
 watch(() => ui.locale, run)
 
 /*
@@ -69,7 +96,7 @@ const mediaLink = useMediaLink({ suspended: () => lightboxIndex.value !== null }
 const highlightedId = computed(() => mediaLink.link.value.id)
 
 let linkResolved = false
-watch(query, () => (linkResolved = false))
+watch([query, tagSlug], () => (linkResolved = false))
 
 // The store replaces its whole result object once per completed run — cached or
 // fetched, hit or miss — which makes it the one signal that says "these are the
@@ -116,18 +143,30 @@ function openLightbox({ items, index }) {
   lightboxItems.value = items
   lightboxIndex.value = index
 }
+
+/** Same as the day page: the file in the results was written to in place. */
+function onMediaSaved({ applied } = {}) {
+  editing.value = null
+  if (!applied) {
+    search.invalidate()
+    run()
+  }
+}
 </script>
 
 <template>
   <div class="mx-auto max-w-6xl px-4 py-8">
     <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
       <h1 class="text-xl font-semibold tracking-tight text-ink">
-        {{ t('search.heading', { query }) }}
+        {{ heading }}
       </h1>
       <ShareButton />
     </header>
 
-    <div class="mb-6 flex gap-1 border-b border-edge" role="tablist">
+    <!-- The notes tab is meaningless for a tag: nothing was typed, so no day
+         note can have matched, and offering an always-empty tab reads as a
+         result rather than as an absence. -->
+    <div v-if="!byTag" class="mb-6 flex gap-1 border-b border-edge" role="tablist">
       <button
         v-for="name in TABS"
         :key="name"
@@ -153,10 +192,22 @@ function openLightbox({ items, index }) {
 
     <ErrorState v-else-if="search.error" :error="search.error" @retry="run" />
 
-    <EmptyState v-else-if="!search.hasResults" :message="t('search.empty')" />
+    <!-- A tag that finds nothing is a dead end with no next move to guess at, so
+         it is handed one: everything, from the top. -->
+    <div v-else-if="!search.hasResults">
+      <EmptyState :message="t('search.empty')" />
+      <p v-if="byTag" class="mt-4 text-center text-sm">
+        <RouterLink
+          :to="{ name: 'home' }"
+          class="text-ink-soft underline underline-offset-4 transition hover:text-ink"
+        >
+          {{ t('search.showEverything') }}
+        </RouterLink>
+      </p>
+    </div>
 
     <template v-else>
-      <div v-show="tab === 'media'" role="tabpanel">
+      <div v-show="byTag || tab === 'media'" role="tabpanel">
         <div v-if="mediaDays.length" class="space-y-8">
           <MediaResultGroup
             v-for="(group, index) in mediaDays"
@@ -174,7 +225,7 @@ function openLightbox({ items, index }) {
         <EmptyState v-else :message="t('search.emptyMedia')" />
       </div>
 
-      <div v-show="tab === 'notes'" role="tabpanel">
+      <div v-show="!byTag && tab === 'notes'" role="tabpanel">
         <div v-if="noteDays.length" class="space-y-8">
           <NoteResultCard
             v-for="(day, index) in noteDays"
@@ -195,7 +246,7 @@ function openLightbox({ items, index }) {
       :open="Boolean(editing)"
       :media="editing"
       @close="editing = null"
-      @saved="run"
+      @saved="onMediaSaved"
     />
   </div>
 </template>

@@ -2157,7 +2157,7 @@ onBeforeUnmount(() => {
                  takes the viewer off the results it lands on. -->
               <TagChip
                 v-for="tag in current.tags ?? []"
-                :key="tag"
+                :key="tag.slug"
                 :tag="tag"
                 class="lightbox-tag"
               />

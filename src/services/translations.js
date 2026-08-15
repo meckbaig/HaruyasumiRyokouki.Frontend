@@ -7,8 +7,14 @@
  * the editor has to pick the right row itself.
  */
 
-/** Empty translation, so callers never have to null-check the result. */
-const EMPTY = { languageCode: null, title: '', description: '', tags: [], note: '' }
+/**
+ * Empty translation, so callers never have to null-check the result.
+ *
+ * No tags in here: a tag is an entity of its own now, hanging off the file
+ * rather than off one of its translations, and it carries its own captions for
+ * every language. See `services/tags.js`.
+ */
+const EMPTY = { languageCode: null, title: '', description: '', note: '' }
 
 /**
  * Returns the translation for `locale`, falling back to whatever the object
@@ -29,7 +35,6 @@ export function pickTranslation(entity, locale) {
     languageCode: entity.languageCode ?? null,
     title: entity.title ?? '',
     description: entity.description ?? '',
-    tags: entity.tags ?? [],
     note: entity.note ?? '',
   }
 }
@@ -41,19 +46,4 @@ export function pickTranslation(entity, locale) {
 export function isFallbackLanguage(entity, locale) {
   const code = entity?.languageCode
   return Boolean(code) && code !== locale
-}
-
-/** `"a, b, c"` -> `['a', 'b', 'c']`, dropping blanks and duplicates. */
-export function parseTags(input) {
-  if (Array.isArray(input)) return input
-  const seen = new Set()
-  for (const tag of String(input ?? '').split(',')) {
-    const trimmed = tag.trim()
-    if (trimmed) seen.add(trimmed)
-  }
-  return [...seen]
-}
-
-export function formatTags(tags) {
-  return Array.isArray(tags) ? tags.join(', ') : ''
 }

@@ -44,8 +44,8 @@ only by `vite.config.js` and never shipped.
   sharing, document head.
 - `src/composables` — reusable stateful bits (`useHorizontalSwipe`,
   `useTripMedia`).
-- `src/stores` — Pinia: auth, days cache, search cache, editor selection, UI,
-  theme, motion.
+- `src/stores` — Pinia: auth, days cache, search cache, tag dictionary, editor
+  selection, UI, theme, motion.
 - `src/theme/themes.js` — the theme registry; see [Theming](#theming).
 - `src/services/release.js` — the release names behind the footer's version; see
   [Versioning and releases](#versioning-and-releases).
@@ -79,12 +79,21 @@ A few expectations are documented at their call sites and worth knowing up front
   (`services/favorites.js`). `GET /v1/media/favorites` returns them shuffled and
   capped by the backend, with no day around them — each one's day comes from its
   own `created` timestamp.
-- **Search** returns days; a day matched through media carries only the matching
-  files, a day matched through its note alone carries none. Splitting into the
-  Media/Notes tabs and highlighting are done on the client
-  (`services/searchResults.js`, `services/highlight.js`).
+- **Search** takes `text=` or `tag=` (a slug), never both and never neither. It
+  returns days; a day matched through media carries only the matching files, a
+  day matched through its note alone carries none. Splitting into the Media/Notes
+  tabs and highlighting are done on the client (`services/searchResults.js`,
+  `services/highlight.js`); a tag search highlights nothing and has no notes tab,
+  because no words were typed.
+- **Tags** are named by their slug everywhere outside the editor — see
+  [Tags](#tags). Both media models carry `TagPublicDto { slug, value }`; the
+  numeric id lives only in `TagDto`, and only `changes.tagIds` ever wants it.
 - **Bulk media edit** sends one PATCH for the whole selection with a translation
   row keyed by `languageCode` (no per-row id).
+- **Private files** carry `private: true` and are visible to an editor alone
+  (`services/privacy.js`). They wear a red mark on the tile and in the viewer,
+  and the share button is taken away from both — a link to one would send the
+  recipient to a day that, as far as they are concerned, does not contain it.
 - **Downloads** rely on the media host sending `Content-Disposition: attachment`
   — a browser ignores a link's `download` attribute across origins. With imgproxy
   that is `return_attachment`.
@@ -129,6 +138,46 @@ just left. The viewer's "open day" button carries `i` alone for the same reason.
 
 The front page is deliberately outside this: its wall is shuffled and capped by
 the backend, so an `i` pointing into it would mean nothing on the next visit.
+
+## Tags
+
+A tag is an entity with an id. Its words hang off it: one **caption** per
+language, which is what a reader sees, and any number of **aliases**, which are
+searched and never rendered. Somebody looking for "noodles" finds photographs
+captioned "ramen" and never learns that "noodles" was written down anywhere.
+
+Links are built on the slug (`/search?tag=ramen`), never on the caption: a
+caption gets rewritten, and it differs per locale, so a link carrying it would
+break on the first rename and would send a Japanese reader to a search for a
+Russian word. `/search` therefore takes `text=` or `tag=`, never both; a tag
+search highlights nothing and has no notes tab, because no words were typed.
+
+The slug is the tag's public name and the only one the media models carry. The
+numeric id exists in `TagDto` alone and is wanted at exactly one moment — a save
+sends `changes.tagIds` — so `MediaEditDialog` holds slugs and resolves them
+through the dictionary as it builds the request. A slug it cannot resolve aborts
+the save with a message rather than being skipped: the save *replaces* the set,
+so a quietly dropped slug would not be a tag left alone but a tag taken off.
+
+The dictionary (`GET /v1/tags`) is fetched once per editor session into
+`stores/tags.js` and updated in place from what a save returns. It is behind the
+login, so anything a visitor sees has to name its tags from the response they
+already have — the search store reads a tag's caption out of the results it
+fetched rather than looking it up. The suggestion endpoint the search bar uses is
+the one public tag call.
+
+**Coining a tag is two steps**, and that is deliberate.
+`POST /v1/tags/completion` saves nothing: it proposes three captions, a slug and
+some aliases, and returns the existing tags that look like near-duplicates. The
+proposal comes from a language model and has to be read before it reaches the
+database — Japanese is where it slips most, aliases second. The near-duplicate
+block is the guard against coining "torii" beside an existing "torii gate", and
+carries each candidate's usage count, which is usually what settles it.
+
+**A save replaces a file's tags rather than adding to them.** For one file that
+is what is meant. For a selection it is a trap, so `MediaEditDialog` starts the
+field from the union of what the selection carries — a blank field would read as
+"these have no tags" — but sends nothing until the list is actually changed.
 
 ## Localised link previews
 
@@ -186,3 +235,9 @@ zoom, swiping between files and pulling down to dismiss, long-press to enter
 selection and then swiping across tiles to extend it, and the same on a real
 phone rather than in a device emulator — the two behave differently precisely
 where these gestures live.
+
+For tags, the flows that cross a boundary are the ones worth walking: coining one
+from inside the media editor (it has to land on the file *and* in the dictionary),
+a bulk edit saved without touching the tag field (every file must keep its own),
+and a `?tag=` link opened **signed out**, where the heading has to name the tag
+from the results because there is no dictionary to ask.

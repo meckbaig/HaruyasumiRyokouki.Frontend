@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { setAuthHeader, encodeBasic } from '@/api/authState'
 import { verifyCredentials } from '@/api/auth'
+import { useTagsStore } from './tags'
 
 const STORAGE_KEY = 'haruyasumi.auth'
 
@@ -67,6 +68,9 @@ export const useAuthStore = defineStore('auth', () => {
     apply('', null)
     remember.value = false
     localStorage.removeItem(STORAGE_KEY)
+    // The tag dictionary is editor-only data held in memory; leaving it behind
+    // would show the next person a vocabulary they are not signed in to see.
+    useTagsStore().clear()
   }
 
   return { login, remember, isEditor, restore, signIn, signOut }

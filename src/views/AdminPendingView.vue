@@ -82,11 +82,23 @@ async function removeMedia(media) {
   }
 }
 
-function onMediaSaved(id) {
-  // An approved file is no longer pending, so take it out of the list.
+/**
+ * An approved file is no longer pending, so it comes out of the list.
+ *
+ * A set, not a single id: a bulk save answers for the whole selection, and
+ * comparing each file against the *array* of ids — which is what this used to do
+ * — is never equal, so nothing was ever taken out.
+ */
+function onMediaSaved({ ids, approved } = {}) {
+  // Saving without ticking "approved" is a correction, not a decision — the file
+  // is still waiting, and taking it off the queue would hide it from the person
+  // who has yet to decide about it.
+  if (!approved) return
+
+  const saved = new Set(Array.isArray(ids) ? ids : [ids])
   pending.value = {
     ...pending.value,
-    media: pending.value.media.filter((item) => item.id !== id),
+    media: pending.value.media.filter((item) => !saved.has(item.id)),
   }
 }
 
@@ -130,6 +142,9 @@ function dayTitle(day) {
         >
           {{ t('common.selectAll') }}
         </button>
+        <RouterLink :to="{ name: 'admin-tags' }" class="btn-ghost">
+          {{ t('tags.title') }}
+        </RouterLink>
         <button type="button" class="btn-primary" :disabled="syncing" @click="runSync">
           {{ syncing ? t('admin.syncing') : t('admin.sync') }}
         </button>

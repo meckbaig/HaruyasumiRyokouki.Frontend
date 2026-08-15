@@ -41,6 +41,12 @@ const routes = [
     meta: { requiresEditor: true },
   },
   {
+    path: '/admin/tags',
+    name: 'admin-tags',
+    component: () => import('@/views/AdminTagsView.vue'),
+    meta: { requiresEditor: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue'),
@@ -121,6 +127,7 @@ const TITLE_KEYS = {
   map: 'map.title',
   login: 'login.title',
   'admin-pending': 'admin.title',
+  'admin-tags': 'tags.title',
   'not-found': 'notFound.title',
 }
 

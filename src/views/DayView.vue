@@ -202,9 +202,15 @@ const swipe = useHorizontalSwipe({
   onRight: () => neighbours.value.prev && openDay(neighbours.value.prev),
 })
 
-function onMediaSaved() {
+/**
+ * The dialog writes the saved model straight onto the file it was editing, and
+ * that file is the one in the grid — so the tile, its tags and its marks are
+ * already right by the time this runs. Only a save that answered with nothing to
+ * write leaves the page having to ask the server what it just sent.
+ */
+function onMediaSaved({ applied } = {}) {
   editing.value = null
-  load(true)
+  if (!applied) load(true)
 }
 
 function onNoteSaved() {

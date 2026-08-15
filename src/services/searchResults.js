@@ -17,6 +17,10 @@ import { tokenize, hasMatch, buildSnippets } from './highlight'
  * @param {string} query Raw query text.
  */
 export function splitSearchResults(items, query) {
+  // A tag search has no words in it, so nothing is highlighted and no day can
+  // land in the notes tab: the answer is a set of photographs, and the day note
+  // was never what matched. `tokenize('')` gives an empty list, which is exactly
+  // that behaviour with no special case anywhere below.
   const tokens = tokenize(query)
   const days = Array.isArray(items) ? items : []
 
