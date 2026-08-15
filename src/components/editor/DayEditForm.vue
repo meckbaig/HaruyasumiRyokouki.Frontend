@@ -2,6 +2,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageTabs from './LanguageTabs.vue'
+import MediaLightbox from '@/components/media/MediaLightbox.vue'
 import { saveDay, fetchDayEdit } from '@/api/days'
 import { useUiStore } from '@/stores/ui'
 import { useDaysStore } from '@/stores/days'
@@ -34,6 +35,12 @@ const saving = ref(false)
 const loading = ref(false)
 const error = ref(null)
 const thumbs = ref([])
+/**
+ * The strip is here so the day can be written while looking at it, and a
+ * sixty-pixel square is not looking at it. Opening one full screen is what makes
+ * the difference between naming a day and describing it.
+ */
+const lightboxIndex = ref(null)
 
 // Said out loud only if the wait actually lasts — see composables/useDelayed.
 const showLoading = useDelayed(() => loading.value)
@@ -173,14 +180,21 @@ async function save() {
     <div v-if="thumbs.length" class="cascade-item" :style="cascadeDelay(0)">
       <span class="field-label">{{ t('editor.dayThumbs') }}</span>
       <div class="flex flex-wrap gap-1.5">
-        <img
-          v-for="item in thumbs"
+        <button
+          v-for="(item, index) in thumbs"
           :key="item.id ?? item.fileName"
-          :src="previewSrc(item) || miniatureSrc(item)"
-          :alt="item.title || item.fileName"
-          loading="lazy"
-          class="h-16 w-16 rounded object-cover ring-1 ring-edge"
-        />
+          type="button"
+          class="overflow-hidden rounded ring-1 ring-edge transition hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
+          :aria-label="item.title || item.fileName"
+          @click="lightboxIndex = index"
+        >
+          <img
+            :src="previewSrc(item) || miniatureSrc(item)"
+            :alt="item.title || item.fileName"
+            loading="lazy"
+            class="h-16 w-16 object-cover"
+          />
+        </button>
       </div>
     </div>
 
@@ -235,5 +249,7 @@ async function save() {
         {{ saving ? t('common.saving') : t('common.save') }}
       </button>
     </div>
+
+    <MediaLightbox v-model:index="lightboxIndex" :items="thumbs" />
   </form>
 </template>

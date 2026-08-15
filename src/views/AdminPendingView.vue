@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaGrid from '@/components/media/MediaGrid.vue'
+import MediaLightbox from '@/components/media/MediaLightbox.vue'
 import MediaEditDialog from '@/components/editor/MediaEditDialog.vue'
 import DayEditForm from '@/components/editor/DayEditForm.vue'
 import SkeletonGrid from '@/components/common/SkeletonGrid.vue'
@@ -26,6 +27,14 @@ const error = ref(null)
 const syncing = ref(false)
 const editing = ref(null)
 const openDayDate = ref(null)
+/**
+ * A plain tap opens the file full screen, the same as it does everywhere else.
+ * Editing has a button of its own on the tile and a toolbar behind the
+ * selection, so the tap was the one way of looking at a file that this page had
+ * spent on a dialog — and the queue is exactly where a file most needs looking
+ * at before anything is decided about it.
+ */
+const lightboxIndex = ref(null)
 
 async function load() {
   loading.value = true
@@ -143,7 +152,8 @@ function dayTitle(day) {
           editable
           show-date
           cascade
-          @open="editing = $event"
+          :auto-reveal="false"
+          @open="lightboxIndex = pending.media.indexOf($event)"
           @edit="editing = $event"
         />
         <EmptyState v-else :message="t('admin.allDone')" />
@@ -195,6 +205,7 @@ function dayTitle(day) {
       </section>
     </template>
 
+    <MediaLightbox v-model:index="lightboxIndex" :items="pending.media" />
     <MediaEditDialog
       :open="Boolean(editing)"
       :media="editing"

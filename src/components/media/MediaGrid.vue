@@ -21,6 +21,19 @@ const props = defineProps({
   cascade: { type: Boolean, default: false },
   /** How many tiles to reveal at a time. */
   chunkSize: { type: Number, default: 60 },
+  /**
+   * Whether reaching the end of the list reveals the next chunk by itself.
+   *
+   * On a page that is only this grid, it should: the reader scrolling on is
+   * asking for more by the act of scrolling, and a button in the way is a toll.
+   *
+   * Where the grid is one section among several, it must not. The queue of
+   * unfiled media sits above the queue of unwritten days, and with a few
+   * thousand files waiting the grid grew a chunk every time the bottom came near
+   * — so the days below it could not be reached at all. There the button is the
+   * only way past.
+   */
+  autoReveal: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['open', 'edit', 'context'])
@@ -74,7 +87,7 @@ let observer = null
 
 watch(sentinel, (element) => {
   observer?.disconnect()
-  if (!element) return
+  if (!element || !props.autoReveal) return
 
   observer = new IntersectionObserver(
     (entries) => {
