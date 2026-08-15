@@ -4,6 +4,35 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero says
 the site is still finding its shape.
 
+## 0.12.0 — pre-release: tags and private files
+
+Tags are no longer words typed under each photo. A tag is now one thing with a
+name in each of the three languages, and a set of hidden synonyms that only the
+search knows about: type "лапша" and the tag "рамэн" is offered, though that word
+appears nowhere on the site. Tapping a tag shows everything carrying it.
+
+Files that are not for public view can now be marked as such. They stay visible
+to the editor, wear a mark saying so, and cannot be shared by accident.
+
+- The search bar suggests tags as you type, with the number of photos on each
+- A tag under a photo opens everything carrying it; the address is readable
+- Tags are shown and searched in the language the site is being read in
+- Hidden files are marked in the grid and in the viewer, and offer no link (only
+  for admins)
+- The map on a day page unfolds and folds away instead of appearing at once
+- Editing windows rise into place; day fields arrive and leave one after another
+- Saving a photo updates it on the page straight away, with no reload
+- A tag screen for coining and correcting tags, with duplicate warnings (only for
+  admins)
+- Tags on a photo are picked from the list rather than spelled out (only for
+  admins)
+- Clicking a photo in the pending queue opens it full screen instead of the editor
+- The pending queue loads further photos on request, so the day list below stays
+  reachable
+- Photos in the day editor open full screen, to be described while being looked at
+- Photos appear in the day editor only from pending page
+- The "loading" line no longer flashes when a window opens
+
 ## 0.11.0 — pre-release: animated transitions
 
 Navigation, the image viewer and loading content are animated instead of
