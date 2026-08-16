@@ -129,6 +129,33 @@
     color: var(--color-ink-faint);
   }
 
+  /*
+    A control offered on approach — the pencil on a tile, the star, the two
+    corners of a candidate thumbnail. The photographs are the content and the
+    controls are not, so they stay out of the way until a cursor comes near.
+
+    Except that on a touchscreen nothing ever comes near. There is no hover to
+    approach with, so the controls were simply invisible — reachable, since the
+    taps still landed, but only by someone who already knew they were there.
+    `hover: none` is the honest test for that: not a screen width, which says
+    nothing about the input, but the input itself. Where there is no pointer to
+    reveal them with, they are on show from the start.
+  */
+  .hover-reveal {
+    opacity: 0;
+  }
+
+  .group:hover .hover-reveal,
+  .hover-reveal:focus-visible {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .hover-reveal {
+      opacity: 1;
+    }
+  }
+
   .btn-primary {
     display: inline-flex;
     align-items: center;

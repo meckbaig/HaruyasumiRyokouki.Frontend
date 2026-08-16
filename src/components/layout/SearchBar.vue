@@ -51,8 +51,17 @@ const cursor = ref(-1)
 let debounceTimer = null
 let controller = null
 
-/** The tag this page is filtering by, drawn as a chip inside the field. */
-const routeTagSlug = computed(() => String(route.query.tag ?? '').trim())
+/**
+ * The tag this page is filtering by, drawn as a chip inside the field.
+ *
+ * Only on the search page. `?tag=` also names the tag being collected on the
+ * admin screen, and the bar in the header was reading that as a search it was
+ * showing the results of — a chip for something it had not found and could not
+ * take the reader back to.
+ */
+const routeTagSlug = computed(() =>
+  route.name === 'search' ? String(route.query.tag ?? '').trim() : '',
+)
 
 /*
   Taking the chip off is about the field, not about the page.

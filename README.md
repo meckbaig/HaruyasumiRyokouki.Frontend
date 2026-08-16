@@ -174,6 +174,30 @@ database — Japanese is where it slips most, aliases second. The near-duplicate
 block is the guard against coining "torii" beside an existing "torii gate", and
 carries each candidate's usage count, which is usually what settles it.
 
+### Filing by resemblance
+
+The server keeps a fingerprint of each photograph's content and can compare
+across the whole archive. Two screens use it, and both exist because tagging one
+photograph is rarely tagging one photograph — the same subject was shot five
+times in a row, and again from the other side of the square a week later.
+
+- The **media editor** shows what a file resembles (`GET /media/{id}/similar`)
+  and can hand that file's tags to the ones ticked.
+- **`/admin/tags/collect`** does the reverse: given what already carries a tag,
+  it proposes the rest of the archive (`GET /tags/{id}/suggest`). Under three
+  photographs the server declines to guess and says so through `seedCount`,
+  which is an expected state and not an error. Applying re-asks, because every
+  photograph just marked moves the centre the next answer is measured from.
+
+Both apply through `POST /tags/{id}/media`, which **adds** a tag and leaves the
+others alone — the opposite of the media PATCH below, and the reason it exists.
+One tag per request, so several tags are several requests.
+
+The score is never a threshold. How alike is alike enough depends on how narrow
+the subject is, so the server always returns a full sorted list and the person
+decides where it stopped being useful; `services/similarity.js` turns the cosine
+into a percentage and a colour band so the drop can be seen rather than read.
+
 **A save replaces a file's tags rather than adding to them.** For one file that
 is what is meant. For a selection it is a trap, so `MediaEditDialog` starts the
 field from the union of what the selection carries — a blank field would read as

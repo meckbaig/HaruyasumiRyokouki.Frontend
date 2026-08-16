@@ -16,6 +16,8 @@ import { isPrivate } from '@/services/privacy'
 import { isMobileLayout } from '@/services/display'
 import { withMediaLink, pageIdentity } from '@/composables/useMediaLink'
 import { copyMediaUrl } from '@/services/share'
+import { pushOverlay, popOverlay, isTopmost, hasOverlay } from '@/services/overlayStack'
+import { takeOpenedFrom } from '@/services/openedFrom'
 import TagChip from './TagChip.vue'
 
 const props = defineProps({
@@ -1600,8 +1602,14 @@ function trapFocus(event) {
   }
 }
 
+/** Its place in the shared overlay stack — see services/overlayStack. */
+const overlayToken = Symbol('lightbox')
+
 function onKeydown(event) {
-  if (!open.value) return
+  // A viewer opened from inside an edit dialog sits over it, and both listen on
+  // the document. Without this, one Escape closed the viewer and the dialog
+  // underneath it — along with whatever had been typed into it.
+  if (!open.value || !isTopmost(overlayToken)) return
 
   switch (event.key) {
     case 'Escape':
@@ -1692,28 +1700,48 @@ function lockScroll() {
   document.body.style.overflow = 'hidden'
 }
 
+/**
+ * Giving the page its scrolling back — unless something else still wants it
+ * held. A viewer opened from inside an edit dialog closes over that dialog,
+ * which is still a full-window overlay and still needs the page still.
+ */
+function releaseScroll() {
+  if (hasOverlay()) return
+  document.body.style.overflow = ''
+}
+
 function unlockScroll({ now = false } = {}) {
   clearTimeout(unlockTimer)
   unlockTimer = null
 
   if (now) {
-    document.body.style.overflow = ''
+    releaseScroll()
     return
   }
 
   unlockTimer = setTimeout(() => {
     unlockTimer = null
-    document.body.style.overflow = ''
+    releaseScroll()
   }, UNLOCK_DELAY)
 }
 
 watch(open, async (isOpen) => {
   if (isOpen) {
-    // Read now, with the page underneath still laid out as the reader left it.
-    const from = tilesFor(current.value).find((tile) => {
-      const box = boxOf(tile)
-      return box && onScreen(box)
-    })
+    pushOverlay(overlayToken)
+    /*
+      Read now, with the page underneath still laid out as the reader left it.
+
+      Whoever answered the press says which element it was — see
+      services/openedFrom. Searching for one by id is the fallback, and only that:
+      a file can be on the page several times over, and the search cannot tell
+      which of them was pressed.
+    */
+    const from =
+      takeOpenedFrom() ??
+      tilesFor(current.value).find((tile) => {
+        const box = boxOf(tile)
+        return box && onScreen(box)
+      })
     originTile = from ? { el: from, id: current.value?.id } : null
     heroOrigin = from ? boxOf(from) : null
     chromeReady.value = false
@@ -1725,6 +1753,7 @@ watch(open, async (isOpen) => {
     dialog.value?.focus()
     observeChrome()
   } else {
+    popOverlay(overlayToken)
     chromeObserver?.disconnect()
     chromeObserver = null
     clearTimeout(chromeSettleTimer)
@@ -1752,6 +1781,7 @@ watch(open, async (isOpen) => {
 })
 
 onBeforeUnmount(() => {
+  popOverlay(overlayToken)
   heroAnimation?.cancel()
   document.documentElement.removeAttribute('data-lightbox-flying')
   document.removeEventListener('keydown', onKeydown)
@@ -1776,7 +1806,7 @@ onBeforeUnmount(() => {
       <div
         v-if="open && current"
         ref="dialog"
-        class="lightbox fixed inset-0 z-[2000] overflow-hidden"
+        class="lightbox fixed inset-0 z-[2400] overflow-hidden"
         :class="chromeReady ? 'lightbox-measured' : ''"
         :style="{
           opacity: chromeReady ? dismissOpacity : 0,
@@ -2317,7 +2347,7 @@ onBeforeUnmount(() => {
       alt=""
       aria-hidden="true"
       draggable="false"
-      class="pointer-events-none fixed z-[2050] object-cover"
+      class="pointer-events-none fixed z-[2500] object-cover"
       :style="{
         left: `${hero.left}px`,
         top: `${hero.top}px`,

@@ -10,6 +10,13 @@ const props = defineProps({
   /** Slugs of the tags on the file(s) being edited. */
   modelValue: { type: Array, default: () => [] },
   disabled: { type: Boolean, default: false },
+  /**
+   * One tag at a time. The tag-collecting screen asks about exactly one tag, and
+   * the alternative to reusing this field there is a second autocomplete over
+   * the same dictionary with the same matching rules — two of them to keep in
+   * step, for the sake of one line of behaviour.
+   */
+  single: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -63,7 +70,7 @@ const rowCount = computed(() => matches.value.length + (canCreate.value ? 1 : 0)
 
 function add(tag) {
   if (!tag?.slug || props.modelValue.includes(tag.slug)) return
-  emit('update:modelValue', [...props.modelValue, tag.slug])
+  emit('update:modelValue', props.single ? [tag.slug] : [...props.modelValue, tag.slug])
   text.value = ''
   cursor.value = -1
   open.value = false

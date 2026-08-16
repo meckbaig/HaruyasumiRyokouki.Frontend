@@ -459,6 +459,17 @@ function discardDraft() {
     </form>
 
     <template #footer>
+      <!-- Only for a tag that exists: collecting measures candidates against
+           what already carries it, and an unsaved one carries nothing. -->
+      <RouterLink
+        v-if="editing && step !== 'seed'"
+        :to="{ name: 'admin-tag-collect', query: { tag: tag.slug } }"
+        class="btn-ghost mr-auto"
+        @click="emit('close')"
+      >
+        {{ t('collect.find') }}
+      </RouterLink>
+
       <template v-if="step === 'seed'">
         <button type="button" class="btn-ghost mr-auto" @click="skipProposal">
           {{ t('tags.manual') }}

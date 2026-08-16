@@ -240,5 +240,36 @@
     "resumeDraft": "Resume",
     "discardDraft": "Discard",
     "unresolved": "These tags could not be resolved: {tags}. Reload the page and try again."
+  },
+  "similar": {
+    "title": "Similar photos",
+    "searching": "Looking for similar…",
+    "failed": "Could not fetch similar files.",
+    "unavailable": "No similarity data for this file.",
+    "chosen": "{count} chosen | {count} chosen",
+    "chooseThrough": "Choose everything down to this one",
+    "openFull": "Open full screen",
+    "noTags": "Tag this photo first — its tags are what the chosen ones get.",
+    "apply": "Apply tags to the chosen",
+    "progress": "Tag {done} of {total}",
+    "applied": "Tags applied to {count} photo | Tags applied to {count} photos",
+    "hint": "The percentage is how alike. Above 95% is usually the next frame of a series, 80–95% the same place, below 70% is mostly unrelated.",
+    "pickTags": "Choose the tags to hand over. The list narrows to the files that do not have them yet.",
+    "filtered": "{count} hidden — they already carry the chosen tags.",
+    "allTagged": "Every similar file already carries the chosen tags."
+  },
+  "collect": {
+    "title": "Collecting a tag",
+    "subtitle": "A second pass over the archive — by subject rather than by day.",
+    "find": "Find similar",
+    "pickTag": "Choose a tag to find candidates for.",
+    "searching": "Searching the archive…",
+    "marked": "marked: {count}",
+    "tooFewSeeds": "Mark at least {min} photos with this tag by hand to switch suggestions on. Marked so far: {count}.",
+    "nothing": "No candidates found.",
+    "hint": "Sorted by likeness. Hover a frame to choose everything down to it, or to open it full screen.",
+    "chosen": "{count} chosen",
+    "apply": "Apply the tag",
+    "applied": "Tag applied to {count} photo | Tag applied to {count} photos"
   }
 }

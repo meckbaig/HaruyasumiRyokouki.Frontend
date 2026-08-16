@@ -17,6 +17,7 @@ import { useUiStore } from '@/stores/ui'
 import { useTagsStore } from '@/stores/tags'
 import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
+import { hasOverlay } from '@/services/overlayStack'
 import { cascadeDelay } from '@/services/cascade'
 import { tagLabel } from '@/services/tags'
 
@@ -92,7 +93,9 @@ watch(() => ui.locale, run)
   A new query is a new set of results, so a link belonging to the old one is
   resolved again from scratch, and dropped if it no longer belongs anywhere.
 */
-const mediaLink = useMediaLink({ suspended: () => lightboxIndex.value !== null })
+// Any overlay, not just this page's viewer: one opened from an edit dialog
+// still covers the outline, and a press over it is not the reader dismissing it.
+const mediaLink = useMediaLink({ suspended: () => hasOverlay() })
 const highlightedId = computed(() => mediaLink.link.value.id)
 
 let linkResolved = false

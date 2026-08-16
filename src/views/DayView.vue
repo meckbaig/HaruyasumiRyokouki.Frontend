@@ -22,6 +22,7 @@ import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
 import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
+import { hasOverlay } from '@/services/overlayStack'
 
 const props = defineProps({
   date: { type: String, required: true },
@@ -131,7 +132,9 @@ function openDay(date) {
   takes both away again, along with the outline: the reader is done with that
   picture, and the page they are left on is the plain one.
 */
-const mediaLink = useMediaLink({ suspended: () => lightboxIndex.value !== null })
+// Any overlay, not just this page's viewer: one opened from an edit dialog
+// still covers the outline, and a press over it is not the reader dismissing it.
+const mediaLink = useMediaLink({ suspended: () => hasOverlay() })
 const highlightedId = computed(() => mediaLink.link.value.id)
 
 /** The file already answered for, so the same one is not answered for twice. */
@@ -169,11 +172,17 @@ watch(lightboxIndex, (index) => {
 
 /**
  * Left/right arrows step to the previous/next day. Ignored while typing, while
- * the lightbox is open (it owns the arrows there), or while editing the note.
+ * editing the note, and while anything is open over the page.
+ *
+ * "Anything", not "this page's viewer": a viewer can be opened from inside the
+ * note editor's strip or from the "similar" panel of an edit dialog, and those
+ * are other instances entirely — the page had no idea they existed and went on
+ * turning days under them. The overlay stack is what every overlay announces
+ * itself to, so it is the one thing that knows.
  */
 function onKeydown(event) {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-  if (lightboxIndex.value !== null || editingNote.value) return
+  if (hasOverlay() || editingNote.value) return
 
   const el = document.activeElement
   const tag = el?.tagName
@@ -197,7 +206,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
  * of which pan horizontally themselves.
  */
 const swipe = useHorizontalSwipe({
-  isEnabled: () => lightboxIndex.value === null && !editor.selectionMode,
+  isEnabled: () => !hasOverlay() && !editor.selectionMode,
   onLeft: () => neighbours.value.next && openDay(neighbours.value.next),
   onRight: () => neighbours.value.prev && openDay(neighbours.value.prev),
 })

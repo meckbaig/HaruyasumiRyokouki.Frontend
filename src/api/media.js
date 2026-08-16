@@ -97,3 +97,21 @@ export function syncMedia() {
     requiresAuth: true,
   })
 }
+
+/**
+ * GET /v1/media/{id}/similar -> `{ media, score }[]`, most alike first.
+ *
+ * The server holds a fingerprint of every photograph's content and compares
+ * across the whole archive — other days, other places. It deliberately does
+ * **not** cut the list off at a threshold: how alike is alike enough depends on
+ * how narrow the thing being looked for is, and there is no one right number.
+ * So it always answers with `take` of them and the score comes along, for a
+ * person to see where the useful part ended. Editor-only.
+ *
+ * An empty list means this file has no fingerprint — a video, typically. That is
+ * an answer, not a failure.
+ */
+export async function fetchSimilarMedia(id, take = 50, signal) {
+  const data = await request(`/media/${id}/similar`, { query: { take }, requiresAuth: true, signal })
+  return data?.items ?? []
+}

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import LanguageTabs from './LanguageTabs.vue'
 import TagPicker from './TagPicker.vue'
+import SimilarMediaPanel from './SimilarMediaPanel.vue'
 // Lazy so Leaflet is not pulled into the main bundle — this dialog is mounted
 // app-wide via the selection toolbar, and the map only loads when it opens.
 const MediaLocationPicker = defineAsyncComponent(() => import('./MediaLocationPicker.vue'))
@@ -529,6 +530,13 @@ async function save() {
       <p v-if="translated" class="rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
         {{ t('editor.translationReview') }}
       </p>
+
+      <!--
+        Filing one photograph is rarely filing one photograph. The panel loads on
+        its own and only for a single file — "similar to these forty" is not a
+        question with an answer.
+      -->
+      <SimilarMediaPanel v-if="open && single" :media="single" :tag-slugs="tagSlugs" />
 
       <p v-if="showLoading" class="text-xs text-ink-faint">{{ t('common.loading') }}</p>
 

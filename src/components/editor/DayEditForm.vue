@@ -3,10 +3,11 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageTabs from './LanguageTabs.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
+import MediaThumb from '@/components/media/MediaThumb.vue'
+import { markOpenedFrom } from '@/services/openedFrom'
 import { saveDay, fetchDayEdit } from '@/api/days'
 import { useUiStore } from '@/stores/ui'
 import { useDaysStore } from '@/stores/days'
-import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { SUPPORTED_LOCALES } from '@/i18n'
 import { cascadeDelay } from '@/services/cascade'
 import { useDelayed } from '@/composables/useDelayed'
@@ -50,6 +51,11 @@ const thumbs = ref([])
  * the difference between naming a day and describing it.
  */
 const lightboxIndex = ref(null)
+
+function openThumb(event, index) {
+  markOpenedFrom(event.currentTarget)
+  lightboxIndex.value = index
+}
 
 // Said out loud only if the wait actually lasts — see composables/useDelayed.
 const showLoading = useDelayed(() => loading.value)
@@ -200,16 +206,11 @@ async function save() {
           :key="item.id ?? item.fileName"
           :data-media-id="item.id"
           type="button"
-          class="overflow-hidden rounded ring-1 ring-edge transition hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
+          class="w-16 overflow-hidden rounded ring-1 ring-edge transition hover:ring-2 hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
           :aria-label="item.title || item.fileName"
-          @click="lightboxIndex = index"
+          @click="openThumb($event, index)"
         >
-          <img
-            :src="previewSrc(item) || miniatureSrc(item)"
-            :alt="item.title || item.fileName"
-            loading="lazy"
-            class="h-16 w-16 object-cover"
-          />
+          <MediaThumb :media="item" :alt="item.title || item.fileName" />
         </button>
       </div>
     </div>

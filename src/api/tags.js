@@ -53,3 +53,40 @@ export async function editTag(id, tag) {
   const data = await request(`/tags/${id}`, { method: 'PATCH', body: { tag }, requiresAuth: true })
   return data?.tag ?? null
 }
+
+/**
+ * GET /v1/tags/{id}/suggest -> `{ seedCount, items }`.
+ *
+ * Candidates for a tag from across the archive, measured against the centre of
+ * what already carries it. With fewer than three marked the server returns no
+ * items on purpose: one or two photographs do not describe a subject, and the
+ * suggestion would be noise wearing a number. `seedCount` is what says so, and
+ * an empty list beside a small count is an expected state rather than an error.
+ *
+ * Editor-only.
+ */
+export async function fetchTagCandidates(tagId, take = 300, signal) {
+  const data = await request(`/tags/${tagId}/suggest`, {
+    query: { take },
+    requiresAuth: true,
+    signal,
+  })
+  return { seedCount: data?.seedCount ?? 0, items: data?.items ?? [] }
+}
+
+/**
+ * POST /v1/tags/{id}/media -> `{ affected }`.
+ *
+ * **Adds** the tag, leaving every other tag on those files alone — which is what
+ * separates it from `PATCH /v1/media`, where `tagIds` replaces the set outright.
+ * Filing by subject means touching files whose other tags are none of this
+ * operation's business, so this is the one to use for it. Editor-only.
+ */
+export async function addTagToMedia(tagId, mediaFileIds) {
+  const data = await request(`/tags/${tagId}/media`, {
+    method: 'POST',
+    body: { mediaFileIds },
+    requiresAuth: true,
+  })
+  return data?.affected ?? 0
+}

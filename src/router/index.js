@@ -47,6 +47,12 @@ const routes = [
     meta: { requiresEditor: true },
   },
   {
+    path: '/admin/tags/collect',
+    name: 'admin-tag-collect',
+    component: () => import('@/views/AdminTagCollectView.vue'),
+    meta: { requiresEditor: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue'),
@@ -128,6 +134,7 @@ const TITLE_KEYS = {
   login: 'login.title',
   'admin-pending': 'admin.title',
   'admin-tags': 'tags.title',
+  'admin-tag-collect': 'collect.title',
   'not-found': 'notFound.title',
 }
 

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { miniatureSrc, previewSrc, mediaDate } from '@/services/mediaAssets'
 import { formatShortDate } from '@/services/dates'
 import { isVideo } from '@/services/mediaType'
+import { markOpenedFrom } from '@/services/openedFrom'
 import { isPrivate } from '@/services/privacy'
 import { toggleFavorite } from '@/services/favorites'
 import { useEditorStore } from '@/stores/editor'
@@ -34,6 +35,7 @@ const { t } = useI18n()
 const editor = useEditorStore()
 const ui = useUiStore()
 
+const root = ref(null)
 const video = computed(() => isVideo(props.media))
 const hidden = computed(() => isPrivate(props.media))
 const takenOn = computed(() =>
@@ -191,12 +193,15 @@ function activate() {
     editor.toggle(props.media)
     return
   }
+  // Says which tile this is, so the viewer flies out of *this* one rather than
+  // out of whichever copy of the file the document happens to hold first.
+  markOpenedFrom(root.value)
   emit('open', props.media)
 }
 </script>
 
 <template>
-  <div class="group relative" :data-media-id="media.id">
+  <div ref="root" class="group relative" :data-media-id="media.id">
     <!-- `touch-pan-y`, not `touch-none`: the browser must keep handling vertical
          scrolling, or a finger landing on a tile pins the page. The paint
          gesture only needs the long press and the horizontal axis. -->
@@ -345,8 +350,8 @@ function activate() {
     <button
       v-if="editable && !editor.selectionMode"
       type="button"
-      class="absolute left-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 shadow-sm transition focus-visible:opacity-100 group-hover:opacity-100"
-      :class="favorite ? 'text-star opacity-100' : 'text-ink opacity-0'"
+      class="absolute left-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 shadow-sm transition"
+      :class="favorite ? 'text-star opacity-100' : 'text-ink hover-reveal'"
       :aria-busy="marking"
       :aria-pressed="favorite"
       :aria-label="favorite ? t('media.unfavorite') : t('media.favorite')"
@@ -371,7 +376,7 @@ function activate() {
     <button
       v-if="editable && !editor.selectionMode"
       type="button"
-      class="absolute right-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 text-ink opacity-0 shadow-sm transition group-hover:opacity-100 focus-visible:opacity-100"
+      class="hover-reveal absolute right-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 text-ink shadow-sm transition"
       :aria-label="t('common.edit')"
       @click.stop="emit('edit', props.media)"
     >

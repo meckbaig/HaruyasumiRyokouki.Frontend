@@ -436,6 +436,63 @@
         }
       }
     },
+    "/v1/media/{id}/similar": {
+      "get": {
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSimilarMediaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/search": {
       "get": {
         "tags": [
@@ -689,6 +746,113 @@
           }
         }
       }
+    },
+    "/v1/tags/{id}/suggest": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestMediaForTagResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tags/{id}/media": {
+      "post": {
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTagToMediaCommand.BodyParameters"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTagToMediaCommand.BodyParameters"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTagToMediaCommand.BodyParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddTagToMediaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -713,6 +877,33 @@
         "properties": {
           "tag": {
             "$ref": "#/components/schemas/TagDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AddTagToMediaCommand.BodyParameters": {
+        "required": [
+          "mediaFileIds"
+        ],
+        "type": "object",
+        "properties": {
+          "mediaFileIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AddTagToMediaResponse": {
+        "type": "object",
+        "properties": {
+          "affected": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -1080,6 +1271,22 @@
         },
         "additionalProperties": false
       },
+      "GetSimilarMediaResponse": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SuggestedMediaDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "GetTagCompletionCommand.BodyParameters": {
         "required": [
           "tag"
@@ -1392,6 +1599,45 @@
               "$ref": "#/components/schemas/DayDto"
             },
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SuggestMediaForTagResponse": {
+        "required": [
+          "items",
+          "seedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "seedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SuggestedMediaDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SuggestedMediaDto": {
+        "required": [
+          "media",
+          "score"
+        ],
+        "type": "object",
+        "properties": {
+          "media": {
+            "$ref": "#/components/schemas/MediaFileEditDto"
+          },
+          "score": {
+            "type": "number",
+            "description": "Cosine to the centroid.",
+            "format": "float"
           }
         },
         "additionalProperties": false

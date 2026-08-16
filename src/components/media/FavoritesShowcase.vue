@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { markOpenedFrom } from '@/services/openedFrom'
 import { miniatureSrc, previewSrc, mediaAspect } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
 import { useMotionStore } from '@/stores/motion'
@@ -297,6 +298,15 @@ onBeforeUnmount(() => {
   clearTimeout(settleTimer)
   document.removeEventListener('visibilitychange', onVisibility)
 })
+
+/**
+ * The wall is hung twice so it can drift endlessly, so the same file is on the
+ * page in two places at once. Which of them was pressed is knowable only here.
+ */
+function open(event, index) {
+  markOpenedFrom(event.currentTarget)
+  emit('open', fileAt(index))
+}
 </script>
 
 <template>
@@ -336,7 +346,7 @@ onBeforeUnmount(() => {
           class="group relative h-full shrink-0 overflow-hidden rounded-md bg-edge/40 ring-1 ring-edge transition hover:ring-ink-faint"
           :style="{ aspectRatio: ratioOf(media) }"
           :aria-label="media.title || media.fileName || t('media.untitled')"
-          @click="emit('open', fileAt(index))"
+          @click="open($event, index)"
         >
           <!--
             The same two stages as a grid tile: the inline miniature at once,

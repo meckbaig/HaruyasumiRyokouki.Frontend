@@ -1,18 +1,7 @@
-<script>
-/*
-  Which dialog answers Escape.
-
-  Every open dialog listens on the document, so a key pressed over a stack of
-  two used to close both — and the one underneath was the one holding the edits.
-  This list settles it: the key belongs to whoever opened last, and the rest wait
-  their turn. Module scope, so every instance shares the one list.
-*/
-const stack = []
-</script>
-
 <script setup>
 import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { pushOverlay, popOverlay, isTopmost, hasOverlay } from '@/services/overlayStack'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -33,16 +22,8 @@ const { t } = useI18n()
 const panel = ref(null)
 let lastFocused = null
 
+/** This dialog's place in the shared overlay stack — see services/overlayStack. */
 const token = Symbol('dialog')
-
-function isTopmost() {
-  return stack[stack.length - 1] === token
-}
-
-function leaveStack() {
-  const at = stack.indexOf(token)
-  if (at >= 0) stack.splice(at, 1)
-}
 
 const FOCUSABLE =
   'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -65,9 +46,9 @@ function trapFocus(event) {
 }
 
 function onKeydown(event) {
-  // Only the dialog on top answers the keyboard; the ones underneath are
-  // covered, and neither dismissing them nor cycling their fields is meant.
-  if (!isTopmost()) return
+  // Only the overlay on top answers the keyboard; anything underneath is
+  // covered, and neither dismissing it nor cycling its fields is meant.
+  if (!isTopmost(token)) return
 
   if (event.key === 'Escape') {
     event.preventDefault()
@@ -98,18 +79,18 @@ watch(
   async (isOpen) => {
     if (isOpen) {
       lastFocused = document.activeElement
-      stack.push(token)
+      pushOverlay(token)
       document.addEventListener('keydown', onKeydown)
       document.body.style.overflow = 'hidden'
       await nextTick()
       panel.value?.querySelector(FOCUSABLE)?.focus()
     } else {
-      leaveStack()
+      popOverlay(token)
       document.removeEventListener('keydown', onKeydown)
       // Only the last one out gives the page its scrolling back: a dialog
       // closing over another one would otherwise unlock the page underneath
       // both of them.
-      if (!stack.length) document.body.style.overflow = ''
+      if (!hasOverlay()) document.body.style.overflow = ''
       lastFocused?.focus?.()
       lastFocused = null
     }
@@ -117,9 +98,9 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  leaveStack()
+  popOverlay(token)
   document.removeEventListener('keydown', onKeydown)
-  if (!stack.length) document.body.style.overflow = ''
+  if (!hasOverlay()) document.body.style.overflow = ''
 })
 </script>
 
