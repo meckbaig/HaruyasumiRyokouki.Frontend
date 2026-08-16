@@ -1,8 +1,34 @@
 # Changelog
 
 Feature releases only. The third segment carries fixes and small changes that a
-visitor would not notice, and those are left to the git history. Major zero says
-the site is still finding its shape.
+visitor would not notice, and those are left to the git history. Major zero said
+the site was still finding its shape; it has found it.
+
+## 1.0.0 — similarity search
+
+The first version without "pre-release" on it. Nothing about the site changes
+with the number — it says only that the shape has settled and the parts are all
+built.
+
+What this release adds is for filing rather than for reading. The server keeps a
+fingerprint of what each photograph shows and can compare across the whole
+archive — other days, other places — which turns tagging into something done in
+handfuls instead of one file at a time. Two screens use it: the photo editor
+shows what a file resembles, and a screen of its own works the other way round,
+taking a tag and proposing the rest of the archive that belongs with it.
+
+Percentages sit beside every candidate because there is no single line between
+alike and not alike: it depends on how narrow the subject is, so the whole list
+comes back sorted and the person decides where it stopped being useful.
+
+- Editing a photo shows what it resembles, and hands its tags to any of them in
+  one go (only for admins)
+- Choosing which tags to hand over narrows the list to the files that do not
+  carry them yet (only for admins)
+- A screen for collecting a tag across the archive, in rounds — each round is
+  more accurate than the last (only for admins)
+- A photo opens out of the thumbnail that was pressed rather than the first copy
+  of it on the page — visible on the front page, where the wall is hung twice
 
 ## 0.12.0 — pre-release: tags and private files
 

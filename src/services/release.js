@@ -7,6 +7,7 @@
  * major and minor alone. CHANGELOG.md is the long version of this list.
  */
 const NAMES = {
+  '1.0': 'similarity search',
   '0.12': 'tags and private files',
   '0.11': 'animated transitions',
   '0.10': 'favorites and links to a photo',
