@@ -11,7 +11,18 @@ const editor = useEditorStore()
 const editOpen = ref(false)
 const tagOpen = ref(false)
 
-function onSaved() {
+/**
+ * The toolbar floats above every page, so the page underneath never hears about
+ * a bulk save. The record goes through the store instead — a queue of unfiled
+ * media has to know that the files it is showing have just been approved.
+ */
+function onSaved(result) {
+  editor.reportSaved(result)
+  editor.clear()
+}
+
+/** Tagging changes nothing about whether a file is still waiting to be filed. */
+function onTagged() {
   editor.clear()
 }
 </script>
@@ -93,6 +104,6 @@ function onSaved() {
     :open="tagOpen"
     :items="editor.items"
     @close="tagOpen = false"
-    @applied="onSaved"
+    @applied="onTagged"
   />
 </template>

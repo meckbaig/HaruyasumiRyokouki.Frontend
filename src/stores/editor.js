@@ -14,6 +14,26 @@ export const useEditorStore = defineStore('editor', () => {
   /** Media objects behind the ids, so the bulk dialog can show file names. */
   const selectedItems = ref(new Map())
 
+  /*
+    What the last bulk save did, for a page that is showing a queue.
+
+    The toolbar is mounted at app level so a selection survives navigation
+    between the day, the results and the pending queue — which is also why it
+    cannot simply tell the page underneath what just happened. Approving a
+    selection took those files out of the queue on the server and left them
+    sitting on the screen until a reload, because nothing carried the fact
+    across.
+
+    A plain record, replaced whole on every save so that watching it fires even
+    when the same files are saved twice.
+  */
+  const lastSave = ref(null)
+
+  function reportSaved(result) {
+    if (!result) return
+    lastSave.value = { ...result }
+  }
+
   const count = computed(() => selectedIds.value.size)
   const ids = computed(() => [...selectedIds.value])
   const items = computed(() => [...selectedItems.value.values()])
@@ -92,11 +112,13 @@ export const useEditorStore = defineStore('editor', () => {
     count,
     ids,
     items,
+    lastSave,
     isSelected,
     toggle,
     start,
     selectMany,
     setSelection,
+    reportSaved,
     clear,
   }
 })

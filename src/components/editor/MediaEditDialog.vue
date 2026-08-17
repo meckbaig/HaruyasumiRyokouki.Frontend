@@ -59,12 +59,27 @@ const single = computed(() => (isBulk.value ? null : editList.value[0]))
 const models = ref([])
 const loading = ref(false)
 
+/*
+  One row per language, exactly as the server holds them.
+
+  Nothing here is inferred, prefilled from the page, or held back. The public
+  models the pages carry are flattened to *one* language by the server, and that
+  one is chosen by fallback — ask for Russian for a file described only in
+  Japanese and Russian is what the response is labelled, with Japanese text in
+  it. Seeding the editor from that put the Japanese text in the Russian field and
+  then deliberately refused to overwrite it when the real rows arrived, so the
+  actual Russian row never reached the screen and a save would have written the
+  Japanese into it.
+
+  So the editor waits for `/media/edit`, which carries every language separately
+  and never falls back, and fills all three from that. The fields are held shut
+  until it lands — see the `fieldset` in the template — because an empty field
+  that is about to be filled in is a field somebody will otherwise start typing
+  into.
+*/
 const form = reactive({})
 // Translation row ids per language, so an existing row is updated in place.
 const rowIds = reactive({})
-// The language selected when the dialog opened. Its fields come from the data
-// already on screen and must not be overwritten when the full model arrives.
-let initialLang = ui.locale
 const activeLang = ref(ui.locale)
 const coords = ref(null)
 const coordsTouched = ref(false)
@@ -81,7 +96,7 @@ const coordsTouched = ref(false)
 */
 const tagSlugs = ref([])
 const tagsTouched = ref(false)
-const approved = ref(true)
+const approved = ref(false)
 const favorite = ref(false)
 const hidden = ref(false)
 const autoTranslate = ref(false)
@@ -145,44 +160,42 @@ function prefillBulk(models) {
   }
 }
 
-/** Prefills only the initially-selected language from the flat public model. */
-function prefillSelected(media) {
-  blankForm()
-  form[initialLang] = { title: media?.title ?? '', description: media?.description ?? '' }
-}
-
-/**
- * Merges the fetched model without disturbing the language already on screen:
- * the selected language keeps its (current, correct) fields and only gains its
- * row id, while the other languages are filled from the model. Used both after
- * the initial fetch and after an auto-translate, where the untouched languages
- * are exactly the ones to (re)fill.
- */
-function mergeOthers(model) {
-  for (const locale of SUPPORTED_LOCALES) {
-    const row = rowFor(model, locale)
-    rowIds[locale] = row?.id ?? null
-    if (locale === initialLang) continue
-    form[locale] = { title: row?.title ?? '', description: row?.description ?? '' }
-  }
+/** When the file being edited was taken; for a selection, the earliest of them. */
+function ownCreated() {
+  const stamps = editList.value
+    .map((item) => item?.created)
+    .filter(Boolean)
+    .map(String)
+    .sort()
+  return stamps[0] ?? null
 }
 
 /** Day this file belongs to: an explicit prop, else its capture date. */
 function ownDate() {
-  return props.date ?? (single.value?.created ? String(single.value.created).slice(0, 10) : null)
+  return props.date ?? ownCreated()?.slice(0, 10) ?? null
 }
 
 /**
  * Reference points from the day itself and its immediate neighbours, so a photo
  * can be placed by eye. One `/media/locations` request over the three-day window
- * rather than fetching whole days. Single edits only — a bulk selection has no
- * single day.
+ * rather than fetching whole days.
+ *
+ * For a selection as much as for one file: a bulk edit is almost always a run of
+ * frames from the same afternoon, and "where was I around then" is exactly the
+ * question its map has to answer too. The window is taken from the earliest of
+ * them, which for a run of frames is the same day as all the rest.
+ *
+ * Each point says whether it was taken *before* the file being placed. That is
+ * what lets the picker frame the gap the photograph fell into rather than the
+ * whole day — see `bestView` there.
  */
 async function loadNeighborPoints() {
   neighborPoints.value = []
-  if (isBulk.value) return
   const base = parseIsoDate(ownDate())
   if (!base) return
+
+  const own = ownCreated()
+  const editing = new Set(editList.value.map((item) => item?.id).filter((id) => id != null))
 
   try {
     const items = await fetchMediaLocations(
@@ -190,13 +203,17 @@ async function loadNeighborPoints() {
       toIsoDate(addDays(base, 1)),
     )
     neighborPoints.value = items
-      .filter((item) => item.id !== single.value?.id)
+      .filter((item) => !editing.has(item.id))
       .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
       // Sorted, because the picker joins them into the path that was walked —
       // and a path drawn in the order a server happened to return rows is a
       // scribble rather than a route.
       .sort((a, b) => String(a.created ?? '').localeCompare(String(b.created ?? '')))
-      .map((item) => ({ lat: item.latitude, lng: item.longitude }))
+      .map((item) => ({
+        lat: item.latitude,
+        lng: item.longitude,
+        before: own ? String(item.created ?? '') <= own : null,
+      }))
   } catch {
     // No reference points is fine; the picker still works.
   }
@@ -219,8 +236,8 @@ async function loadModels() {
     } else {
       const ids = list.map((item) => item.id).filter((id) => id != null)
       models.value = ids.length ? await fetchMediaEdit(ids) : []
-      // Single: fill the other languages, keeping the one on screen untouched.
-      if (!isBulk.value && models.value[0]) mergeOthers(models.value[0])
+      // Every language from the model, the one on screen included.
+      if (!isBulk.value && models.value[0]) hydrateAll(models.value[0])
     }
 
     // Bulk: prefill from the selected files once their full models are known.
@@ -237,27 +254,25 @@ watch(
   () => {
     if (!props.open || editList.value.length === 0) return
 
-    initialLang = ui.locale
     activeLang.value = ui.locale
     error.value = null
     translated.value = false
     autoTranslate.value = false
     coordsTouched.value = false
 
-    if (isBulk.value) {
-      // Bulk: every field starts blank — blank means "leave untouched".
-      blankForm()
-    } else if (isEditModel(single.value)) {
-      // From the pending list: it already carries every language.
+    if (!isBulk.value && isEditModel(single.value)) {
+      // From the pending list: it already carries every language, so there is
+      // nothing to wait for.
       hydrateAll(single.value)
     } else {
-      // From a public page: fill the selected language now, fetch the rest.
-      prefillSelected(single.value)
+      // Blank until the rows arrive. For a bulk edit blank is also the final
+      // state of anything nobody fills in — it means "leave this alone".
+      blankForm()
     }
 
     // Single: prefill approval, the mark and the current coordinate. Bulk:
     // start neutral — there an unticked box means "leave these alone".
-    approved.value = !isBulk.value
+    approved.value = !isBulk.value && single.value?.approved === true
     favorite.value = !isBulk.value && single.value?.favorite === true
     hidden.value = !isBulk.value && isPrivate(single.value)
 
@@ -389,8 +404,9 @@ function applyTranslated(items) {
   } else {
     const updated = items?.find((item) => item.id === single.value?.id) ?? items?.[0]
     if (!updated) return false
-    // Keep the language the editor wrote; refill the machine-translated ones.
-    mergeOthers(updated)
+    // Every language from the answer. The one that was written is not empty, so
+    // the backend left it alone and it comes back as it was typed.
+    hydrateAll(updated)
   }
   translated.value = true
   return true
@@ -484,67 +500,90 @@ async function save() {
         {{ t('editor.bulkHint') }}
       </p>
 
-      <LanguageTabs v-model="activeLang" :disabled="loading" />
+      <!--
+        Everything that belongs to this file is shut while its rows are on their
+        way. A `fieldset` because that is what the element is for: one attribute
+        takes every control inside out of the tab order and stops it answering,
+        with no per-field bookkeeping to forget.
 
-      <div>
-        <label class="field-label" for="media-title">{{ t('editor.title') }}</label>
-        <input id="media-title" v-model="active.title" type="text" class="field-input" :disabled="loading" />
-      </div>
+        The similar-files panel is deliberately outside it. Nothing in there is
+        part of saving this card — it hands tags to *other* files through their
+        own request — so there is no reason for it to wait on this one.
+      -->
+      <fieldset
+        :disabled="loading"
+        class="m-0 space-y-4 border-0 p-0 transition-opacity"
+        :class="loading ? 'opacity-50' : ''"
+      >
+        <LanguageTabs v-model="activeLang" :disabled="loading" />
 
-      <div>
-        <label class="field-label" for="media-description">{{ t('editor.description') }}</label>
-        <textarea
-          id="media-description"
-          v-model="active.description"
-          rows="4"
-          class="field-input"
-          :disabled="loading"
-        />
-      </div>
+        <div>
+          <label class="field-label" for="media-title">{{ t('editor.title') }}</label>
+          <input id="media-title" v-model="active.title" type="text" class="field-input" />
+        </div>
 
-      <!-- Outside the language tabs on purpose: a tag is the same tag in all
-           three, and putting it under a tab would suggest otherwise. -->
-      <div>
-        <TagPicker :model-value="tagSlugs" :disabled="loading" @update:model-value="onTags" />
-        <p v-if="isBulk" class="field-hint">{{ t('tags.bulkHint') }}</p>
-      </div>
+        <div>
+          <label class="field-label" for="media-description">{{ t('editor.description') }}</label>
+          <textarea
+            id="media-description"
+            v-model="active.description"
+            rows="4"
+            class="field-input"
+          />
+        </div>
 
-      <MediaLocationPicker :model-value="coords" :points="neighborPoints" @update:model-value="onCoords" />
+        <!-- Outside the language tabs on purpose: a tag is the same tag in all
+             three, and putting it under a tab would suggest otherwise. -->
+        <div>
+          <TagPicker :model-value="tagSlugs" :disabled="loading" @update:model-value="onTags" />
+          <p v-if="isBulk" class="field-hint">{{ t('tags.bulkHint') }}</p>
+        </div>
 
-      <label class="flex items-center gap-2 text-sm text-ink-soft">
-        <input v-model="approved" type="checkbox" class="rounded border-edge" />
-        {{ t('editor.approved') }}
-      </label>
+        <!-- A map is not a form control, so `disabled` never reaches it; the
+             clicks are turned off by hand. -->
+        <div :class="loading ? 'pointer-events-none' : ''">
+          <MediaLocationPicker
+            :model-value="coords"
+            :points="neighborPoints"
+            @update:model-value="onCoords"
+          />
+        </div>
 
-      <div>
         <label class="flex items-center gap-2 text-sm text-ink-soft">
-          <input v-model="favorite" type="checkbox" class="rounded border-edge" />
-          {{ t('editor.favorite') }}
+          <input v-model="approved" type="checkbox" class="rounded border-edge" />
+          {{ t('editor.approved') }}
         </label>
-        <p v-if="isBulk" class="field-hint">{{ t('editor.favoriteBulkHint') }}</p>
-      </div>
 
-      <div>
-        <label class="flex items-center gap-2 text-sm text-ink-soft">
-          <input v-model="hidden" type="checkbox" class="rounded border-edge" />
-          {{ t('editor.hidden') }}
-        </label>
-        <p class="field-hint">
-          {{ isBulk ? t('editor.hiddenBulkHint') : t('editor.hiddenHint') }}
+        <div>
+          <label class="flex items-center gap-2 text-sm text-ink-soft">
+            <input v-model="favorite" type="checkbox" class="rounded border-edge" />
+            {{ t('editor.favorite') }}
+          </label>
+          <p v-if="isBulk" class="field-hint">{{ t('editor.favoriteBulkHint') }}</p>
+        </div>
+
+        <div>
+          <label class="flex items-center gap-2 text-sm text-ink-soft">
+            <input v-model="hidden" type="checkbox" class="rounded border-edge" />
+            {{ t('editor.hidden') }}
+          </label>
+          <p class="field-hint">
+            {{ isBulk ? t('editor.hiddenBulkHint') : t('editor.hiddenHint') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="flex items-center gap-2 text-sm text-ink-soft">
+            <input v-model="autoTranslate" type="checkbox" class="rounded border-edge" />
+            {{ t('editor.autoTranslate') }}
+          </label>
+          <p class="field-hint">{{ t('editor.autoTranslateHint') }}</p>
+        </div>
+
+        <p v-if="translated" class="rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
+          {{ t('editor.translationReview') }}
         </p>
-      </div>
-
-      <div>
-        <label class="flex items-center gap-2 text-sm text-ink-soft">
-          <input v-model="autoTranslate" type="checkbox" class="rounded border-edge" />
-          {{ t('editor.autoTranslate') }}
-        </label>
-        <p class="field-hint">{{ t('editor.autoTranslateHint') }}</p>
-      </div>
-
-      <p v-if="translated" class="rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
-        {{ t('editor.translationReview') }}
-      </p>
+      </fieldset>
 
       <!--
         Filing one photograph is rarely filing one photograph. The panel loads on

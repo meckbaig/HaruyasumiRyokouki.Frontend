@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaGrid from '@/components/media/MediaGrid.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
@@ -101,6 +101,16 @@ function onMediaSaved({ ids, approved } = {}) {
     media: pending.value.media.filter((item) => !saved.has(item.id)),
   }
 }
+
+/*
+  The same, for a save made through the floating toolbar.
+
+  That toolbar is mounted at app level so the selection survives navigation, and
+  a component mounted above every page cannot hand this one an event. It records
+  the save in the editor store and this reads it from there — otherwise a
+  selection approved in bulk stayed on the queue until the page was reloaded.
+*/
+watch(() => editor.lastSave, onMediaSaved)
 
 function onDaySaved({ date, isReady }) {
   openDayDate.value = null
