@@ -16,6 +16,9 @@ const router = useRouter()
 const days = useDaysStore()
 const ui = useUiStore()
 
+const baseMapFrom = import.meta.env.VITE_BASE_MAP_FROM
+const baseMapTo = import.meta.env.VITE_BASE_MAP_TO
+
 const totalMedia = computed(() =>
   days.list.reduce((sum, day) => sum + (day.mediaCount ?? 0), 0),
 )
@@ -123,7 +126,10 @@ function openFavorite(media) {
 
     <section class="pb-16">
       <RouterLink
-        :to="{ name: 'map' }"
+        :to="{ 
+          name: 'map',
+          query: { from: baseMapFrom, to: baseMapTo }
+        }" 
         class="flex items-center justify-between gap-4 rounded-lg border border-edge bg-paper-raised px-6 py-5 transition hover:border-ink-faint"
       >
         <div>

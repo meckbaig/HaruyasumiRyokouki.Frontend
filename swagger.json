@@ -1497,6 +1497,9 @@
           "favorite": {
             "type": "boolean"
           },
+          "isApproved": {
+            "type": "boolean"
+          },
           "translations": {
             "type": "array",
             "items": {

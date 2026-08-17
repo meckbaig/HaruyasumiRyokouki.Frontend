@@ -93,7 +93,7 @@ watch(() => ui.locale, refresh)
 <template>
   <div class="mx-auto max-w-6xl px-4 py-8">
     <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
+      <div class="min-w-0">
         <h1 class="text-xl font-semibold tracking-tight text-ink">{{ t('map.title') }}</h1>
         <p class="mt-1 text-sm text-ink-faint">
           <span v-if="loading">{{ t('common.loading') }}</span>
@@ -101,7 +101,13 @@ watch(() => ui.locale, refresh)
         </p>
       </div>
 
-      <div class="flex items-center gap-2">
+      <!--
+        Wraps within itself, not only against the heading. A default range means
+        "whole route" is on show from the first frame, and three controls beside a
+        title is more than a phone has room for in one line — the last of them was
+        simply off the right-hand edge.
+      -->
+      <div class="flex max-w-full flex-wrap items-center gap-2">
         <button v-if="from || to" type="button" class="btn-ghost" @click="reset">
           {{ t('map.reset') }}
         </button>

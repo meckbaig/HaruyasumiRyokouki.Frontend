@@ -56,6 +56,20 @@ function inRange(iso) {
  * month gets any selection or range highlight, so a picked day never lights up
  * twice; foreign cells are always rendered plain.
  */
+/**
+ * Two things, drawn two ways.
+ *
+ * The fill says what kind of day this is — nothing recorded, a draft, a finished
+ * note — and it is the same fill on every calendar on the site. Belonging to a
+ * picked range is not a kind of day; it is a thing done to a stretch of them, and
+ * giving it a fill of its own put it in the same channel as the other three. A
+ * finished day and a day inside the range then looked alike, and inside the range
+ * the difference between finished and draft disappeared entirely.
+ *
+ * So the range is a bar under the number instead. It reads along a row the way a
+ * range should, it survives every fill underneath it, and the two edges keep the
+ * solid mark that says a hand put them there.
+ */
 function cellClass(cell) {
   if (!cell.inMonth) return 'text-ink-faint/30'
 
@@ -64,7 +78,6 @@ function cellClass(cell) {
 
   if (props.selected === cell.iso || isEdge) return 'bg-ink text-paper font-medium'
   if (!day) return 'text-ink-faint/60'
-  if (inRange(cell.iso)) return 'bg-accent-soft text-ink'
   if (day.isReady) return 'bg-edge/70 text-ink font-medium hover:bg-edge'
   return 'text-ink-soft hover:bg-edge/50'
 }
@@ -89,6 +102,13 @@ function cellClass(cell) {
           @click="emit('select', cell.iso)"
         >
           {{ cell.date.getDate() }}
+          <!-- Inside the range, between its ends. The ends wear the solid mark
+               instead, so a bar there would be saying the same thing twice. -->
+          <span
+            v-if="inRange(cell.iso) && cell.iso !== rangeStart && cell.iso !== rangeEnd"
+            class="pointer-events-none absolute inset-x-1.5 bottom-1 h-0.5 rounded-full bg-accent"
+            aria-hidden="true"
+          />
           <!-- Above the square rather than inside it: a cell is barely wider
                than the number in it, and a word squeezed in beside that number
                is a word nobody reads. -->
@@ -101,10 +121,15 @@ function cellClass(cell) {
         </button>
         <span
           v-else
-          class="flex aspect-square items-center justify-center rounded text-xs"
+          class="relative flex aspect-square items-center justify-center rounded text-xs"
           :class="cellClass(cell)"
         >
           {{ cell.date.getDate() }}
+          <span
+            v-if="cell.inMonth && inRange(cell.iso) && cell.iso !== rangeStart && cell.iso !== rangeEnd"
+            class="pointer-events-none absolute inset-x-1.5 bottom-1 h-0.5 rounded-full bg-accent/50"
+            aria-hidden="true"
+          />
         </span>
       </template>
     </div>

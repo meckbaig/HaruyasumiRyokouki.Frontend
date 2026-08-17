@@ -232,6 +232,12 @@ onBeforeUnmount(() => {
         <span class="h-3 w-3 rounded-sm bg-ink" aria-hidden="true" />
         {{ t('calendar.hasMedia') }}
       </li>
+      <!-- Only where one can be picked: on a day page there is no range and a
+           swatch for it would be a key to something not on the map. -->
+      <li v-if="rangeStartLabel" class="flex items-center gap-1.5">
+        <span class="h-0.5 w-3 rounded-full bg-accent" aria-hidden="true" />
+        {{ t('calendar.inRange') }}
+      </li>
     </ul>
   </section>
 </template>

@@ -12,6 +12,9 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
+const baseMapFrom = import.meta.env.VITE_BASE_MAP_FROM
+const baseMapTo = import.meta.env.VITE_BASE_MAP_TO
+
 // The landing page has its own large search field; a second one in the bar
 // would just be noise.
 const showSearch = computed(() => route.name !== 'home')
@@ -87,7 +90,11 @@ function signOut() {
 
       <!-- Desktop actions, inline. -->
       <nav class="hidden shrink-0 items-center gap-3 text-sm sm:flex">
-        <RouterLink :to="{ name: 'map' }" class="text-ink-soft transition hover:text-ink">
+        <RouterLink :to="{ 
+            name: 'map',
+            query: { from: baseMapFrom, to: baseMapTo }
+          }" 
+          class="text-ink-soft transition hover:text-ink">
           {{ t('nav.map') }}
         </RouterLink>
         <RouterLink
@@ -172,7 +179,10 @@ function signOut() {
         class="border-t border-edge bg-paper-raised px-4 py-3 sm:hidden"
       >
         <RouterLink
-          :to="{ name: 'map' }"
+          :to="{ 
+            name: 'map',
+            query: { from: baseMapFrom, to: baseMapTo }
+          }" 
           class="block rounded-md px-2 py-2 text-sm text-ink-soft transition hover:bg-edge/50"
         >
           {{ t('nav.map') }}

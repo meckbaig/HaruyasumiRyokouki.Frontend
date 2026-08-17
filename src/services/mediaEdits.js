@@ -47,10 +47,32 @@ export function applySavedMedia(target, saved, locale) {
   target.description = row?.description ?? ''
   target.languageCode = row?.languageCode ?? locale
   target.tags = (saved.tags ?? []).map((tag) => ({ slug: tag.slug, value: tagLabel(tag, locale) }))
+
+  /*
+    An edit model gets its rows back as well.
+
+    The pending queue holds `MediaFileEditDto`s — every language at once — and
+    the editor reads them straight out of the object rather than fetching, on the
+    grounds that they are already complete. Which meant a file edited from that
+    queue kept its old rows: reopening it showed the text as it had been before
+    the save, and there was no request to correct the impression because the
+    object still looked complete.
+
+    Only where there were rows to begin with. Giving a flat read model a
+    `translations` array would change what it *is*, and every page that decides
+    what to fetch by looking for one would start deciding differently.
+  */
+  if (Array.isArray(target.translations)) {
+    target.translations = Array.isArray(saved.translations) ? saved.translations : []
+  }
   target.latitude = saved.latitude ?? null
   target.longitude = saved.longitude ?? null
   target.favorite = saved.favorite ?? null
   target.private = saved.private ?? null
+  // Written back only where the page already had it: the flat model carries it
+  // and so does the edit model, but a `MediaFileLocationDto` and its like do not,
+  // and inventing the field on one would be describing it as something it is not.
+  if ('isApproved' in target) target.isApproved = saved.isApproved === true
 
   return target
 }

@@ -58,7 +58,8 @@
     "hasMedia": "has media",
     "ready": "note ready",
     "draft": "draft",
-    "empty": "no data"
+    "empty": "no data",
+    "inRange": "in range"
   },
   "map": {
     "title": "Trip map",
@@ -146,7 +147,7 @@
     "editMedia": "Edit media",
     "editBulk": "Bulk edit ({count})",
     "editDay": "Edit day",
-    "bulkHint": "Fields are prefilled from the first selected file with content. Saving overwrites them on every selected file; empty fields are left untouched.",
+    "bulkHint": "Fields are prefilled from the first selected file with content. Only what you change is sent — anything left alone stays as each file had it.",
     "title": "Title",
     "description": "Description",
     "tags": "Tags",
@@ -173,7 +174,8 @@
     "favoriteBulkHint": "Ticking this marks every selected file. Taking a mark off is done with the star on the file itself.",
     "hidden": "Hide — keep out of public view",
     "hiddenHint": "The file stays visible to you, but not in the day, the search, or behind a link.",
-    "hiddenBulkHint": "Ticking this hides every selected file. Letting one back out is done one file at a time."
+    "hiddenBulkHint": "Ticking this hides every selected file. Letting one back out is done one file at a time.",
+    "translateAction": "Translate"
   },
   "footer": {
     "about": "About",

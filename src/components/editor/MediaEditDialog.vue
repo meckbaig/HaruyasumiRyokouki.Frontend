@@ -78,6 +78,21 @@ const loading = ref(false)
   into.
 */
 const form = reactive({})
+/*
+  What each language looked like when the editor last received it.
+
+  The backend writes only the fields a request carries, so a field that is sent
+  unchanged is still a write — and the editor sent every language on every save,
+  whatever had been touched. On a bulk edit that was destructive rather than
+  merely wasteful: the fields there are prefilled from the *first* selected file
+  that has any text, so saving a batch to set their coordinates posted that one
+  file's title and description onto every other file in the selection.
+
+  Nothing is sent now unless it differs from this. A translation is atomic — the
+  title and the description are one object on the server — so a change to either
+  sends both, and a language nobody touched is not in the request at all.
+*/
+const baseline = reactive({})
 // Translation row ids per language, so an existing row is updated in place.
 const rowIds = reactive({})
 const activeLang = ref(ui.locale)
@@ -97,6 +112,15 @@ const coordsTouched = ref(false)
 const tagSlugs = ref([])
 const tagsTouched = ref(false)
 const approved = ref(false)
+/*
+  Whether the box was pressed, rather than merely shown.
+
+  Sending its value regardless would make every save an answer to a question
+  nobody asked — a typo fixed on a file left unapproved on purpose would approve
+  it, and the same save on an approved one would be a needless write. So approval
+  goes the way every other field goes: untouched is not sent.
+*/
+const approvedTouched = ref(false)
 const favorite = ref(false)
 const hidden = ref(false)
 const autoTranslate = ref(false)
@@ -117,11 +141,19 @@ function isEditModel(entity) {
   return Array.isArray(entity?.translations)
 }
 
+/** Takes the fields as they now stand to be the state the server is in. */
+function rememberBaseline() {
+  for (const locale of SUPPORTED_LOCALES) {
+    baseline[locale] = { ...form[locale] }
+  }
+}
+
 function blankForm() {
   for (const locale of SUPPORTED_LOCALES) {
     form[locale] = { title: '', description: '' }
     rowIds[locale] = null
   }
+  rememberBaseline()
 }
 
 function rowFor(model, locale) {
@@ -136,6 +168,7 @@ function hydrateAll(model) {
     form[locale] = { title: row?.title ?? '', description: row?.description ?? '' }
     rowIds[locale] = row?.id ?? null
   }
+  rememberBaseline()
 }
 
 /** First selected model whose row for `locale` actually has content. */
@@ -158,6 +191,9 @@ function prefillBulk(models) {
     const row = firstWithContent(models, locale)
     form[locale] = { title: row?.title ?? '', description: row?.description ?? '' }
   }
+  // Prefilled, and therefore unchanged: what is on screen is a starting point to
+  // edit from, not something the editor has said should go to every file.
+  rememberBaseline()
 }
 
 /** When the file being edited was taken; for a selection, the earliest of them. */
@@ -236,8 +272,15 @@ async function loadModels() {
     } else {
       const ids = list.map((item) => item.id).filter((id) => id != null)
       models.value = ids.length ? await fetchMediaEdit(ids) : []
-      // Every language from the model, the one on screen included.
-      if (!isBulk.value && models.value[0]) hydrateAll(models.value[0])
+      // Every language from the model, the one on screen included — and the
+      // marks with them, since the flat model on the page can only be as fresh
+      // as the page is.
+      if (!isBulk.value && models.value[0]) {
+        hydrateAll(models.value[0])
+        // Unless it has been pressed in the meantime, which the disabled fields
+        // make unlikely but not impossible.
+        if (!approvedTouched.value) approved.value = models.value[0].isApproved === true
+      }
     }
 
     // Bulk: prefill from the selected files once their full models are known.
@@ -270,9 +313,17 @@ watch(
       blankForm()
     }
 
-    // Single: prefill approval, the mark and the current coordinate. Bulk:
-    // start neutral — there an unticked box means "leave these alone".
-    approved.value = !isBulk.value && single.value?.approved === true
+    /*
+      Single: the marks as the file actually carries them. `isApproved` rides on
+      both models now, so a file opened from a day, from search or from the
+      pending queue all answer the same way — and where the object on the page is
+      a flat one, `loadModels` refreshes this from the edit model it fetches.
+
+      Bulk starts neutral — there an unticked box means "leave these alone"
+      rather than "no".
+    */
+    approvedTouched.value = false
+    approved.value = !isBulk.value && single.value?.isApproved === true
     favorite.value = !isBulk.value && single.value?.favorite === true
     hidden.value = !isBulk.value && isPrivate(single.value)
 
@@ -332,12 +383,31 @@ function resolveTagIds() {
 }
 
 /** Every language with any content becomes a translation row, keeping its id. */
+/** Whether either half of a language's translation has been edited. */
+function localeChanged(locale) {
+  const now = form[locale]
+  const was = baseline[locale]
+  if (!now) return false
+  return (
+    now.title.trim() !== (was?.title ?? '').trim() ||
+    now.description.trim() !== (was?.description ?? '').trim()
+  )
+}
+
+/**
+ * Only the languages that were actually edited.
+ *
+ * Blank counts as an edit when it used to hold something — clearing a
+ * description is a decision and has to reach the server. What does not reach it
+ * is a language left exactly as it was found, which is the whole point: a save
+ * made to set a coordinate now carries a coordinate and nothing else.
+ */
 function buildTranslations() {
   const rows = []
   for (const locale of SUPPORTED_LOCALES) {
+    if (!localeChanged(locale)) continue
+
     const entry = form[locale]
-    if (!entry) continue
-    if (!entry.title.trim() && !entry.description.trim()) continue
     const row = {
       languageCode: locale,
       title: entry.title.trim(),
@@ -385,7 +455,7 @@ function buildChanges() {
   } else {
     changes.latitude = coords.value?.lat ?? null
     changes.longitude = coords.value?.lng ?? null
-    changes.isApproved = approved.value
+    if (approvedTouched.value) changes.isApproved = approved.value
     changes.favorite = favorite.value
     changes.private = hidden.value
     changes.tagIds = resolveTagIds().ids
@@ -465,9 +535,9 @@ async function save() {
 
     const applied = applySaved(response?.items)
     ui.notify(t('admin.saved'), 'success')
-    // `approved` is what takes a file out of the pending queue, and the answer
-    // carries no such field — only this dialog knows whether the box was ticked.
-    emit('saved', { ids, applied, approved: approved.value })
+    // What takes a file out of the pending queue, and the answer carries no such
+    // field — only this dialog knows whether the box was pressed, and to what.
+    emit('saved', { ids, applied, approved: approvedTouched.value && approved.value })
     emit('close')
   } catch (caught) {
     error.value = caught
@@ -550,7 +620,12 @@ async function save() {
         </div>
 
         <label class="flex items-center gap-2 text-sm text-ink-soft">
-          <input v-model="approved" type="checkbox" class="rounded border-edge" />
+          <input
+            v-model="approved"
+            type="checkbox"
+            class="rounded border-edge"
+            @change="approvedTouched = true"
+          />
           {{ t('editor.approved') }}
         </label>
 
@@ -611,8 +686,18 @@ async function save() {
       <button type="button" class="btn-ghost" @click="emit('close')">
         {{ t('common.cancel') }}
       </button>
+      <!-- With translation ticked the button does something else: it sends the
+           card *and* asks for the empty languages to be filled, then keeps the
+           dialog open so the machine's work can be read. Calling that "save"
+           describes half of it. -->
       <button type="button" class="btn-primary" :disabled="!canSave" @click="save">
-        {{ saving ? t('common.saving') : t('common.save') }}
+        {{
+          saving
+            ? t('common.saving')
+            : autoTranslate
+              ? t('editor.translateAction')
+              : t('common.save')
+        }}
       </button>
     </template>
   </ModalDialog>

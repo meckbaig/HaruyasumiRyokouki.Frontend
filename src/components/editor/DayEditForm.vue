@@ -263,7 +263,16 @@ async function save() {
         {{ t('common.cancel') }}
       </button>
       <button type="submit" class="btn-primary" :disabled="!canSave">
-        {{ saving ? t('common.saving') : t('common.save') }}
+        <!-- The same button says something else with translation ticked: the
+             note is saved *and* the empty languages are filled, and the form
+             stays open so the machine's work can be read. -->
+        {{
+          saving
+            ? t('common.saving')
+            : autoTranslate
+              ? t('editor.translateAction')
+              : t('common.save')
+        }}
       </button>
     </div>
 
