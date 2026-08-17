@@ -4,6 +4,32 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.1.0 — smoother editing and map
+
+This release makes bulk editing feel a little less like fighting the 
+interface. The editor behaves more consistently when opened from different 
+places, the mobile layout makes better use of the screen, and tagging a group 
+of photos no longer leaves the interface catching up afterwards.
+
+The map gets some attention too: locations stay where they should when moving 
+between views, paths connect them, and choosing a date range on the map is now 
+clearer from the first click.
+
+- The media editor opens consistently from the Day and Search views, loading the 
+locations and editing data it needs 
+- Mobile editing gets smoother transitions, proper safe-area handling, and a 
+cleaner full-screen preview 
+- Editing and favorite actions stay out of the way on mobile where they are not needed
+- Multiple photos can be tagged directly from the selection actions, with the new 
+tags appearing immediately 
+- The editor keeps the Delete action available when opened from a day or search 
+- Tagging starts ready for typing, without an extra tap on the input field 
+- The map reliably zooms to selected locations and keeps the selected point centered
+when switching between full-screen and regular views
+- Paths between locations are shown on both the Day and editor maps 
+- The Map page now explains how to select a date range, with clear From and To 
+markers appearing as the range is chosen
+
 ## 1.0.0 — similarity search
 
 The first version without "pre-release" on it. Nothing about the site changes
