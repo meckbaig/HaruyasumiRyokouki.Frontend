@@ -2,14 +2,22 @@
 import { ref, watch, onMounted, onBeforeUnmount, markRaw, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
-import { createBaseMap, pinIcon, neighborIcon, PIN_PATH, NEIGHBOR_COLOR } from '@/services/leaflet'
+import {
+  createBaseMap,
+  pinIcon,
+  neighborIcon,
+  PIN_PATH,
+  PIN_COLOR,
+  NEIGHBOR_COLOR,
+} from '@/services/leaflet'
 
 const props = defineProps({
   /** Current point, or null when the file has no location yet. */
   modelValue: { type: Object, default: null },
   /**
-   * Reference points from neighbouring days, shown as muted pins so a photo can
-   * be placed relative to where the trip already was that day.
+   * Reference points from neighbouring days, in the order they were taken —
+   * shown as muted pins, and joined by the path between them so a photo can be
+   * placed against the route rather than against a scatter of dots.
    */
   points: { type: Array, default: () => [] },
 })
@@ -71,8 +79,27 @@ function clearMarker(picker) {
 
 function renderNeighborsOn(picker) {
   picker.neighborLayer.clearLayers()
-  for (const point of props.points) {
-    if (!Number.isFinite(point?.lat) || !Number.isFinite(point?.lng)) continue
+
+  const valid = props.points.filter(
+    (point) => Number.isFinite(point?.lat) && Number.isFinite(point?.lng),
+  )
+
+  /*
+    The line first, so the pins sit on top of it.
+
+    Dots alone say where the trip was; the line says which way it went, and that
+    is what places a photograph — between these two, on the way from the station
+    to the shrine. Same dashed red as the route on the trip map, because it is
+    the same thing at a smaller scale.
+  */
+  if (valid.length > 1) {
+    L.polyline(
+      valid.map((point) => [point.lat, point.lng]),
+      { color: PIN_COLOR, weight: 2, opacity: 0.55, dashArray: '5 5', interactive: false },
+    ).addTo(picker.neighborLayer)
+  }
+
+  for (const point of valid) {
     L.marker([point.lat, point.lng], { icon: neighborIcon, interactive: false }).addTo(
       picker.neighborLayer,
     )
@@ -137,6 +164,26 @@ watch(expanded, async (isOpen) => {
   } else if (fullscreenPicker) {
     destroyPicker(fullscreenPicker)
     fullscreenPicker = null
+
+    /*
+      The small map comes back to the point rather than to wherever it was left.
+
+      Going full screen is what people do to place a pin precisely, so the pin is
+      the thing they were looking at when they collapsed — and finding the small
+      map still showing the stretch of country it showed a minute ago means
+      hunting for the mark that was just made.
+    */
+    const inline = pickers[0]
+    if (inline && props.modelValue) {
+      inline.map.setView(
+        [props.modelValue.lat, props.modelValue.lng],
+        Math.max(inline.map.getZoom(), 14),
+      )
+    }
+    // The box was under an overlay while it was collapsed; Leaflet has to be
+    // told its size again or it paints half a map.
+    await nextTick()
+    inline?.map.invalidateSize()
   }
 })
 

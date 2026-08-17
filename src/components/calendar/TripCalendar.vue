@@ -11,6 +11,9 @@ const props = defineProps({
   selected: { type: String, default: null },
   rangeStart: { type: String, default: null },
   rangeEnd: { type: String, default: null },
+  /** Words for the two ends of a range; see CalendarMonth. */
+  rangeStartLabel: { type: String, default: '' },
+  rangeEndLabel: { type: String, default: '' },
   showLegend: { type: Boolean, default: true },
 })
 
@@ -171,6 +174,8 @@ onBeforeUnmount(() => {
           :selected="selected"
           :range-start="rangeStart"
           :range-end="rangeEnd"
+          :range-start-label="rangeStartLabel"
+          :range-end-label="rangeEndLabel"
           @select="emit('select', $event)"
         />
       </div>

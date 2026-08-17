@@ -23,6 +23,7 @@ import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
 import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
+import { routeFromMedia } from '@/composables/useTripMedia'
 import { hasOverlay } from '@/services/overlayStack'
 
 const props = defineProps({
@@ -66,6 +67,16 @@ const locatedMedia = computed(() =>
     (item) => Number.isFinite(item?.latitude) && Number.isFinite(item?.longitude),
   ),
 )
+/*
+  The path through the day, in the order the photographs were taken.
+
+  A scatter of pins says where the day happened; the line says how it went — up
+  the hill, along the river, back to the station — which on the scale of one day
+  is most of what a map of it has to say. Same line as the trip map draws across
+  months, and built by the same function.
+*/
+const dayRoute = computed(() => routeFromMedia(locatedMedia.value))
+
 /**
  * How many files this day holds, known from the day list before the day itself
  * has been fetched — which is what lets the placeholder be the right size. Null
@@ -417,7 +428,13 @@ function onNoteSaved() {
             <Transition name="reveal">
               <div v-if="mapShown" class="reveal">
                 <!-- `data-no-swipe`: panning the map must not page to another day. -->
-                <TripMap data-no-swipe :media="locatedMedia" :date="date" height="360px" />
+                <TripMap
+                  data-no-swipe
+                  :media="locatedMedia"
+                  :route="dayRoute"
+                  :date="date"
+                  height="360px"
+                />
               </div>
             </Transition>
           </section>

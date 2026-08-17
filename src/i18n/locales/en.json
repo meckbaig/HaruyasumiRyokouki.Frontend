@@ -70,7 +70,9 @@
     "pointsCount": "{count} point | {count} points",
     "zoomHint": "Ctrl + scroll to zoom",
     "expand": "Expand map",
-    "collapse": "Collapse map"
+    "collapse": "Collapse map",
+    "pickRange": "Pick a first day in the calendar, then a last one — the map keeps only that stretch of the route.",
+    "pickEnd": "Now pick the second day. If it falls before the first, the two ends swap over."
   },
   "media": {
     "video": "Video",

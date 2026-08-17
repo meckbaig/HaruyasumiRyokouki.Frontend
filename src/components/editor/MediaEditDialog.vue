@@ -41,26 +41,16 @@ const tagsStore = useTagsStore()
   The two entry points share one dialog: single edit prefills every field, bulk
   leaves them blank and only writes the ones actually filled in.
 
-  Held rather than derived, because closing is not instant. The page that opened
-  this sets its `editing` back to null, and the file goes with it — so the panel
-  spent its whole leaving animation empty, collapsing to a bare header and footer
-  before it faded. On a phone, where it is a sheet against the bottom edge, the
-  collapse is the only thing there was time to see and the exit read as nothing
-  happening at all. Keeping the last set on screen lets the sheet leave looking
-  like what it was.
+  Derived, and deliberately not kept in a ref updated by a watcher. Props are
+  patched one at a time in template order, so `open` becomes true a moment before
+  `media` does — and a watcher holding the list therefore ran *after* the one that
+  reads it. The dialog opened, found nothing to edit, and made none of its
+  requests; a second attempt worked only because the stale value from the first
+  was still lying around. A computed has no order to get wrong.
 */
-const held = ref([])
-
-watch(
-  () => [props.media, props.items],
-  () => {
-    const list = props.items?.length ? props.items : props.media ? [props.media] : []
-    if (list.length) held.value = list
-  },
-  { immediate: true },
+const editList = computed(() =>
+  props.items?.length ? props.items : props.media ? [props.media] : [],
 )
-
-const editList = computed(() => held.value)
 const isBulk = computed(() => editList.value.length > 1)
 const single = computed(() => (isBulk.value ? null : editList.value[0]))
 
@@ -202,6 +192,10 @@ async function loadNeighborPoints() {
     neighborPoints.value = items
       .filter((item) => item.id !== single.value?.id)
       .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+      // Sorted, because the picker joins them into the path that was walked —
+      // and a path drawn in the order a server happened to return rows is a
+      // scribble rather than a route.
+      .sort((a, b) => String(a.created ?? '').localeCompare(String(b.created ?? '')))
       .map((item) => ({ lat: item.latitude, lng: item.longitude }))
   } catch {
     // No reference points is fine; the picker still works.

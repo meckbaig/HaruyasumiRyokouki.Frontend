@@ -184,15 +184,44 @@ function renderMarkers() {
     }).addTo(routeLayer.value)
   }
 
+  fitToContent()
+}
+
+/*
+  Framing the points.
+
+  Kept apart from drawing them because it has to be done again: a map built
+  inside a box that has not been laid out yet — an overlay opening, a section
+  unfolding, a tab appearing — computes its zoom against a container of no size
+  and keeps that zoom for good. `invalidateSize` tells Leaflet the box changed
+  and does nothing about the framing, which is why the map sometimes sat at the
+  wrong scale over the right centre.
+
+  Only until the reader takes the wheel, though. After that the view is theirs,
+  and re-framing it because a sidebar opened would be taking it back.
+*/
+let userMoved = false
+let fitting = false
+
+function fitToContent() {
+  if (!map.value) return
+
+  const located = locatedMedia()
   const bounds = L.latLngBounds([
     ...located.map((item) => [item.latitude, item.longitude]),
     ...props.route,
   ])
+
+  fitting = true
   if (bounds.isValid()) {
-    map.value.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+    // `animate: false` keeps the move synchronous, so the flag above is still
+    // set when Leaflet announces it and the move is not mistaken for the
+    // reader's own.
+    map.value.fitBounds(bounds, { padding: [40, 40], maxZoom: 14, animate: false })
   } else {
-    map.value.setView(FALLBACK_CENTER, FALLBACK_ZOOM)
+    map.value.setView(FALLBACK_CENTER, FALLBACK_ZOOM, { animate: false })
   }
+  fitting = false
 }
 
 let resizeObserver = null
@@ -214,15 +243,35 @@ onMounted(() => {
   )
   instance.addLayer(clusterLayer.value)
 
+  instance.on('movestart zoomstart', () => {
+    if (!fitting) userMoved = true
+  })
+
   renderMarkers()
 
   // The map is often laid out inside a container that resizes after mount
-  // (sidebar, tab switch); without this it renders as a grey box.
-  resizeObserver = new ResizeObserver(() => instance.invalidateSize())
+  // (sidebar, tab switch); without this it renders as a grey box — and without
+  // the refit, one at the wrong scale.
+  resizeObserver = new ResizeObserver(() => {
+    // `pan: false`: Leaflet keeps the centre put by panning, and a pan is a move
+    // — which the listener above would have taken for the reader's own, so the
+    // map would never be re-framed after the very first resize.
+    instance.invalidateSize({ pan: false })
+    if (!userMoved) fitToContent()
+  })
   resizeObserver.observe(container.value)
 })
 
-watch(() => [props.media, props.route], renderMarkers, { deep: false })
+watch(
+  () => [props.media, props.route],
+  () => {
+    // New content is a new question, so it gets a fresh answer even if the
+    // reader had moved the map away from the old one.
+    userMoved = false
+    renderMarkers()
+  },
+  { deep: false },
+)
 
 onBeforeUnmount(() => {
   clearTimeout(hintTimer)

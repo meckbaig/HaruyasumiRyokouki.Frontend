@@ -140,13 +140,20 @@ watch(() => ui.locale, refresh)
     <EmptyState v-if="!loading && media.length === 0" :message="t('map.noPoints')" class="mb-8" />
 
     <section>
-      <h2 class="mb-6 text-center text-sm font-semibold text-ink-soft">
+      <h2 class="mb-2 text-center text-sm font-semibold text-ink-soft">
         {{ t('calendar.title') }}
       </h2>
+      <!-- The calendar looks like the one on a day page and does something else
+           entirely, so it says which. -->
+      <p class="mx-auto mb-6 max-w-md text-center text-xs text-ink-faint">
+        {{ from && !to ? t('map.pickEnd') : t('map.pickRange') }}
+      </p>
       <TripCalendar
         :days="days.list"
         :range-start="from || null"
         :range-end="to || null"
+        :range-start-label="t('map.rangeFrom')"
+        :range-end-label="t('map.rangeTo')"
         @select="pickDate"
       />
     </section>

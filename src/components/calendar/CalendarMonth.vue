@@ -11,6 +11,16 @@ const props = defineProps({
   selected: { type: String, default: null },
   rangeStart: { type: String, default: null },
   rangeEnd: { type: String, default: null },
+  /**
+   * Words for the two ends of the range, shown as tabs above the picked days.
+   *
+   * Blank on the day page, where the calendar picks one date and there is no
+   * range to name. On the trip map there is, and without them a calendar that
+   * answers the first click with one dark square says nothing at all about what
+   * the second click is for.
+   */
+  rangeStartLabel: { type: String, default: '' },
+  rangeEndLabel: { type: String, default: '' },
 })
 
 const emit = defineEmits(['select'])
@@ -23,6 +33,13 @@ const title = computed(() => formatMonthTitle(props.month, ui.locale))
 
 function dayOf(iso) {
   return props.index.get?.(iso) ?? props.index[iso] ?? null
+}
+
+function edgeLabel(iso) {
+  if (iso === props.rangeStart && iso === props.rangeEnd) return ''
+  if (iso === props.rangeStart) return props.rangeStartLabel
+  if (iso === props.rangeEnd) return props.rangeEndLabel
+  return ''
 }
 
 function inRange(iso) {
@@ -66,12 +83,21 @@ function cellClass(cell) {
         <button
           v-if="dayOf(cell.iso) && cell.inMonth"
           type="button"
-          class="aspect-square rounded text-xs transition"
+          class="relative aspect-square rounded text-xs transition"
           :class="cellClass(cell)"
           :aria-current="props.selected === cell.iso ? 'date' : undefined"
           @click="emit('select', cell.iso)"
         >
           {{ cell.date.getDate() }}
+          <!-- Above the square rather than inside it: a cell is barely wider
+               than the number in it, and a word squeezed in beside that number
+               is a word nobody reads. -->
+          <span
+            v-if="cell.inMonth && edgeLabel(cell.iso)"
+            class="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-paper shadow-sm"
+          >
+            {{ edgeLabel(cell.iso) }}
+          </span>
         </button>
         <span
           v-else
