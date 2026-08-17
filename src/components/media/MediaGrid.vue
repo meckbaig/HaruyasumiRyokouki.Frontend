@@ -14,6 +14,8 @@ const props = defineProps({
   highlightedId: { type: Number, default: null },
   /** Stamps each tile with the day its file was taken; see MediaTile. */
   showDate: { type: Boolean, default: false },
+  /** Keeps the pencil and the star on show without a cursor; see MediaTile. */
+  touchControls: { type: Boolean, default: false },
   /**
    * Lets the tiles arrive one after another instead of all at once. For a page
    * that is nothing but a grid; where the grid is one section among many, the
@@ -147,6 +149,7 @@ onBeforeUnmount(() => {
         :variant="variant"
         :editable="editable"
         :show-date="showDate"
+        :touch-controls="touchControls"
         :highlighted="highlightedId != null && media.id === highlightedId"
         @open="emit('open', $event)"
         @edit="emit('edit', $event)"

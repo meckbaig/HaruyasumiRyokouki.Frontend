@@ -27,6 +27,15 @@ const props = defineProps({
    * by — everywhere else the day is the page they are already on.
    */
   showDate: { type: Boolean, default: false },
+  /**
+   * Whether the pencil and the star are on show where there is no cursor.
+   *
+   * On the queue of unfiled media they must be: the whole page is work, and on a
+   * phone an invisible control is one only its author can find. On a day or a
+   * set of results they must not — those walls are photographs first, and a
+   * pencil stamped onto every one of them turns reading into administration.
+   */
+  touchControls: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['open', 'edit', 'context'])
@@ -36,6 +45,10 @@ const editor = useEditorStore()
 const ui = useUiStore()
 
 const root = ref(null)
+/** See `touchControls`: the same class, quietened where nothing hovers. */
+const reveal = computed(() =>
+  props.touchControls ? 'hover-reveal' : 'hover-reveal hover-reveal-quiet',
+)
 const video = computed(() => isVideo(props.media))
 const hidden = computed(() => isPrivate(props.media))
 const takenOn = computed(() =>
@@ -351,7 +364,7 @@ function activate() {
       v-if="editable && !editor.selectionMode"
       type="button"
       class="absolute left-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 shadow-sm transition"
-      :class="favorite ? 'text-star opacity-100' : 'text-ink hover-reveal'"
+      :class="favorite ? 'text-star opacity-100' : `text-ink ${reveal}`"
       :aria-busy="marking"
       :aria-pressed="favorite"
       :aria-label="favorite ? t('media.unfavorite') : t('media.favorite')"
@@ -376,7 +389,8 @@ function activate() {
     <button
       v-if="editable && !editor.selectionMode"
       type="button"
-      class="hover-reveal absolute right-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 text-ink shadow-sm transition"
+      class="absolute right-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 text-ink shadow-sm transition"
+      :class="reveal"
       :aria-label="t('common.edit')"
       @click.stop="emit('edit', props.media)"
     >

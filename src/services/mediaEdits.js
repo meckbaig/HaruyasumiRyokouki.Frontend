@@ -54,3 +54,28 @@ export function applySavedMedia(target, saved, locale) {
 
   return target
 }
+
+/**
+ * Writes a tag onto a file the page is already showing.
+ *
+ * `POST /tags/{id}/media` answers with a count and nothing else — it has no
+ * reason to send back every file it touched — so the tag exists on the server
+ * and nowhere on screen until something says otherwise. This is that something:
+ * the media objects handed to a bulk operation are the very ones in the grid
+ * behind it, so putting the tag on them is what makes it appear.
+ *
+ * @param {object} media a `MediaFileDto` or `MediaFileEditDto`
+ * @param {object} tag the full `TagDto` from the dictionary
+ * @param {string} locale the language the page is being read in
+ */
+export function addTagLocally(media, tag, locale) {
+  if (!media || !tag?.slug) return media
+
+  const rows = Array.isArray(media.tags) ? media.tags : []
+  if (rows.some((row) => row?.slug === tag.slug)) return media
+
+  // Replaced rather than pushed into: a bare `push` on a plain array reaches no
+  // watcher that is only tracking the property.
+  media.tags = [...rows, { slug: tag.slug, value: tagLabel(tag, locale) }]
+  return media
+}

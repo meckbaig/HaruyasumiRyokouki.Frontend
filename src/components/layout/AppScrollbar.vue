@@ -1,5 +1,15 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+
+const props = defineProps({
+  /**
+   * The box whose scrolling this describes. Null is the page itself, which is
+   * what it was built for; an element is a scroller inside the page — a dialog
+   * tall enough to need one, where the browser's own bar cuts a straight grey
+   * lane through a panel with rounded corners.
+   */
+  target: { type: [Object, null], default: null },
+})
 
 /*
   The page's scrollbar, drawn over the page rather than beside it.
@@ -22,26 +32,53 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 const MIN_THUMB = 36
 /** Below this there is nothing worth showing a bar for. */
 const MIN_RANGE = 8
+const SCROLLBAR_INSET = 8
 
 const visible = ref(false)
 const active = ref(false)
 const top = ref(0)
 const height = ref(0)
+const scrollbar = ref(null)
 
 /** Scrollable distance, and the travel the thumb has to represent it. */
 function metrics() {
-  const view = window.innerHeight
-  const total = document.documentElement.scrollHeight
+  const box = props.target
+  const view = box ? box.clientHeight : window.innerHeight
+  const total = box ? box.scrollHeight : document.documentElement.scrollHeight
   return { view, range: total - view, total }
+}
+
+function scrollOffset() {
+  return props.target ? props.target.scrollTop : window.scrollY
+}
+
+function scrollTo(top) {
+  // The page scrolls smoothly by default; under a hand it must not lag behind.
+  if (props.target) props.target.scrollTop = top
+  else window.scrollTo({ top, behavior: 'instant' })
 }
 
 function measure() {
   const { view, range, total } = metrics()
   visible.value = range > MIN_RANGE
+
   if (!visible.value) return
 
-  height.value = Math.max(MIN_THUMB, (view / total) * view)
-  top.value = (window.scrollY / range) * (view - height.value)
+  const track = scrollbar.value?.getBoundingClientRect()
+
+  if (!track) return
+
+  const trackHeight = track.height
+
+  height.value = Math.min(
+    trackHeight,
+    Math.max(MIN_THUMB, (view / total) * trackHeight)
+  )
+
+  const travel = Math.max(0, trackHeight - height.value)
+
+  top.value =
+    (scrollOffset() / range) * travel
 }
 
 /*
@@ -63,16 +100,24 @@ function onPointerDown(event) {
 
 function onPointerMove(event) {
   if (!grab) return
-  const { view, range } = metrics()
-  const travel = view - height.value
+
+  const { range } = metrics()
+
+  const track = scrollbar.value?.getBoundingClientRect()
+  if (!track) return
+
+  const travel = Math.max(0, track.height - height.value)
+
   if (travel <= 0) return
 
   const next = grab.top + (event.clientY - grab.y)
-  window.scrollTo({
-    top: (Math.min(travel, Math.max(0, next)) / travel) * range,
-    // The page scrolls smoothly by default; under a hand it must not lag behind.
-    behavior: 'instant',
-  })
+
+  const clamped = Math.min(
+    travel,
+    Math.max(0, next)
+  )
+
+  scrollTo((clamped / travel) * range)
 }
 
 function onPointerUp() {
@@ -81,26 +126,49 @@ function onPointerUp() {
 }
 
 let observer = null
+let watched = null
 
-onMounted(() => {
-  measure()
-  window.addEventListener('scroll', measure, { passive: true })
-  window.addEventListener('resize', measure)
-
-  // The page grows and shrinks on its own — pictures arriving, a day loading,
-  // a section opening — and none of that is a scroll or a resize.
-  if (typeof ResizeObserver !== 'undefined') {
-    observer = new ResizeObserver(measure)
-    observer.observe(document.documentElement)
-    observer.observe(document.body)
-  }
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('scroll', measure)
+function detach() {
+  watched?.removeEventListener('scroll', measure)
+  watched = null
   window.removeEventListener('resize', measure)
   observer?.disconnect()
-})
+  observer = null
+}
+
+/**
+ * A target handed down as a template ref arrives after this has mounted, and
+ * changes again whenever the box it describes is torn down and rebuilt — so the
+ * listeners follow it rather than being attached once and hoping.
+ */
+function attach() {
+  detach()
+  const box = props.target
+  watched = box ?? window
+  watched.addEventListener('scroll', measure, { passive: true })
+  window.addEventListener('resize', measure)
+
+  // A page and a panel both grow and shrink on their own — pictures arriving, a
+  // day loading, a section opening — and none of that is a scroll or a resize.
+  if (typeof ResizeObserver !== 'undefined') {
+    observer = new ResizeObserver(measure)
+    if (box) {
+      observer.observe(box)
+      // The content, not only the frame: the frame's height is capped and stops
+      // changing long before the thing inside it does.
+      for (const child of box.children) observer.observe(child)
+    } else {
+      observer.observe(document.documentElement)
+      observer.observe(document.body)
+    }
+  }
+
+  measure()
+}
+
+onMounted(attach)
+watch(() => props.target, attach)
+onBeforeUnmount(detach)
 </script>
 
 <template>
@@ -108,7 +176,13 @@ onBeforeUnmount(() => {
     The track takes no pointer events, so the strip along the right edge does not
     swallow clicks meant for the page; only the thumb answers a hand.
   -->
-  <div v-if="visible" class="app-scrollbar" aria-hidden="true">
+  <div
+    v-if="visible"
+    ref="scrollbar"
+    class="app-scrollbar"
+    :class="target ? 'app-scrollbar-inset' : ''"
+    aria-hidden="true"
+  >
     <div
       class="app-scrollbar-thumb"
       :class="active ? 'app-scrollbar-thumb-active' : ''"

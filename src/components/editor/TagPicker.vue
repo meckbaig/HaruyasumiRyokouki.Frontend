@@ -17,6 +17,12 @@ const props = defineProps({
    * step, for the sake of one line of behaviour.
    */
   single: { type: Boolean, default: false },
+  /**
+   * Marks the field as where a dialog's focus should land. The dialog does the
+   * focusing — see ModalDialog — because two of them racing for it is how the
+   * caret ends up somewhere neither meant.
+   */
+  autofocus: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -177,6 +183,7 @@ function onBackspace() {
           aria-autocomplete="list"
           :aria-expanded="open"
           :disabled="disabled"
+          :data-autofocus="autofocus ? '' : undefined"
           :placeholder="selected.length ? '' : t('tags.pickPlaceholder')"
           class="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
           @input="open = true"

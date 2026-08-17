@@ -154,12 +154,32 @@
     .hover-reveal {
       opacity: 1;
     }
+
+    /*
+      Except on the walls that are there to be looked at rather than worked on.
+      A day and a set of search results are photographs first, and a pencil and a
+      star stamped onto every one of them turns the wall into a control panel.
+      The taps still land where they always did; what is gone is the chrome.
+    */
+    .hover-reveal-quiet {
+      opacity: 0;
+    }
   }
 
+  /*
+    Buttons keep their label on one line.
+
+    Left to wrap, a two-word label breaks in the middle on a narrow screen and
+    the button grows a second storey — beside a one-word neighbour that did not,
+    which is what made a row of them look broken rather than merely cramped. A
+    row that will not fit should wrap between its buttons, not inside them, and
+    every row here is already `flex-wrap`.
+  */
   .btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    white-space: nowrap;
     gap: 0.5rem;
     border-radius: 0.375rem;
     background-color: var(--color-ink);
@@ -182,6 +202,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    white-space: nowrap;
     gap: 0.5rem;
     border-radius: 0.375rem;
     border: 1px solid var(--color-edge);
@@ -249,6 +270,18 @@
     .app-scrollbar {
       display: none;
     }
+  }
+
+  /*
+    The same bar inside a scrolling box — a dialog tall enough to scroll. It is
+    positioned against the frame around the scroller rather than the scroller
+    itself, or it would scroll away with the content it describes.
+  */
+  .app-scrollbar-inset {
+    position: absolute;
+    z-index: 10;
+    top: 0;
+    bottom: 0;
   }
 
   .app-scrollbar-thumb {
@@ -364,6 +397,30 @@
     background-color: var(--lb-bar);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
+  }
+
+  /*
+    Room for whatever the phone keeps for itself.
+
+    The viewer is the one screen drawn edge to edge, so it is the one screen
+    where the home indicator sits *on* something — the row of tags along the
+    bottom, which is exactly what people said was covered. `max()` keeps the
+    padding the bars already had wherever there is no inset to respect, and the
+    sides are in here too: landscape on a notched phone is where a viewer is most
+    used and where the notch eats into the width instead of the height.
+  */
+  .lightbox-bar-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  .lightbox-bar-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .lightbox-bar-top,
+  .lightbox-bar-bottom {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
   }
 
   .lightbox-icon {
@@ -799,10 +856,26 @@
   }
 }
 
+/*
+  A sheet leaves by the edge it came from, and a centred panel barely moves at
+  all — so how far it travels is the one thing that differs between the two.
+  Eight pixels of drift is right under a panel floating in the middle of a
+  window; against the bottom of a phone it reads as nothing happening.
+*/
+.modal-panel {
+  --modal-exit: 8px;
+}
+
+@media (max-width: 639px) {
+  .modal-panel {
+    --modal-exit: 32px;
+  }
+}
+
 @keyframes modal-panel-out {
   to {
     opacity: 0;
-    transform: translateY(8px) scale(0.99);
+    transform: translateY(var(--modal-exit, 8px)) scale(0.99);
   }
 }
 

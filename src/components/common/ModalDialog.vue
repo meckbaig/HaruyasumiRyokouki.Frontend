@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppScrollbar from '@/components/layout/AppScrollbar.vue'
 import { pushOverlay, popOverlay, isTopmost, hasOverlay } from '@/services/overlayStack'
 
 const props = defineProps({
@@ -83,7 +84,12 @@ watch(
       document.addEventListener('keydown', onKeydown)
       document.body.style.overflow = 'hidden'
       await nextTick()
-      panel.value?.querySelector(FOCUSABLE)?.focus()
+      // A dialog whose whole purpose is one field says so with `data-autofocus`
+      // and gets the caret there; everything else starts at the top, which for
+      // this panel is the close button.
+      const first =
+        panel.value?.querySelector('[data-autofocus]') ?? panel.value?.querySelector(FOCUSABLE)
+      first?.focus()
     } else {
       popOverlay(token)
       document.removeEventListener('keydown', onKeydown)
@@ -116,44 +122,54 @@ onBeforeUnmount(() => {
         @pointerdown="onBackdropDown"
         @pointerup="onBackdropUp"
       >
-        <div
-          ref="panel"
-          class="modal-panel max-h-[90vh] w-full overflow-y-auto rounded-t-xl bg-paper-raised shadow-xl sm:max-w-lg sm:rounded-xl"
-          role="dialog"
-          aria-modal="true"
-          :aria-label="title"
-        >
+        <!--
+          A frame around the scroller rather than one box doing both jobs. The
+          overlay scrollbar has to be positioned against something that does not
+          scroll, and the browser's own bar — the reason for drawing one at all —
+          cuts a straight grey lane down a panel whose corners are rounded.
+        -->
+        <div class="modal-panel relative w-full sm:max-w-lg">
           <div
-            class="sticky top-0 flex items-center justify-between gap-4 border-b border-edge bg-paper-raised px-5 py-3"
+            ref="panel"
+            class="no-scrollbar max-h-[90vh] w-full overflow-y-auto rounded-t-xl bg-paper-raised shadow-xl sm:rounded-xl"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="title"
           >
-            <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
-            <button
-              type="button"
-              class="rounded p-1 text-ink-faint transition hover:text-ink"
-              :aria-label="t('common.close')"
-              @click="emit('close')"
+            <div
+              class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-edge bg-paper-raised px-5 py-3"
             >
-              <svg
-                class="h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                aria-hidden="true"
+              <h2 class="text-sm font-semibold text-ink">{{ title }}</h2>
+              <button
+                type="button"
+                class="rounded p-1 text-ink-faint transition hover:text-ink"
+                :aria-label="t('common.close')"
+                @click="emit('close')"
               >
-                <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
-              </svg>
-            </button>
+                <svg
+                  class="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="px-5 py-4"><slot /></div>
+
+            <div
+              v-if="$slots.footer"
+              class="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-edge bg-paper-raised px-5 py-3"
+            >
+              <slot name="footer" />
+            </div>
           </div>
 
-          <div class="px-5 py-4"><slot /></div>
-
-          <div
-            v-if="$slots.footer"
-            class="sticky bottom-0 flex justify-end gap-2 border-t border-edge bg-paper-raised px-5 py-3"
-          >
-            <slot name="footer" />
-          </div>
+          <AppScrollbar class="my-1.5 me-0.5" :target="panel" />
         </div>
       </div>
     </Transition>

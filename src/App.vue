@@ -65,7 +65,7 @@ watch(locale, () => updateHead(route))
     <AppFooter />
   </div>
 
-  <AppScrollbar />
+  <AppScrollbar class="my-1" />
   <SelectionToolbar />
   <ToastHost />
 </template>

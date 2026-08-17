@@ -37,9 +37,30 @@ const { t } = useI18n()
 const ui = useUiStore()
 const tagsStore = useTagsStore()
 
-// The two entry points share one dialog: single edit prefills every field, bulk
-// leaves them blank and only writes the ones actually filled in.
-const editList = computed(() => (props.items?.length ? props.items : props.media ? [props.media] : []))
+/*
+  The two entry points share one dialog: single edit prefills every field, bulk
+  leaves them blank and only writes the ones actually filled in.
+
+  Held rather than derived, because closing is not instant. The page that opened
+  this sets its `editing` back to null, and the file goes with it — so the panel
+  spent its whole leaving animation empty, collapsing to a bare header and footer
+  before it faded. On a phone, where it is a sheet against the bottom edge, the
+  collapse is the only thing there was time to see and the exit read as nothing
+  happening at all. Keeping the last set on screen lets the sheet leave looking
+  like what it was.
+*/
+const held = ref([])
+
+watch(
+  () => [props.media, props.items],
+  () => {
+    const list = props.items?.length ? props.items : props.media ? [props.media] : []
+    if (list.length) held.value = list
+  },
+  { immediate: true },
+)
+
+const editList = computed(() => held.value)
 const isBulk = computed(() => editList.value.length > 1)
 const single = computed(() => (isBulk.value ? null : editList.value[0]))
 

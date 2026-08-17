@@ -13,6 +13,7 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import MediaEditDialog from '@/components/editor/MediaEditDialog.vue'
 import DayEditForm from '@/components/editor/DayEditForm.vue'
+import { deleteMedia } from '@/api/media'
 import { useDaysStore } from '@/stores/days'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -222,6 +223,28 @@ function onMediaSaved({ applied } = {}) {
   if (!applied) load(true)
 }
 
+/**
+ * Deleting is offered wherever a file can be edited, not only in the queue.
+ *
+ * The mistakes worth removing — a blurred frame, a duplicate of the one beside
+ * it — are the ones seen while reading the day, and sending someone back to the
+ * pending screen to act on what they are looking at is asking them to find it
+ * twice. The confirmation and the request belong to the page rather than to the
+ * dialog, because what to do with the hole left behind differs by page.
+ */
+async function removeMedia(media) {
+  if (!window.confirm(t('admin.deleteConfirm', { name: media.fileName }))) return
+
+  try {
+    await deleteMedia(media.id)
+    ui.notify(t('admin.deleted'), 'success')
+    editing.value = null
+    load(true)
+  } catch (caught) {
+    ui.notify(caught?.detail || caught?.title || t('errors.generic'), 'error')
+  }
+}
+
 function onNoteSaved() {
   editingNote.value = false
   load(true)
@@ -423,8 +446,10 @@ function onNoteSaved() {
       :open="Boolean(editing)"
       :media="editing"
       :date="date"
+      deletable
       @close="editing = null"
       @saved="onMediaSaved"
+      @delete="removeMedia"
     />
   </div>
 </template>

@@ -72,7 +72,7 @@ async function shareSite() {
           </p>
           <button
             type="button"
-            class="text-xs mt-0.5 text-ink-faint underline decoration-edge underline-offset-4 transition hover:text-ink hover:decoration-ink-faint"
+            class="text-xs mt-0.5 ms-2 text-ink-faint underline decoration-edge underline-offset-4 transition hover:text-ink hover:decoration-ink-faint"
             @click="shareSite"
           >
             {{ t('common.share') }}

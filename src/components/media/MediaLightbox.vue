@@ -911,13 +911,26 @@ function tileBox(item, { offscreen = false } = {}) {
   return offscreen ? hidden : null
 }
 
-/** Where a closing picture goes: back where it came from, if that still exists. */
+/**
+ * Where a closing picture goes.
+ *
+ * Back into the tile it came out of, wherever that has got to — a page scrolled
+ * since is still a page the reader knows they scrolled, and watching the picture
+ * go the way it came reads correctly even when it leaves the window doing it.
+ *
+ * Anywhere else, it has to be somewhere visible or it is nowhere. A viewer
+ * opened straight from a link never came out of a tile at all, and the tile it
+ * would find by searching is one the reader has never seen: the picture slid off
+ * to an edge for no reason, and because a flight suppresses the room's fade,
+ * what was left was the whole thing vanishing in a single frame. No destination
+ * is the better answer there — it leaves the plain fade to do its job.
+ */
 function tileBoxBack(item) {
   if (originTile?.id === item?.id && originTile.el.isConnected) {
     const box = boxOf(originTile.el)
     if (box) return box
   }
-  return tileBox(item, { offscreen: true })
+  return tileBox(item, { offscreen: false })
 }
 
 /**
@@ -2039,7 +2052,7 @@ onBeforeUnmount(() => {
         <div class="pointer-events-none absolute inset-0 flex flex-col overflow-hidden">
           <div
             ref="header"
-            class="lightbox-bar flex items-start justify-between gap-4 overflow-hidden px-3 py-2 transition-transform duration-200"
+            class="lightbox-bar lightbox-bar-top flex items-start justify-between gap-4 overflow-hidden px-3 py-2 transition-transform duration-200"
             :class="uiVisible ? 'pointer-events-auto' : '-translate-y-full'"
           >
             <div class="min-w-0 pt-1">
@@ -2187,7 +2200,7 @@ onBeforeUnmount(() => {
 
           <div
             ref="footer"
-            class="lightbox-bar relative flex items-center justify-between gap-3 px-3 py-2 transition-transform duration-200"
+            class="lightbox-bar lightbox-bar-bottom relative flex items-center justify-between gap-3 px-3 py-2 transition-transform duration-200"
             :class="uiVisible ? 'pointer-events-auto' : 'translate-y-full'"
           >
             <!--

@@ -11,6 +11,7 @@ import ShareButton from '@/components/common/ShareButton.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { deleteMedia } from '@/api/media'
 import { useSearchStore } from '@/stores/search'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -155,6 +156,21 @@ function onMediaSaved({ applied } = {}) {
     run()
   }
 }
+
+/** A deleted file has to leave the cache as well: it is in every query it matched. */
+async function removeMedia(media) {
+  if (!window.confirm(t('admin.deleteConfirm', { name: media.fileName }))) return
+
+  try {
+    await deleteMedia(media.id)
+    ui.notify(t('admin.deleted'), 'success')
+    editing.value = null
+    search.invalidate()
+    run()
+  } catch (caught) {
+    ui.notify(caught?.detail || caught?.title || t('errors.generic'), 'error')
+  }
+}
 </script>
 
 <template>
@@ -248,8 +264,10 @@ function onMediaSaved({ applied } = {}) {
     <MediaEditDialog
       :open="Boolean(editing)"
       :media="editing"
+      deletable
       @close="editing = null"
       @saved="onMediaSaved"
+      @delete="removeMedia"
     />
   </div>
 </template>

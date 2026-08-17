@@ -9,6 +9,7 @@ import { useTagsStore } from '@/stores/tags'
 import { useUiStore } from '@/stores/ui'
 import { tagLabel, tagSlugsOf } from '@/services/tags'
 import { scorePercent, scoreBadgeClass } from '@/services/similarity'
+import { addTagLocally } from '@/services/mediaEdits'
 import { cascadeDelay } from '@/services/cascade'
 import { markOpenedFrom } from '@/services/openedFrom'
 import { useTilePaint } from '@/composables/useTilePaint'
@@ -222,6 +223,12 @@ async function apply() {
       const tag = tags.getBySlug(slug)
       if (!tag?.id) continue
       await addTagToMedia(tag.id, mediaIds)
+      // Written onto the neighbours on screen, which is also what takes them out
+      // of the wall: the list shows what the chosen tags would still change.
+      const marked = new Set(mediaIds)
+      for (const entry of items.value) {
+        if (marked.has(entry.media.id)) addTagLocally(entry.media, tag, ui.locale)
+      }
       // The dictionary's usage counts drive the order of every tag list on the
       // site, so they are kept true here rather than waiting for a refetch.
       tags.upsert({ ...tag, usageCount: (tag.usageCount ?? 0) + mediaIds.length })

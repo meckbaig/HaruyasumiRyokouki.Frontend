@@ -166,6 +166,7 @@ function dayTitle(day) {
           :items="pending.media"
           editable
           show-date
+          touch-controls
           cascade
           :auto-reveal="false"
           @open="lightboxIndex = pending.media.indexOf($event)"

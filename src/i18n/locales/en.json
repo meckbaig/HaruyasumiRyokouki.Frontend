@@ -271,5 +271,12 @@
     "chosen": "{count} chosen",
     "apply": "Apply the tag",
     "applied": "Tag applied to {count} photo | Tag applied to {count} photos"
+  },
+  "bulkTag": {
+    "action": "Add tags",
+    "title": "Add tags to {count} files",
+    "hint": "The tags are added to the selected files; whatever else they carry stays. To replace the set outright, edit the selection instead.",
+    "apply": "Add",
+    "applied": "Tags added to {count} file | Tags added to {count} files"
   }
 }
