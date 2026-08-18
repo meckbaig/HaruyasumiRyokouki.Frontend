@@ -24,6 +24,14 @@ const props = defineProps({
    * nothing to compare against.
    */
   points: { type: Array, default: () => [] },
+  /**
+   * Points the files *being edited* already carry, drawn in the live colour.
+   *
+   * For a selection, where there is no one pin to drag: the question there is
+   * "where are these already", and answering it with the same muted pins as the
+   * reference points would put the answer and the background in one voice.
+   */
+  ownPoints: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -117,6 +125,13 @@ function renderNeighborsOn(picker) {
       picker.neighborLayer,
     )
   }
+
+  // Last, and in the accent: these are the files in hand, not the scenery.
+  for (const point of props.ownPoints.filter(valid)) {
+    L.marker([point.lat, point.lng], { icon: pinIcon, interactive: false }).addTo(
+      picker.neighborLayer,
+    )
+  }
 }
 
 /*
@@ -144,6 +159,10 @@ function bestView() {
   if (valid(props.modelValue)) {
     return { center: [props.modelValue.lat, props.modelValue.lng], zoom: 15 }
   }
+
+  // A selection's own points are the subject of the map, so they frame it.
+  const own = props.ownPoints.filter(valid)
+  if (own.length) return { bounds: own.map((point) => [point.lat, point.lng]) }
 
   const points = props.points.filter(valid)
   if (!points.length) return null
@@ -233,7 +252,7 @@ watch(
 )
 
 watch(
-  () => props.points,
+  () => [props.points, props.ownPoints],
   () => {
     pickers.forEach(renderNeighborsOn)
     // They arrive after the map is built — the request for them goes out with

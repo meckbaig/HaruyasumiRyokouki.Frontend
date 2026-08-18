@@ -171,17 +171,18 @@
     "neighborPoints": "Grey pins are files already placed on this day and the ones either side, to go by",
     "dayThumbs": "Photos of this day",
     "favorite": "Featured — show on the front page",
-    "favoriteBulkHint": "Ticking this marks every selected file. Taking a mark off is done with the star on the file itself.",
+    "favoriteBulkHint": "The mark applies to every selected file — both when it is set and when it is taken off.",
     "hidden": "Hide — keep out of public view",
     "hiddenHint": "The file stays visible to you, but not in the day, the search, or behind a link.",
-    "hiddenBulkHint": "Ticking this hides every selected file. Letting one back out is done one file at a time.",
+    "hiddenBulkHint": "The mark applies to every selected file — both when it is set and when it is taken off.",
     "translateAction": "Translate",
     "autoTranslateBulkWarning": "Translating sends the text of every filled language to all selected files, changed or not.",
     "draftRestored": "An unsaved draft has been restored.",
     "draftDiscard": "Put the saved text back",
     "minimised": "Folded away: {name}",
     "resume": "Resume",
-    "discard": "Discard"
+    "discard": "Discard",
+    "mixedHint": "A dash means the selected files disagree. Pressing it settles the mark for all of them; a mark left alone is not sent."
   },
   "footer": {
     "about": "About",

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import LanguageTabs from './LanguageTabs.vue'
 import TagPicker from './TagPicker.vue'
+import TriStateCheck from './TriStateCheck.vue'
 import SimilarMediaPanel from './SimilarMediaPanel.vue'
 // Lazy so Leaflet is not pulled into the main bundle — this dialog is mounted
 // app-wide via the selection toolbar, and the map only loads when it opens.
@@ -112,17 +113,48 @@ const coordsTouched = ref(false)
 const tagSlugs = ref([])
 const tagsTouched = ref(false)
 const approved = ref(false)
-/*
-  Whether the box was pressed, rather than merely shown.
-
-  Sending its value regardless would make every save an answer to a question
-  nobody asked — a typo fixed on a file left unapproved on purpose would approve
-  it, and the same save on an approved one would be a needless write. So approval
-  goes the way every other field goes: untouched is not sent.
-*/
-const approvedTouched = ref(false)
 const favorite = ref(false)
 const hidden = ref(false)
+
+/*
+  The three marks, and whether each box was pressed rather than merely shown.
+
+  All three show what the files actually carry, which is what makes them worth
+  reading — and exactly why their values must not be posted on their own account.
+  Sending them regardless would make every save an answer to a question nobody
+  asked: a typo fixed on a file left unapproved on purpose would approve it, and
+  a coordinate set on a selection would re-state marks nobody touched.
+
+  So they go the way every other field goes: untouched is not sent, and pressing
+  one settles it for the whole selection.
+*/
+const approvedTouched = ref(false)
+const favoriteTouched = ref(false)
+const hiddenTouched = ref(false)
+
+/**
+ * How a selection answers a yes-or-no question: `true`, `false`, or neither.
+ *
+ * `null` is the third state, and it is not a value — it is the absence of an
+ * agreement. Drawing it as "no" would be a claim about files that say yes.
+ */
+function markState(reader) {
+  const list = editList.value
+  if (!list.length) return false
+  const first = reader(list[0])
+  return list.every((media) => reader(media) === first) ? first : null
+}
+
+const approvedState = computed(() => markState((media) => media?.isApproved === true))
+const favoriteState = computed(() => markState((media) => media?.favorite === true))
+const hiddenState = computed(() => markState((media) => isPrivate(media)))
+
+// Shown as the third state until the box is pressed; after that it is a value
+// like any other, and a dash would describe a disagreement already settled.
+const approvedMixed = computed(() => !approvedTouched.value && approvedState.value === null)
+const favoriteMixed = computed(() => !favoriteTouched.value && favoriteState.value === null)
+const hiddenMixed = computed(() => !hiddenTouched.value && hiddenState.value === null)
+const anyMixed = computed(() => approvedMixed.value || favoriteMixed.value || hiddenMixed.value)
 const autoTranslate = ref(false)
 const saving = ref(false)
 const error = ref(null)
@@ -156,6 +188,18 @@ function discardCard() {
 
 const active = computed(() => form[activeLang.value] ?? { title: '', description: '' })
 const thumbs = computed(() => editList.value)
+
+/**
+ * Where the files being edited already sit. Only for a selection: one file has a
+ * pin of its own on the map, and drawing it twice would say two things.
+ */
+const ownPoints = computed(() =>
+  isBulk.value
+    ? editList.value
+        .filter((media) => Number.isFinite(media?.latitude) && Number.isFinite(media?.longitude))
+        .map((media) => ({ lat: media.latitude, lng: media.longitude }))
+    : [],
+)
 const canSave = computed(() => !loading.value && !saving.value && models.value.length > 0)
 
 /** An entity is already a full edit model when it carries a translations array. */
@@ -346,18 +390,19 @@ watch(
     }
 
     /*
-      Single: the marks as the file actually carries them. `isApproved` rides on
-      both models now, so a file opened from a day, from search or from the
-      pending queue all answer the same way — and where the object on the page is
-      a flat one, `loadModels` refreshes this from the edit model it fetches.
+      The marks as the files actually carry them, one file or forty.
 
-      Bulk starts neutral — there an unticked box means "leave these alone"
-      rather than "no".
+      Where a selection disagrees the box shows its third state and holds `false`
+      underneath, so the first press settles everything on ticked and the second
+      on unticked — which is what a browser does with an indeterminate box and
+      what people expect of one.
     */
     approvedTouched.value = false
-    approved.value = !isBulk.value && single.value?.isApproved === true
-    favorite.value = !isBulk.value && single.value?.favorite === true
-    hidden.value = !isBulk.value && isPrivate(single.value)
+    favoriteTouched.value = false
+    hiddenTouched.value = false
+    approved.value = approvedState.value === true
+    favorite.value = favoriteState.value === true
+    hidden.value = hiddenState.value === true
 
     /*
       Tags start from what the selection already carries — for one file that is
@@ -473,16 +518,19 @@ function buildChanges() {
       changes.latitude = coords.value.lat
       changes.longitude = coords.value.lng
     }
-    if (approved.value) changes.isApproved = true
-    // Same rule as approval: a bulk tick marks the whole selection, an untouched
-    // box leaves each file as it was. Taking a mark off is the star's job, one
-    // file at a time — which is also the only place it is ever wanted.
-    if (favorite.value) changes.favorite = true
-    // And the same rule again for hiding, which is the direction that matters:
-    // a batch just pulled off a camera is hidden wholesale, and let back out one
-    // at a time once it has been looked at. An untouched box cannot mean "show
-    // these", or a bulk edit of anything else would quietly publish the lot.
-    if (hidden.value) changes.private = true
+    /*
+      The three marks, on one rule for one file and for forty: a box that was
+      pressed says what the whole selection should be, and one that was not says
+      nothing at all.
+
+      Which is a real gain over the old bulk rule of "a tick means yes and an
+      untick means nothing". With the boxes now showing what the files carry,
+      unticking one is a decision as legible as ticking it — so taking a mark off
+      forty files is finally possible, and it happens only when asked for.
+    */
+    if (approvedTouched.value) changes.isApproved = approved.value
+    if (favoriteTouched.value) changes.favorite = favorite.value
+    if (hiddenTouched.value) changes.private = hidden.value
     /*
       Tags are the one field where a bulk save cannot be additive: the command
       *replaces* the set on every file it touches. Sending the union that was
@@ -498,8 +546,8 @@ function buildChanges() {
     changes.latitude = coords.value?.lat ?? null
     changes.longitude = coords.value?.lng ?? null
     if (approvedTouched.value) changes.isApproved = approved.value
-    changes.favorite = favorite.value
-    changes.private = hidden.value
+    if (favoriteTouched.value) changes.favorite = favorite.value
+    if (hiddenTouched.value) changes.private = hidden.value
     changes.tagIds = resolveTagIds().ids
   }
   return changes
@@ -666,15 +714,15 @@ async function save() {
           <MediaLocationPicker
             :model-value="coords"
             :points="neighborPoints"
+            :own-points="ownPoints"
             @update:model-value="onCoords"
           />
         </div>
 
         <label class="flex items-center gap-2 text-sm text-ink-soft">
-          <input
+          <TriStateCheck
             v-model="approved"
-            type="checkbox"
-            class="rounded border-edge"
+            :mixed="approvedMixed"
             @change="approvedTouched = true"
           />
           {{ t('editor.approved') }}
@@ -682,7 +730,11 @@ async function save() {
 
         <div>
           <label class="flex items-center gap-2 text-sm text-ink-soft">
-            <input v-model="favorite" type="checkbox" class="rounded border-edge" />
+            <TriStateCheck
+              v-model="favorite"
+              :mixed="favoriteMixed"
+              @change="favoriteTouched = true"
+            />
             {{ t('editor.favorite') }}
           </label>
           <p v-if="isBulk" class="field-hint">{{ t('editor.favoriteBulkHint') }}</p>
@@ -690,13 +742,17 @@ async function save() {
 
         <div>
           <label class="flex items-center gap-2 text-sm text-ink-soft">
-            <input v-model="hidden" type="checkbox" class="rounded border-edge" />
+            <TriStateCheck v-model="hidden" :mixed="hiddenMixed" @change="hiddenTouched = true" />
             {{ t('editor.hidden') }}
           </label>
           <p class="field-hint">
             {{ isBulk ? t('editor.hiddenBulkHint') : t('editor.hiddenHint') }}
           </p>
         </div>
+
+        <!-- Said once, under the marks it applies to, and only where a selection
+             can disagree with itself. -->
+        <p v-if="isBulk && anyMixed" class="field-hint">{{ t('editor.mixedHint') }}</p>
 
         <div>
           <label class="flex items-center gap-2 text-sm text-ink-soft">
