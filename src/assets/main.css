@@ -937,6 +937,30 @@
   border: 0;
 }
 
+/*
+  The time stamped over a reference pin in the location picker.
+
+  Leaflet's own tooltip styling is a white box with a drop shadow and a pointing
+  arrow, sized for a sentence. These carry four characters and there are two of
+  them on a map two hundred pixels tall, so they are cut down to a chip and the
+  arrow is dropped — at this size it is more mark than the thing it points at.
+*/
+.leaflet-tooltip.trip-time {
+  padding: 1px 5px;
+  border: 1px solid var(--color-edge);
+  border-radius: 4px;
+  background-color: var(--color-paper-raised);
+  box-shadow: none;
+  color: var(--color-ink-soft);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.leaflet-tooltip.trip-time::before {
+  display: none;
+}
+
 .trip-pin svg {
   display: block;
   filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3));

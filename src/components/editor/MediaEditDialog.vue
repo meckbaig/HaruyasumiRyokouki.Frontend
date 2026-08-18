@@ -322,6 +322,7 @@ async function loadNeighborPoints() {
       .map((item) => ({
         lat: item.latitude,
         lng: item.longitude,
+        created: item.created ?? null,
         before: own ? String(item.created ?? '') <= own : null,
       }))
   } catch {

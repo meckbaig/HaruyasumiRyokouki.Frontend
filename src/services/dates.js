@@ -61,6 +61,24 @@ export function formatShortDate(iso, locale) {
   return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(date)
 }
 
+/**
+ * Day and clock time together: "12 Apr, 14:35".
+ *
+ * Both halves, because the reference points on the location picker are drawn
+ * from a three-day window — a bare time there could belong to any of them, and
+ * "was this before or after lunch on which day" is the question being asked.
+ */
+export function formatShortDateTime(iso, locale) {
+  const at = iso ? new Date(iso) : null
+  if (!at || Number.isNaN(at.getTime())) return ''
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(at)
+}
+
 export function formatWeekday(iso, locale) {
   const date = parseIsoDate(iso)
   if (!date) return ''

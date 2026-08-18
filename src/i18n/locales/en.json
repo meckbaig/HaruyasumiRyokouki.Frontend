@@ -182,7 +182,9 @@
     "minimised": "Folded away: {name}",
     "resume": "Resume",
     "discard": "Discard",
-    "mixedHint": "A dash means the selected files disagree. Pressing it settles the mark for all of them; a mark left alone is not sent."
+    "mixedHint": "A dash means the selected files disagree. Pressing it settles the mark for all of them; a mark left alone is not sent.",
+    "pointBefore": "nearest shot before",
+    "pointAfter": "nearest shot after"
   },
   "footer": {
     "about": "About",

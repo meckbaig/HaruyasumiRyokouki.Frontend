@@ -1,15 +1,21 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, markRaw, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, markRaw, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useUiStore } from '@/stores/ui'
 import L from 'leaflet'
 import {
   createBaseMap,
   pinIcon,
   neighborIcon,
+  beforeIcon,
+  afterIcon,
   PIN_PATH,
   PIN_COLOR,
   NEIGHBOR_COLOR,
+  BEFORE_COLOR,
+  AFTER_COLOR,
 } from '@/services/leaflet'
+import { formatShortDateTime } from '@/services/dates'
 
 const props = defineProps({
   /** Current point, or null when the file has no location yet. */
@@ -37,6 +43,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const { t } = useI18n()
+const ui = useUiStore()
 
 /**
  * Last map position, kept across dialog opens. Filling thousands of photos means
@@ -67,6 +74,43 @@ function flashHint() {
 
 function valid(point) {
   return Number.isFinite(point?.lat) && Number.isFinite(point?.lng)
+}
+
+/*
+  The two points the photograph fell between.
+
+  The list is in the order it was taken, so the nearest before is the last one
+  marked `before` and the nearest after is the first one that is not. Everything
+  else on the map is context; these two are the answer, and until they were told
+  apart a map of grey dots said only "the trip came through here somewhere" —
+  which is no help at all when the file being placed has no pin of its own to
+  read the path against.
+*/
+const anchors = computed(() => {
+  const usable = props.points.filter(valid)
+  const before = usable.filter((point) => point.before === true)
+  const after = usable.filter((point) => point.before === false)
+  return { before: before[before.length - 1] ?? null, after: after[0] ?? null }
+})
+
+/**
+ * The label that rides above an anchor pin: when that photograph was taken.
+ *
+ * Always on show rather than waiting for a hover. A native `title` takes about a
+ * second to appear, and on a touchscreen it never appears at all — while these
+ * two labels are the whole reason the anchors are worth telling apart: how long
+ * before, how long after, and therefore how far the file being placed can
+ * reasonably be from either.
+ */
+function timeLabel(marker, point) {
+  if (!point.created) return
+  marker.bindTooltip(formatShortDateTime(point.created, ui.locale), {
+    permanent: true,
+    direction: 'top',
+    offset: [0, -26],
+    className: 'trip-time',
+    opacity: 1,
+  })
 }
 
 function setPoint(lat, lng) {
@@ -120,10 +164,45 @@ function renderNeighborsOn(picker) {
     ).addTo(picker.neighborLayer)
   }
 
+  /*
+    The gap itself, drawn solid over the dashed path: whatever is being placed
+    happened somewhere along this stretch, and usually within sight of it.
+  */
+  const { before, after } = anchors.value
+  if (before && after) {
+    L.polyline(
+      [
+        [before.lat, before.lng],
+        [after.lat, after.lng],
+      ],
+      { color: PIN_COLOR, weight: 3, opacity: 0.7, interactive: false },
+    ).addTo(picker.neighborLayer)
+  }
+
   for (const point of usable) {
+    if (point === before || point === after) continue
     L.marker([point.lat, point.lng], { icon: neighborIcon, interactive: false }).addTo(
       picker.neighborLayer,
     )
+  }
+
+  // The anchors last and larger, so neither is lost under a neighbour standing
+  // a few metres south of it.
+  if (before) {
+    const marker = L.marker([before.lat, before.lng], {
+      icon: beforeIcon,
+      interactive: false,
+      zIndexOffset: 500,
+    }).addTo(picker.neighborLayer)
+    timeLabel(marker, before)
+  }
+  if (after) {
+    const marker = L.marker([after.lat, after.lng], {
+      icon: afterIcon,
+      interactive: false,
+      zIndexOffset: 600,
+    }).addTo(picker.neighborLayer)
+    timeLabel(marker, after)
   }
 
   // Last, and in the accent: these are the files in hand, not the scenery.
@@ -354,6 +433,26 @@ onBeforeUnmount(() => {
         <path :d="PIN_PATH" :fill="NEIGHBOR_COLOR" />
       </svg>
       {{ t('editor.neighborPoints') }}
+    </p>
+
+    <!-- Named, because two colours mean nothing on their own and guessing which
+         is the earlier is the one thing this is meant to save. -->
+    <p
+      v-if="anchors.before || anchors.after"
+      class="field-hint flex flex-wrap items-center gap-x-3 gap-y-1"
+    >
+      <span v-if="anchors.before" class="flex items-center gap-1.5">
+        <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+          <path :d="PIN_PATH" :fill="BEFORE_COLOR" />
+        </svg>
+        {{ t('editor.pointBefore') }}
+      </span>
+      <span v-if="anchors.after" class="flex items-center gap-1.5">
+        <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+          <path :d="PIN_PATH" :fill="AFTER_COLOR" />
+        </svg>
+        {{ t('editor.pointAfter') }}
+      </span>
     </p>
 
     <!-- Fullscreen map: a separate instance in a body-level overlay. -->

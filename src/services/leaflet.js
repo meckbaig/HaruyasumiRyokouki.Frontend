@@ -74,6 +74,26 @@ export const pinIcon = pinIconOf(PIN_COLOR)
 /** Muted drop for reference points from neighbouring days. */
 export const neighborIcon = pinIconOf(NEIGHBOR_COLOR, 26)
 
+/*
+  The two reference points that actually matter when placing a photograph: the
+  last one taken before it and the first one after.
+
+  Everything else on that map is context. These two are the answer — whatever is
+  being placed happened between them, usually within a few hundred metres of the
+  line joining them — so they are told apart from the rest by colour and by being
+  the same size as the live pin rather than smaller.
+
+  Two hues rather than one, because "which of these is the earlier" is the whole
+  question. Cool for what is already behind, warm for what is still ahead; both
+  muted enough to stay out of the accent's way, since the accent means "this is
+  the file in hand".
+*/
+export const BEFORE_COLOR = '#4f7ca8'
+export const AFTER_COLOR = '#3f8f6f'
+
+export const beforeIcon = pinIconOf(BEFORE_COLOR, 30)
+export const afterIcon = pinIconOf(AFTER_COLOR, 30)
+
 /**
  * Creates a base map with CARTO tiles and ctrl-to-zoom on the wheel.
  *
