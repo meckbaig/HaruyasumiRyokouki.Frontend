@@ -183,14 +183,22 @@ function rowFor(model, locale) {
   return rows.find((entry) => entry?.languageCode === locale) ?? null
 }
 
-/** Fills every language tab from a full edit model (pending, or a bulk review). */
-function hydrateAll(model) {
+/**
+ * Fills every language tab from a full edit model.
+ *
+ * `asBaseline` is the difference between the two things that arrive in this
+ * shape. A model fetched from the server *is* what the server holds, so it
+ * becomes the mark that "changed" is measured against. A machine translation is
+ * a proposal — it is on screen to be read and corrected, and it has to count as
+ * changed or the save that follows would decide there was nothing to send.
+ */
+function hydrateAll(model, { asBaseline = true } = {}) {
   for (const locale of SUPPORTED_LOCALES) {
     const row = rowFor(model, locale)
     form[locale] = { title: row?.title ?? '', description: row?.description ?? '' }
     rowIds[locale] = row?.id ?? null
   }
-  rememberBaseline()
+  if (asBaseline) rememberBaseline()
 }
 
 /** First selected model whose row for `locale` actually has content. */
@@ -498,19 +506,27 @@ function buildChanges() {
 }
 
 /** Fills the tabs from an auto-translate response so the editor can review it. */
+/**
+ * Fills the tabs from a translation so it can be read before it is kept.
+ *
+ * Deliberately *not* taken as the new baseline. What comes back is the machine's
+ * work, and the whole reason the dialog stays open is that it has to be looked
+ * at — so every language it wrote counts as changed, and pressing Save afterwards
+ * sends all of them. Recording it as the server's own state instead left only the
+ * one language that had been typed by hand looking changed, and the translations
+ * went nowhere.
+ */
 function applyTranslated(items) {
   if (isBulk.value) {
     // Bulk applied one set of values to all, so any returned item is a fair
     // representative of the resulting translations.
     const first = items?.[0]
     if (!first) return false
-    hydrateAll(first)
+    hydrateAll(first, { asBaseline: false })
   } else {
     const updated = items?.find((item) => item.id === single.value?.id) ?? items?.[0]
     if (!updated) return false
-    // Every language from the answer. The one that was written is not empty, so
-    // the backend left it alone and it comes back as it was typed.
-    hydrateAll(updated)
+    hydrateAll(updated, { asBaseline: false })
   }
   translated.value = true
   return true
