@@ -175,7 +175,8 @@
     "hidden": "非公開にする",
     "hiddenHint": "自分には見えたままですが、日ページにも検索にもリンクにも出ません。",
     "hiddenBulkHint": "チェックすると選択したすべてのファイルを非公開にします。戻すのは1件ずつ。",
-    "translateAction": "翻訳する"
+    "translateAction": "翻訳する",
+    "autoTranslateBulkWarning": "翻訳すると、入力済みのすべての言語のテキストが、変更していなくても選択したすべてのファイルに送信されます。"
   },
   "footer": {
     "about": "このサイトについて",

@@ -175,7 +175,8 @@
     "hidden": "Hide — keep out of public view",
     "hiddenHint": "The file stays visible to you, but not in the day, the search, or behind a link.",
     "hiddenBulkHint": "Ticking this hides every selected file. Letting one back out is done one file at a time.",
-    "translateAction": "Translate"
+    "translateAction": "Translate",
+    "autoTranslateBulkWarning": "Translating sends the text of every filled language to all selected files, changed or not."
   },
   "footer": {
     "about": "About",

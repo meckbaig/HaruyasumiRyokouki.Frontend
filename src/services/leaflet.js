@@ -93,6 +93,7 @@ export function createBaseMap(container, { center, zoom, onScrollHint, wheelZoom
     zoom ?? FALLBACK_ZOOM,
   )
   L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: MAX_ZOOM }).addTo(map)
+  map.attributionControl.setPrefix(false);
 
   if (wheelZoom) return map
 

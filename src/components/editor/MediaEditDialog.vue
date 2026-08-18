@@ -395,19 +395,29 @@ function localeChanged(locale) {
 }
 
 /**
- * Only the languages that were actually edited.
+ * The languages that were edited — and, when translating, the ones to translate
+ * from.
  *
- * Blank counts as an edit when it used to hold something — clearing a
- * description is a decision and has to reach the server. What does not reach it
- * is a language left exactly as it was found, which is the whole point: a save
- * made to set a coordinate now carries a coordinate and nothing else.
+ * Blank counts as an edit when it used to hold something: clearing a description
+ * is a decision and has to reach the server. A language left exactly as it was
+ * found does not, which is the whole point — a save made to set a coordinate
+ * carries a coordinate and nothing else.
+ *
+ * Asking for a translation is the exception, and has to be. The backend fills
+ * the empty languages from the ones it is given, so a request carrying no
+ * translations gives it nothing to work from and the tick achieves nothing at
+ * all. With it on, every language that has any text goes along whether it was
+ * touched or not.
  */
 function buildTranslations() {
   const rows = []
   for (const locale of SUPPORTED_LOCALES) {
-    if (!localeChanged(locale)) continue
-
     const entry = form[locale]
+    if (!entry) continue
+
+    const written = Boolean(entry.title.trim() || entry.description.trim())
+    if (!localeChanged(locale) && !(autoTranslate.value && written)) continue
+
     const row = {
       languageCode: locale,
       title: entry.title.trim(),
@@ -653,6 +663,11 @@ async function save() {
             {{ t('editor.autoTranslate') }}
           </label>
           <p class="field-hint">{{ t('editor.autoTranslateHint') }}</p>
+          <!-- The one case where the "only what you changed" rule is suspended,
+               and on a selection that means every file gets this text. -->
+          <p v-if="isBulk && autoTranslate" class="field-hint text-accent">
+            {{ t('editor.autoTranslateBulkWarning') }}
+          </p>
         </div>
 
         <p v-if="translated" class="rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
