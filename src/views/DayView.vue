@@ -369,6 +369,7 @@ function onNoteSaved() {
             v-else-if="media.length"
             key="grid"
             :items="media"
+            show-time
             :editable="auth.isEditor"
             :highlighted-id="highlightedId"
             @open="lightboxIndex = media.indexOf($event)"

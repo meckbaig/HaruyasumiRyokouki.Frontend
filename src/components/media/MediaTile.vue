@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { miniatureSrc, previewSrc, mediaDate } from '@/services/mediaAssets'
-import { formatShortDate } from '@/services/dates'
+import { formatShortDate, formatShortTime } from '@/services/dates'
 import { isVideo } from '@/services/mediaType'
 import { markOpenedFrom } from '@/services/openedFrom'
 import { isPrivate } from '@/services/privacy'
@@ -28,6 +28,15 @@ const props = defineProps({
    */
   showDate: { type: Boolean, default: false },
   /**
+   * Stamps the time the file was taken, offered on approach rather than always.
+   *
+   * On a day and in search results the date is already established — by the page
+   * in one case and by the heading over each group in the other — so the useful
+   * half is the clock, and it is useful often enough to want and rarely enough
+   * not to want printed across every photograph on the wall.
+   */
+  showTime: { type: Boolean, default: false },
+  /**
    * Whether the pencil and the star are on show where there is no cursor.
    *
    * On the queue of unfiled media they must be: the whole page is work, and on a
@@ -51,9 +60,18 @@ const reveal = computed(() =>
 )
 const video = computed(() => isVideo(props.media))
 const hidden = computed(() => isPrivate(props.media))
-const takenOn = computed(() =>
-  props.showDate ? formatShortDate(mediaDate(props.media), ui.locale) : '',
-)
+/**
+ * The date, the time, or both — whichever the page asked for.
+ *
+ * One badge rather than two, because they would land in the same corner and the
+ * pair reads as one stamp anyway.
+ */
+const stamp = computed(() => {
+  const parts = []
+  if (props.showDate) parts.push(formatShortDate(mediaDate(props.media), ui.locale))
+  if (props.showTime) parts.push(formatShortTime(props.media?.created, ui.locale))
+  return parts.filter(Boolean).join(' ')
+})
 const selected = computed(() => editor.isSelected(props.media.id))
 const label = computed(() => props.media.title || props.media.fileName || t('media.untitled'))
 
@@ -282,12 +300,16 @@ function activate() {
           </svg>
         </div>
 
-        <!-- Bottom right, clear of the video badge on the left. -->
+        <!-- Bottom right, clear of the video badge on the left. A page that
+             asked only for the time asked for it on approach, and gets the same
+             quiet treatment as the pencil beside it: printed on every tile of a
+             wall meant for reading, it would be noise. -->
         <span
-          v-if="takenOn"
+          v-if="stamp"
           class="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+          :class="showDate ? '' : 'hover-reveal hover-reveal-quiet'"
         >
-          {{ takenOn }}
+          {{ stamp }}
         </span>
 
         <!--

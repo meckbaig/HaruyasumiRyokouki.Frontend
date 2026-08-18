@@ -82,6 +82,7 @@ function openAt(media) {
     <MediaGrid
       :items="group.matched"
       variant="matched"
+      show-time
       :editable="editable"
       :highlighted-id="highlightedId"
       @open="openAt"
@@ -93,6 +94,7 @@ function openAt(media) {
       <MediaGrid
         :items="rest"
         variant="expanded"
+        show-time
         :editable="editable"
         :highlighted-id="highlightedId"
         @open="openAt"

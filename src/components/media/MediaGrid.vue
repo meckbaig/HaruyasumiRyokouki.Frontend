@@ -14,6 +14,8 @@ const props = defineProps({
   highlightedId: { type: Number, default: null },
   /** Stamps each tile with the day its file was taken; see MediaTile. */
   showDate: { type: Boolean, default: false },
+  /** Shows the clock time on approach; see MediaTile. */
+  showTime: { type: Boolean, default: false },
   /** Keeps the pencil and the star on show without a cursor; see MediaTile. */
   touchControls: { type: Boolean, default: false },
   /**
@@ -149,6 +151,7 @@ onBeforeUnmount(() => {
         :variant="variant"
         :editable="editable"
         :show-date="showDate"
+        :show-time="showTime"
         :touch-controls="touchControls"
         :highlighted="highlightedId != null && media.id === highlightedId"
         @open="emit('open', $event)"

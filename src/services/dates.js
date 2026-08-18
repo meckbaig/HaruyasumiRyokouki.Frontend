@@ -79,6 +79,13 @@ export function formatShortDateTime(iso, locale) {
   }).format(at)
 }
 
+/** Clock time alone: "14:35". The day is whatever page it is read on. */
+export function formatShortTime(iso, locale) {
+  const at = iso ? new Date(iso) : null
+  if (!at || Number.isNaN(at.getTime())) return ''
+  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(at)
+}
+
 export function formatWeekday(iso, locale) {
   const date = parseIsoDate(iso)
   if (!date) return ''
