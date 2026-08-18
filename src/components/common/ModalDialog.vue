@@ -16,7 +16,19 @@ const props = defineProps({
   stacked: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['close'])
+/*
+  Two ways out, and they are not the same intention.
+
+  The cross is "I am done with this" — a decision, and whatever it costs is
+  accepted. A press on the backdrop or a tap of Escape is "get out of my way",
+  which people do to see what is behind a dialog and expect to be able to undo by
+  reopening it. Treating both as the same event is how a form full of typing gets
+  thrown away by a misplaced click.
+
+  What `dismiss` should do is the host's to decide; a dialog with nothing to lose
+  points it at the same handler as `close`.
+*/
+const emit = defineEmits(['close', 'dismiss'])
 
 const { t } = useI18n()
 
@@ -53,7 +65,7 @@ function onKeydown(event) {
 
   if (event.key === 'Escape') {
     event.preventDefault()
-    emit('close')
+    emit('dismiss')
   } else if (event.key === 'Tab') {
     trapFocus(event)
   }
@@ -71,7 +83,7 @@ function onBackdropDown(event) {
 }
 
 function onBackdropUp(event) {
-  if (pressedOnBackdrop && event.target === event.currentTarget) emit('close')
+  if (pressedOnBackdrop && event.target === event.currentTarget) emit('dismiss')
   pressedOnBackdrop = false
 }
 

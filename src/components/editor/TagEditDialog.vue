@@ -308,6 +308,7 @@ function discardDraft() {
     :stacked="stacked"
     :title="editing ? t('tags.editTitle') : t('tags.createTitle')"
     @close="emit('close')"
+    @dismiss="emit('close')"
   >
     <!--
       Step one. One field, and the proposal is what fills the rest of the form:

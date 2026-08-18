@@ -93,6 +93,7 @@ async function apply() {
     :open="open"
     :title="t('bulkTag.title', { count: items.length })"
     @close="emit('close')"
+    @dismiss="emit('close')"
   >
     <div class="space-y-4">
       <p class="rounded-md bg-edge/40 px-3 py-2 text-xs text-ink-soft">

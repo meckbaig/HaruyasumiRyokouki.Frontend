@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageTabs from './LanguageTabs.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
@@ -11,6 +11,7 @@ import { useDaysStore } from '@/stores/days'
 import { SUPPORTED_LOCALES } from '@/i18n'
 import { cascadeDelay } from '@/services/cascade'
 import { useDelayed } from '@/composables/useDelayed'
+import { readDraft, writeDraft, clearDraft, sameNotes } from '@/services/dayDrafts'
 
 const props = defineProps({
   /** DayDto (read model) or DayEditDto (pending list) — both are accepted. */
@@ -36,7 +37,11 @@ const days = useDaysStore()
 // One note per language, plus the id of each existing translation row so the
 // backend can update it in place rather than matching by language.
 const form = reactive({})
+/** The notes as the server last gave them, for telling a draft from a copy. */
+const baseline = reactive({})
 const rowIds = reactive({})
+/** A draft was found and put back; says so until it is saved or thrown away. */
+const restored = ref(false)
 const activeLang = ref(ui.locale)
 const isReady = ref(false)
 const autoTranslate = ref(false)
@@ -79,7 +84,81 @@ function hydrate(day) {
     form[locale] = { note: source?.note ?? '' }
     rowIds[locale] = source?.id ?? null
   }
+  rememberBaseline()
 }
+
+/** Takes the notes as they now stand to be the state the server is in. */
+function rememberBaseline() {
+  for (const locale of SUPPORTED_LOCALES) baseline[locale] = form[locale]?.note ?? ''
+}
+
+/** The notes as they now stand, in the shape a draft is stored in. */
+function currentNotes() {
+  const notes = {}
+  for (const locale of SUPPORTED_LOCALES) notes[locale] = form[locale]?.note ?? ''
+  return notes
+}
+
+const dirty = computed(() => !sameNotes(currentNotes(), baseline, SUPPORTED_LOCALES))
+
+/*
+  The draft, kept on this machine.
+
+  Written every ten seconds and only while the form says something the server
+  does not — so a day opened and closed untouched leaves nothing behind, and one
+  edited and abandoned is waiting when the editor comes back to it. Reverting the
+  text by hand takes the draft with it: at that point there is nothing to
+  recover.
+
+  Also written on the way out, both kinds: navigating to another day unmounts
+  this form, and closing the tab does not unmount anything at all.
+*/
+const DRAFT_EVERY_MS = 10_000
+let draftTimer = null
+
+function syncDraft() {
+  if (dirty.value) writeDraft(props.date, currentNotes())
+  else clearDraft(props.date)
+}
+
+/** Puts back a draft, if the one stored says anything the server does not. */
+function restoreDraft() {
+  restored.value = false
+  const draft = readDraft(props.date)
+  if (!draft) return
+  if (sameNotes(draft.notes, baseline, SUPPORTED_LOCALES)) {
+    // It has since been saved by other means; nothing to put back.
+    clearDraft(props.date)
+    return
+  }
+
+  for (const locale of SUPPORTED_LOCALES) {
+    form[locale] = { note: draft.notes[locale] ?? '' }
+  }
+  restored.value = true
+}
+
+/** Throws the draft away and puts the server's own text back on screen. */
+function discardDraft() {
+  for (const locale of SUPPORTED_LOCALES) {
+    form[locale] = { note: baseline[locale] ?? '' }
+  }
+  clearDraft(props.date)
+  restored.value = false
+}
+
+function onUnload() {
+  syncDraft()
+}
+
+window.addEventListener('beforeunload', onUnload)
+draftTimer = setInterval(syncDraft, DRAFT_EVERY_MS)
+
+onBeforeUnmount(() => {
+  clearInterval(draftTimer)
+  window.removeEventListener('beforeunload', onUnload)
+  syncDraft()
+})
 
 /**
  * The public day is flattened to one language, so editing from a public page
@@ -121,7 +200,7 @@ async function loadThumbs() {
 
 watch(
   () => props.day,
-  (day) => {
+  async (day) => {
     hydrate(day)
     activeLang.value = ui.locale
     isReady.value = Boolean(day?.isReady)
@@ -129,7 +208,10 @@ watch(
     translated.value = false
     error.value = null
     loadThumbs()
-    loadFullModel()
+    // Awaited: for a public day the rows arrive from the server and overwrite
+    // the form, so a draft put back before that would be wiped by its own fetch.
+    await loadFullModel()
+    restoreDraft()
   },
   { immediate: true },
 )
@@ -176,6 +258,15 @@ async function save() {
     }
 
     ui.notify(t('admin.saved'), 'success')
+    /*
+      Saved is exactly when a draft stops being worth keeping — and the baseline
+      has to move with it. Without that the form still counts as unsaved against
+      the text the server held a moment ago, and the flush on the way out would
+      write back the very draft this line just removed.
+    */
+    rememberBaseline()
+    clearDraft(props.date)
+    restored.value = false
     emit('saved', { date: props.date, isReady: isReady.value })
   } catch (caught) {
     error.value = caught
@@ -214,6 +305,22 @@ async function save() {
         </button>
       </div>
     </div>
+
+    <!-- Said plainly, because the text on screen is not what the server holds
+         and the editor has to know which they are looking at. -->
+    <p
+      v-if="restored"
+      class="cascade-item flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-accent-soft px-3 py-2 text-xs text-ink"
+    >
+      {{ t('editor.draftRestored') }}
+      <button
+        type="button"
+        class="underline underline-offset-2 transition hover:text-accent"
+        @click="discardDraft"
+      >
+        {{ t('editor.draftDiscard') }}
+      </button>
+    </p>
 
     <LanguageTabs
       v-model="activeLang"

@@ -132,6 +132,28 @@ const neighborPoints = ref([])
 // Said out loud only if the wait actually lasts — see composables/useDelayed.
 const showLoading = useDelayed(() => loading.value)
 
+/*
+  Folded away rather than thrown away.
+
+  A press on the backdrop is how people look at the page behind a dialog — the
+  photograph they are describing is right there under it — and answering that by
+  discarding a card halfway through being filled in is a punishment for
+  curiosity. So it folds down to a bar at the foot of the screen with everything
+  still in it, and the cross keeps its meaning: done with this, whatever it cost.
+*/
+const minimised = ref(false)
+
+const cardName = computed(() =>
+  isBulk.value
+    ? t('editor.editBulk', { count: editList.value.length })
+    : (single.value?.title || single.value?.fileName || t('media.untitled')),
+)
+
+function discardCard() {
+  minimised.value = false
+  emit('close')
+}
+
 const active = computed(() => form[activeLang.value] ?? { title: '', description: '' })
 const thumbs = computed(() => editList.value)
 const canSave = computed(() => !loading.value && !saving.value && models.value.length > 0)
@@ -297,6 +319,8 @@ watch(
   () => {
     if (!props.open || editList.value.length === 0) return
 
+    // A fresh open is never a folded one, whatever the last one ended as.
+    minimised.value = false
     activeLang.value = ui.locale
     error.value = null
     translated.value = false
@@ -559,9 +583,10 @@ async function save() {
 
 <template>
   <ModalDialog
-    :open="open"
+    :open="open && !minimised"
     :title="isBulk ? t('editor.editBulk', { count: editList.length }) : t('editor.editMedia')"
     @close="emit('close')"
+    @dismiss="minimised = true"
   >
     <form v-if="editList.length" class="space-y-4" @submit.prevent="save">
       <!-- Every file being edited, so a bulk change is done with the set in view. -->
@@ -716,4 +741,40 @@ async function save() {
       </button>
     </template>
   </ModalDialog>
+
+  <!--
+    Below the modal layer on purpose: a viewer opened from the card sits over
+    this, and a control floating on top of that would belong to nothing visible.
+  -->
+  <Teleport to="body">
+    <Transition
+      enter-from-class="translate-y-4 opacity-0"
+      enter-active-class="transition duration-200"
+      leave-to-class="translate-y-4 opacity-0"
+      leave-active-class="transition duration-200"
+    >
+      <div
+        v-if="open && minimised"
+        class="fixed inset-x-0 bottom-6 z-[1900] flex justify-center px-4"
+      >
+        <div
+          class="flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-3xl border border-edge bg-paper-raised px-4 py-2 shadow-lg"
+        >
+          <span class="min-w-0 truncate text-sm text-ink">
+            {{ t('editor.minimised', { name: cardName }) }}
+          </span>
+          <button type="button" class="btn-primary !px-3 !py-1.5" @click="minimised = false">
+            {{ t('editor.resume') }}
+          </button>
+          <button
+            type="button"
+            class="text-sm text-ink-faint transition hover:text-ink"
+            @click="discardCard"
+          >
+            {{ t('editor.discard') }}
+          </button>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
