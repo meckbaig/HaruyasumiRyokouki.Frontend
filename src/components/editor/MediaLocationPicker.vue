@@ -287,10 +287,22 @@ function frameInline() {
   }
 }
 
-/** Builds one map instance bound to the shared point and neighbour state. */
-function buildPicker(el) {
+/**
+ * Builds one map instance bound to the shared point and neighbour state.
+ *
+ * `wheelZoom` is for the instance that fills the window. The reason a bare wheel
+ * does not zoom the inline map is the page waiting to be scrolled behind it —
+ * and full screen there is no page, so the modifier is a toll on the one gesture
+ * everybody reaches for. The trip map makes the same distinction.
+ */
+function buildPicker(el, { wheelZoom = false } = {}) {
   const map = markRaw(
-    createBaseMap(el, { center: lastView.center, zoom: lastView.zoom, onScrollHint: flashHint }),
+    createBaseMap(el, {
+      center: lastView.center,
+      zoom: lastView.zoom,
+      onScrollHint: flashHint,
+      wheelZoom,
+    }),
   )
   const picker = { map, neighborLayer: markRaw(L.layerGroup().addTo(map)), marker: null }
 
@@ -345,7 +357,7 @@ watch(expanded, async (isOpen) => {
   if (isOpen) {
     await nextTick()
     // The overlay element only exists once expanded; build a fresh map in it.
-    fullscreenPicker = buildPicker(fullscreenEl.value)
+    fullscreenPicker = buildPicker(fullscreenEl.value, { wheelZoom: true })
     requestAnimationFrame(() => fullscreenPicker?.map.invalidateSize())
   } else if (fullscreenPicker) {
     destroyPicker(fullscreenPicker)
