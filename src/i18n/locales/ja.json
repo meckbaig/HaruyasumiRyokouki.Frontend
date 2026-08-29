@@ -91,7 +91,9 @@
     "unfavorite": "トップページから外す",
     "shareFile": "この写真を共有",
     "hidden": "非公開",
-    "hiddenNoShare": "非公開のファイルです — 共有できるリンクはありません"
+    "hiddenNoShare": "非公開のファイルです — 共有できるリンクはありません",
+    "hide": "非公開にする",
+    "unhide": "公開する"
   },
   "language": {
     "label": "言語",
@@ -118,7 +120,8 @@
     "close": "閉じる",
     "selected": "{count}件選択中",
     "selectAll": "すべて選択",
-    "clearSelection": "選択を解除"
+    "clearSelection": "選択を解除",
+    "confirm": "確定"
   },
   "login": {
     "title": "編集者ログイン",
@@ -141,7 +144,11 @@
     "saved": "保存しました",
     "deleted": "メディアを削除しました",
     "deleteConfirm": "「{name}」を削除しますか？元に戻せません。",
-    "markReady": "完成 — 一覧から外す"
+    "markReady": "完成 — 一覧から外す",
+    "deleteTitle": "メディアを削除",
+    "deleteConfirmMany": "{count}件のファイルを削除しますか？元に戻せません。",
+    "deleteCount": "{count}件を削除",
+    "deletedMany": "{count}件のファイルを削除しました"
   },
   "editor": {
     "editMedia": "メディアを編集",
@@ -184,7 +191,10 @@
     "discard": "破棄",
     "mixedHint": "ダッシュは、選択したファイルで状態が分かれていることを示します。押すと全体に適用され、触れていない項目は送信されません。",
     "pointBefore": "直前の写真",
-    "pointAfter": "直後の写真"
+    "pointAfter": "直後の写真",
+    "pastedPoint": "座標を貼り付けました",
+    "pasteHint": "Google マップからコピーした座標は Ctrl+V でここに貼り付けられます。",
+    "clearPointHint": "ピンを右クリックすると外せます。"
   },
   "footer": {
     "about": "このサイトについて",

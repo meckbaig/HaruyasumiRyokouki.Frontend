@@ -91,7 +91,9 @@
     "unfavorite": "Remove from the front page",
     "shareFile": "Share this file",
     "hidden": "Hidden",
-    "hiddenNoShare": "This file is hidden — there is no link to share"
+    "hiddenNoShare": "This file is hidden — there is no link to share",
+    "hide": "Hide",
+    "unhide": "Show"
   },
   "language": {
     "label": "Language",
@@ -118,7 +120,8 @@
     "close": "Close",
     "selected": "{count} selected",
     "selectAll": "Select all",
-    "clearSelection": "Clear selection"
+    "clearSelection": "Clear selection",
+    "confirm": "Confirm"
   },
   "login": {
     "title": "Editor sign-in",
@@ -141,7 +144,11 @@
     "saved": "Saved",
     "deleted": "Media deleted",
     "deleteConfirm": "Delete “{name}”? This cannot be undone.",
-    "markReady": "Ready — remove from pending"
+    "markReady": "Ready — remove from pending",
+    "deleteTitle": "Delete media",
+    "deleteConfirmMany": "Delete {count} file? This cannot be undone. | Delete {count} files? This cannot be undone.",
+    "deleteCount": "Delete {count} file | Delete {count} files",
+    "deletedMany": "{count} file deleted | {count} files deleted"
   },
   "editor": {
     "editMedia": "Edit media",
@@ -184,7 +191,10 @@
     "discard": "Discard",
     "mixedHint": "A dash means the selected files disagree. Pressing it settles the mark for all of them; a mark left alone is not sent.",
     "pointBefore": "nearest shot before",
-    "pointAfter": "nearest shot after"
+    "pointAfter": "nearest shot after",
+    "pastedPoint": "Coordinates pasted",
+    "pasteHint": "Coordinates copied from Google Maps can be pasted here with Ctrl+V.",
+    "clearPointHint": "Right-click the pin to take it off."
   },
   "footer": {
     "about": "About",

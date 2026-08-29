@@ -1,3 +1,5 @@
+import { setPrivate } from '@/api/media'
+
 /**
  * Files kept out of public view.
  *
@@ -14,4 +16,21 @@
  */
 export function isPrivate(media) {
   return media?.private === true
+}
+
+/**
+ * Hides a file or shows it again, writing the answer straight back onto the
+ * object the page is holding — the same one-write-updates-every-view arrangement
+ * the star uses (`services/favorites.js`).
+ *
+ * @returns {Promise<boolean|null>} the state it settled on, or null if there was
+ *   no file to mark.
+ */
+export async function togglePrivate(media) {
+  if (media?.id == null) return null
+
+  const next = !isPrivate(media)
+  await setPrivate(media.id, next)
+  media.private = next
+  return next
 }

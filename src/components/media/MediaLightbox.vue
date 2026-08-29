@@ -13,6 +13,8 @@ import {
 } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
 import { isPrivate } from '@/services/privacy'
+import { pickTranslation } from '@/services/translations'
+import { useUiStore } from '@/stores/ui'
 import { isMobileLayout } from '@/services/display'
 import { withMediaLink, pageIdentity } from '@/composables/useMediaLink'
 import { copyMediaUrl } from '@/services/share'
@@ -30,6 +32,7 @@ const emit = defineEmits(['update:index', 'close'])
 
 const { t } = useI18n()
 const route = useRoute()
+const ui = useUiStore()
 
 const dialog = ref(null)
 let lastFocused = null
@@ -37,7 +40,18 @@ let lastFocused = null
 const open = computed(() => props.index !== null && props.index >= 0)
 const current = computed(() => (open.value ? (props.items[props.index] ?? null) : null))
 const video = computed(() => isVideo(current.value))
-const label = computed(() => current.value?.title || current.value?.fileName || t('media.untitled'))
+/*
+  Titles and descriptions, from whichever shape the list happens to hold.
+
+  Public pages carry the flat model, where the server has already picked a
+  language and put the text on the object. The pending queue carries the edit
+  model, where the text lives in `translations[]` and the flat fields do not
+  exist at all — so a file opened full screen from that queue showed a file name
+  and nothing else, however carefully it had been described.
+*/
+const text = computed(() => pickTranslation(current.value, ui.locale))
+const label = computed(() => text.value.title || current.value?.fileName || t('media.untitled'))
+const caption = computed(() => text.value.description)
 
 const hasPrev = computed(() => open.value && props.index > 0)
 const hasNext = computed(() => open.value && props.index < props.items.length - 1)
@@ -2092,7 +2106,7 @@ onBeforeUnmount(() => {
               what offers the description as something to tap.
             -->
               <p
-                v-if="current.description"
+                v-if="caption"
                 ref="description"
                 class="mt-1 overflow-hidden text-xs text-[var(--lb-accent)] transition-[max-height] duration-200"
                 :class="[
@@ -2103,7 +2117,7 @@ onBeforeUnmount(() => {
                 ]"
                 @click="toggleDescription"
               >
-                {{ current.description }}
+                {{ caption }}
               </p>
             </div>
 

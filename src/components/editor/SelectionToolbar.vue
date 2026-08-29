@@ -4,12 +4,57 @@ import { useI18n } from 'vue-i18n'
 import MediaEditDialog from './MediaEditDialog.vue'
 import BulkTagDialog from './BulkTagDialog.vue'
 import { useEditorStore } from '@/stores/editor'
+import { useUiStore } from '@/stores/ui'
+import { deleteMedia } from '@/api/media'
 
 const { t } = useI18n()
 const editor = useEditorStore()
+const ui = useUiStore()
 
+const deleting = ref(false)
 const editOpen = ref(false)
 const tagOpen = ref(false)
+
+/*
+  Deleting the whole selection, asked for from the edit dialog's own delete
+  button — the same button, and the same place, as deleting one file.
+
+  Asked for through the site's own dialog rather than `window.confirm`, because
+  this is the one irreversible action here and the question has to be able to say
+  how many files it is about to take.
+
+  One request per file — the API deletes by id — run in sequence so a failure
+  halfway leaves a clear account of what did go, and so the pages hear about
+  exactly those.
+*/
+async function removeSelection(list) {
+  const ids = (list ?? editor.items).map((media) => media?.id).filter((id) => id != null)
+  if (deleting.value || !ids.length) return
+
+  const agreed = await ui.confirm({
+    title: t('admin.deleteTitle'),
+    message: t('admin.deleteConfirmMany', { count: ids.length }, ids.length),
+    confirmLabel: t('common.delete'),
+  })
+  if (!agreed) return
+
+  deleting.value = true
+  const gone = []
+  try {
+    for (const id of ids) {
+      await deleteMedia(id)
+      gone.push(id)
+    }
+    ui.notify(t('admin.deletedMany', { count: gone.length }, gone.length), 'success')
+  } catch (error) {
+    ui.notify(error?.detail || error?.title || t('errors.generic'), 'error')
+  } finally {
+    deleting.value = false
+    editOpen.value = false
+    editor.reportDeleted(gone)
+    editor.clear()
+  }
+}
 
 /**
  * The toolbar floats above every page, so the page underneath never hears about
@@ -59,6 +104,10 @@ function onTagged() {
           Two operations, not one with a switch. Editing *replaces* what the
           selection carries; tagging adds to it and leaves the rest alone. Which
           is meant is a decision, and it is made here rather than inside a form.
+
+          Deleting is not a third: it lives on the edit card, where deleting one
+          file has always lived, so the bar is not the place that offers to
+          destroy a selection in one press.
         -->
         <button type="button" class="btn-ghost !px-3 !py-1.5" @click="tagOpen = true">
           {{ t('bulkTag.action') }}
@@ -68,8 +117,9 @@ function onTagged() {
           {{ t('common.edit') }}
         </button>
 
-        <!-- The longest label of the four, and the one that needs a label least:
-             a cross beside a count of what is selected says it on its own. -->
+        <!-- The longest label of the three, and the one that needs a label
+             least: a cross beside a count of what is selected says it on its
+             own. -->
         <button
           type="button"
           class="rounded-full p-1.5 text-ink-faint transition hover:text-ink"
@@ -96,8 +146,10 @@ function onTagged() {
   <MediaEditDialog
     :open="editOpen"
     :items="editor.items"
+    deletable
     @close="editOpen = false"
     @saved="onSaved"
+    @delete="removeSelection"
   />
 
   <BulkTagDialog

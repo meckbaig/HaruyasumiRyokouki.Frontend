@@ -14,6 +14,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { deleteMedia } from '@/api/media'
 import { useSearchStore } from '@/stores/search'
 import { useAuthStore } from '@/stores/auth'
+import { useEditorStore } from '@/stores/editor'
 import { useUiStore } from '@/stores/ui'
 import { useTagsStore } from '@/stores/tags'
 import { useMediaLink } from '@/composables/useMediaLink'
@@ -27,6 +28,7 @@ const route = useRoute()
 const router = useRouter()
 const search = useSearchStore()
 const auth = useAuthStore()
+const editor = useEditorStore()
 const ui = useUiStore()
 const tags = useTagsStore()
 
@@ -138,6 +140,15 @@ watch(lightboxIndex, (index) => {
   else mediaLink.clear()
 })
 
+// Files deleted through the app-level toolbar; the page cannot hear its events.
+watch(
+  () => editor.lastDelete,
+  () => {
+    search.invalidate()
+    run()
+  },
+)
+
 function selectTab(next) {
   if (next === tab.value) return
   router.replace({ name: 'search', query: { ...route.query, tab: next } })
@@ -158,8 +169,18 @@ function onMediaSaved({ applied } = {}) {
 }
 
 /** A deleted file has to leave the cache as well: it is in every query it matched. */
-async function removeMedia(media) {
-  if (!window.confirm(t('admin.deleteConfirm', { name: media.fileName }))) return
+async function removeMedia(list) {
+  // The dialog hands over everything it was editing; these pages only ever open
+  // it on one file.
+  const media = Array.isArray(list) ? list[0] : list
+  if (!media) return
+
+  const agreed = await ui.confirm({
+    title: t('admin.deleteTitle'),
+    message: t('admin.deleteConfirm', { name: media.fileName }),
+    confirmLabel: t('common.delete'),
+  })
+  if (!agreed) return
 
   try {
     await deleteMedia(media.id)

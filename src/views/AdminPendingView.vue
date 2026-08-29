@@ -65,8 +65,18 @@ async function runSync() {
   }
 }
 
-async function removeMedia(media) {
-  if (!window.confirm(t('admin.deleteConfirm', { name: media.fileName }))) return
+async function removeMedia(list) {
+  // The dialog hands over everything it was editing; these pages only ever open
+  // it on one file.
+  const media = Array.isArray(list) ? list[0] : list
+  if (!media) return
+
+  const agreed = await ui.confirm({
+    title: t('admin.deleteTitle'),
+    message: t('admin.deleteConfirm', { name: media.fileName }),
+    confirmLabel: t('common.delete'),
+  })
+  if (!agreed) return
 
   try {
     await deleteMedia(media.id)
@@ -111,6 +121,16 @@ function onMediaSaved({ ids, approved } = {}) {
   selection approved in bulk stayed on the queue until the page was reloaded.
 */
 watch(() => editor.lastSave, onMediaSaved)
+
+/** The same again for a deletion made from that toolbar. */
+watch(() => editor.lastDelete, (result) => {
+  const gone = new Set(result?.ids ?? [])
+  if (!gone.size) return
+  pending.value = {
+    ...pending.value,
+    media: pending.value.media.filter((item) => !gone.has(item.id)),
+  }
+})
 
 function onDaySaved({ date, isReady }) {
   openDayDate.value = null
@@ -176,6 +196,7 @@ function dayTitle(day) {
           :items="pending.media"
           editable
           show-date
+          show-time
           touch-controls
           cascade
           :auto-reveal="false"

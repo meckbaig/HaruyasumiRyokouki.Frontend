@@ -5,7 +5,7 @@ import { miniatureSrc, previewSrc, mediaDate } from '@/services/mediaAssets'
 import { formatShortDate, formatShortTime } from '@/services/dates'
 import { isVideo } from '@/services/mediaType'
 import { markOpenedFrom } from '@/services/openedFrom'
-import { isPrivate } from '@/services/privacy'
+import { isPrivate, togglePrivate } from '@/services/privacy'
 import { toggleFavorite } from '@/services/favorites'
 import { useEditorStore } from '@/stores/editor'
 import { useUiStore } from '@/stores/ui'
@@ -60,18 +60,23 @@ const reveal = computed(() =>
 )
 const video = computed(() => isVideo(props.media))
 const hidden = computed(() => isPrivate(props.media))
-/**
- * The date, the time, or both — whichever the page asked for.
- *
- * One badge rather than two, because they would land in the same corner and the
- * pair reads as one stamp anyway.
- */
-const stamp = computed(() => {
-  const parts = []
-  if (props.showDate) parts.push(formatShortDate(mediaDate(props.media), ui.locale))
-  if (props.showTime) parts.push(formatShortTime(props.media?.created, ui.locale))
-  return parts.filter(Boolean).join(' ')
-})
+/*
+  The stamp in the corner, in two halves.
+
+  The date is what a page asks for when its files come from all over the trip —
+  the pending queue — and it stays on show. The time is a detail wanted only when
+  a hand is already on that tile, so it joins the date on approach instead of
+  standing there being read all day.
+
+  One badge rather than two: they would land in the same corner, and the pair
+  reads as a single stamp anyway.
+*/
+const stampDate = computed(() =>
+  props.showDate ? formatShortDate(mediaDate(props.media), ui.locale) : '',
+)
+const stampTime = computed(() =>
+  props.showTime ? formatShortTime(props.media?.created, ui.locale) : '',
+)
 const selected = computed(() => editor.isSelected(props.media.id))
 const label = computed(() => props.media.title || props.media.fileName || t('media.untitled'))
 
@@ -130,6 +135,7 @@ const outlineClass = computed(() => {
 */
 const favorite = computed(() => props.media.favorite === true)
 const marking = ref(false)
+const hiding = ref(false)
 
 /**
  * A request in flight is not a reason to disable the button: a disabled control
@@ -146,6 +152,26 @@ async function mark() {
     ui.notify(error?.detail || error?.title || t('errors.generic'), 'error')
   } finally {
     marking.value = false
+  }
+}
+
+/**
+ * The other mark that belongs on the tile itself.
+ *
+ * Hiding a file was only reachable through the editor, which meant opening a
+ * form to answer a yes-or-no question about a photograph already on screen. It
+ * behaves exactly like the star: a hidden file keeps its control on show, since
+ * that control is also the answer to "which of these is hidden".
+ */
+async function hide() {
+  if (hiding.value) return
+  hiding.value = true
+  try {
+    await togglePrivate(props.media)
+  } catch (error) {
+    ui.notify(error?.detail || error?.title || t('errors.generic'), 'error')
+  } finally {
+    hiding.value = false
   }
 }
 
@@ -305,11 +331,16 @@ function activate() {
              quiet treatment as the pencil beside it: printed on every tile of a
              wall meant for reading, it would be noise. -->
         <span
-          v-if="stamp"
+          v-if="stampDate || stampTime"
           class="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
-          :class="showDate ? '' : 'hover-reveal hover-reveal-quiet'"
+          :class="stampDate ? '' : 'hover-reveal hover-reveal-quiet'"
         >
-          {{ stamp }}
+          {{ stampDate }}
+          <!-- Only alongside a date does the time need revealing on its own; a
+               tile showing the time and nothing else reveals the whole badge. -->
+          <span v-if="stampTime" :class="stampDate ? 'hidden group-hover:inline' : ''">
+            {{ stampTime }}
+          </span>
         </span>
 
         <!--
@@ -404,6 +435,42 @@ function activate() {
           d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"
           stroke-linejoin="round"
         />
+      </svg>
+    </button>
+
+    <!--
+      Beside the star, but *not* on the same terms.
+
+      The star has to stay on show when it is set, because nothing else on the
+      tile says a file is a favourite. Hiding already has its own badge in the
+      bottom-left corner, so a button repeating that would be the same fact
+      twice — and unlike the star it is a control, not a state, so it appears on
+      approach like the pencil. Its colour still reports the state it would undo.
+    -->
+    <button
+      v-if="editable && !editor.selectionMode"
+      type="button"
+      class="absolute left-9 top-1.5 rounded-md bg-paper/90 p-1.5 shadow-sm transition"
+      :class="[hidden ? 'text-accent' : 'text-ink', reveal]"
+      :aria-busy="hiding"
+      :aria-pressed="hidden"
+      :aria-label="hidden ? t('media.unhide') : t('media.hide')"
+      @click.stop="hide"
+    >
+      <svg
+        class="h-3.5 w-3.5"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.4"
+        aria-hidden="true"
+      >
+        <path
+          d="M2.2 8s2.3-3.8 5.8-3.8S13.8 8 13.8 8s-2.3 3.8-5.8 3.8S2.2 8 2.2 8z"
+          stroke-linejoin="round"
+        />
+        <circle cx="8" cy="8" r="1.6" />
+        <path v-if="hidden" d="M3 13 13 3" stroke-linecap="round" />
       </svg>
     </button>
 

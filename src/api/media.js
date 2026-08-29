@@ -68,6 +68,16 @@ export function setFavorite(id, favorite) {
 }
 
 /**
+ * Keeps one file out of public view, or lets it back in.
+ *
+ * The same single-field PATCH as the star: everything else is left out, which is
+ * what tells the backend not to touch it. Editor-only.
+ */
+export function setPrivate(id, isPrivate) {
+  return editMedia([id], { private: isPrivate })
+}
+
+/**
  * GET /v1/media/favorites -> MediaFileDto[].
  *
  * The files picked out for the front page. The backend shuffles them and caps

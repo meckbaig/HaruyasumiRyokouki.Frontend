@@ -6,6 +6,7 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 import AppScrollbar from '@/components/layout/AppScrollbar.vue'
 import ToastHost from '@/components/common/ToastHost.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import SelectionToolbar from '@/components/editor/SelectionToolbar.vue'
 import { updateHead, navDirection } from '@/router'
@@ -67,5 +68,6 @@ watch(locale, () => updateHead(route))
 
   <AppScrollbar class="my-1" />
   <SelectionToolbar />
+  <ConfirmDialog />
   <ToastHost />
 </template>

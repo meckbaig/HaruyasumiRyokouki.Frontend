@@ -117,6 +117,64 @@ function setPoint(lat, lng) {
   emit('update:modelValue', { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) })
 }
 
+function clearPoint() {
+  emit('update:modelValue', null)
+}
+
+/*
+  A margin round the map that does not answer a click.
+
+  Every control the map carries — expand, collapse, the attribution — sits in a
+  corner, and a press that misses one of them by a few pixels used to land on the
+  map instead and move the pin. Placing a point is deliberate; missing a button
+  is not, and the two should not be the same gesture.
+
+  Sized from the box rather than fixed, so the same rule reads the same on a
+  220-pixel strip and on a full window.
+*/
+function insetOf(map) {
+  const size = map.getSize()
+  return Math.max(16, Math.min(40, Math.min(size.x, size.y) * 0.1))
+}
+
+function nearEdge(map, point) {
+  const size = map.getSize()
+  const inset = insetOf(map)
+  return point.x < inset || point.y < inset || point.x > size.x - inset || point.y > size.y - inset
+}
+
+/*
+  Coordinates pasted from elsewhere.
+
+  Google Maps copies a place as "34.304847, 133.090327" and that is how anyone
+  actually knows where a photograph was taken — they found it there first. Typing
+  it back in by hand, or hunting for the same rooftop on this map, is work the
+  clipboard has already done.
+
+  Listened for on the document because the map is not a focusable field and
+  cannot receive a paste of its own; anything aimed at a real input is left
+  alone, or pasting a description would move the pin.
+*/
+const COORDS = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/
+
+function onPaste(event) {
+  const target = event.target
+  const tag = target?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return
+
+  const match = COORDS.exec(event.clipboardData?.getData('text') ?? '')
+  if (!match) return
+
+  const lat = Number(match[1])
+  const lng = Number(match[2])
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return
+
+  event.preventDefault()
+  setPoint(lat, lng)
+  for (const picker of pickers) picker.map.setView([lat, lng], Math.max(picker.map.getZoom(), 15))
+  ui.notify(t('editor.pastedPoint'), 'success')
+}
+
 /** Places or moves this instance's draggable marker. */
 function placeOn(picker, lat, lng) {
   if (picker.marker) {
@@ -134,6 +192,9 @@ function placeOn(picker, lat, lng) {
       const { lat: dLat, lng: dLng } = picker.marker.getLatLng()
       setPoint(dLat, dLng)
     })
+    // Right-click takes the pin off. Leaflet suppresses the browser's own menu on
+    // the map, and a marker is part of it — so the gesture is free to mean this.
+    picker.marker.on('contextmenu', clearPoint)
   }
 }
 
@@ -306,7 +367,10 @@ function buildPicker(el, { wheelZoom = false } = {}) {
   )
   const picker = { map, neighborLayer: markRaw(L.layerGroup().addTo(map)), marker: null }
 
-  map.on('click', (event) => setPoint(event.latlng.lat, event.latlng.lng))
+  map.on('click', (event) => {
+    if (nearEdge(map, event.containerPoint)) return
+    setPoint(event.latlng.lat, event.latlng.lng)
+  })
   map.on('moveend', () => {
     lastView.center = map.getCenter()
     lastView.zoom = map.getZoom()
@@ -327,6 +391,7 @@ function destroyPicker(picker) {
 onMounted(() => {
   buildPicker(inlineEl.value)
   frameInline()
+  document.addEventListener('paste', onPaste)
 })
 
 // Keep every live map in step when the point changes (map click, drag, or the
@@ -386,6 +451,7 @@ watch(expanded, async (isOpen) => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('paste', onPaste)
   clearTimeout(hintTimer)
   pickers.forEach((picker) => picker.map.remove())
   pickers = []
@@ -432,6 +498,7 @@ onBeforeUnmount(() => {
     </div>
 
     <p class="field-hint">{{ t('editor.mapHint') }}</p>
+    <p class="field-hint">{{ t('editor.clearPointHint') }} {{ t('editor.pasteHint') }}</p>
 
     <!--
       A legend, not a label. The muted drops are the only thing on the map

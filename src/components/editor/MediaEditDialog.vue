@@ -28,7 +28,12 @@ const props = defineProps({
   items: { type: Array, default: null },
   /** Owning day, when the caller knows it; otherwise derived from `created`. */
   date: { type: String, default: null },
-  /** Offers a delete action; the parent owns the confirmation and the request. */
+  /**
+   * Offers a delete action; the parent owns the confirmation and the request.
+   *
+   * For one file or for the whole selection alike — `delete` carries the list,
+   * and how many it holds is the caller's own business.
+   */
   deletable: { type: Boolean, default: false },
 })
 
@@ -788,13 +793,18 @@ async function save() {
     </form>
 
     <template #footer>
+      <!--
+        The one destructive control on the card, and it says how much it is
+        about to take: deleting is exactly as available for forty files as for
+        one, and the count is the difference between the two.
+      -->
       <button
-        v-if="deletable && single"
+        v-if="deletable && editList.length"
         type="button"
         class="btn-danger mr-auto"
-        @click="emit('delete', single)"
+        @click="emit('delete', editList)"
       >
-        {{ t('common.delete') }}
+        {{ isBulk ? t('admin.deleteCount', { count: editList.length }) : t('common.delete') }}
       </button>
       <button type="button" class="btn-ghost" @click="emit('close')">
         {{ t('common.cancel') }}

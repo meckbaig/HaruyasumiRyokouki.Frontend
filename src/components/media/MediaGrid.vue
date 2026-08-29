@@ -60,12 +60,28 @@ const sentinel = ref(null)
 const visibleItems = computed(() => props.items.slice(0, visibleCount.value))
 const hasMore = computed(() => visibleCount.value < props.items.length)
 
-// A new result set has to start from the first chunk again.
+/*
+  A new result set starts from the first chunk again — but a shrunken one does not.
+
+  Approving a file takes it out of the pending queue, which hands this a new
+  array; treating that as a new answer folded four hundred revealed thumbnails
+  back to sixty, every time, and the reader had to press "show more" again to get
+  back to where they were working. A list whose every id was already in the
+  previous one is the same list minus something, and the count survives.
+*/
+let knownIds = new Set()
+
 watch(
   () => props.items,
-  () => {
-    visibleCount.value = props.chunkSize
+  (items) => {
+    const ids = new Set(items.map((media) => media?.id))
+    const shrunk = items.every((media) => knownIds.has(media?.id))
+    knownIds = ids
+
+    if (!shrunk) visibleCount.value = props.chunkSize
+    else visibleCount.value = Math.max(props.chunkSize, Math.min(visibleCount.value, items.length))
   },
+  { immediate: true },
 )
 
 function revealMore() {

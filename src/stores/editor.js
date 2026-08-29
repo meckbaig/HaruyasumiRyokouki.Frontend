@@ -28,10 +28,17 @@ export const useEditorStore = defineStore('editor', () => {
     when the same files are saved twice.
   */
   const lastSave = ref(null)
+  /** The same channel for a deletion, which every list showing them must hear. */
+  const lastDelete = ref(null)
 
   function reportSaved(result) {
     if (!result) return
     lastSave.value = { ...result }
+  }
+
+  function reportDeleted(ids) {
+    if (!ids?.length) return
+    lastDelete.value = { ids: [...ids] }
   }
 
   const count = computed(() => selectedIds.value.size)
@@ -113,12 +120,14 @@ export const useEditorStore = defineStore('editor', () => {
     ids,
     items,
     lastSave,
+    lastDelete,
     isSelected,
     toggle,
     start,
     selectMany,
     setSelection,
     reportSaved,
+    reportDeleted,
     clear,
   }
 })
