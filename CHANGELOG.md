@@ -4,6 +4,40 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.2.0 — faster filing
+
+Everything here is about the screens used to put the archive in order. Filing a
+morning's photographs is hundreds of small decisions, and this release is mostly
+about the ones that were costing a detour: a form opened to answer a yes-or-no
+question, a place looked up on Google Maps and then hunted for again here, a
+queue that lost its place every time something left it.
+
+Deleting is the exception, and it goes the other way. It is the one irreversible
+thing on the site, so it now asks in the site's own voice, says how many files it
+is about to take, and — finally — can be asked about a whole selection rather
+than one file at a time.
+
+- Hiding a file is a button on the thumbnail itself, beside the star, instead of
+  a trip through the editor
+- A selection can be deleted, from the same button on the edit card that deletes
+  one file, and the confirmation says how many
+- Confirmations are the site's own dialogs rather than the browser's — themed,
+  readable on a phone, and able to name what they are about
+- Coordinates copied from Google Maps can be pasted straight onto the editor
+  map, which jumps to the spot
+- Right-clicking the pin on the editor map takes it off
+- Clicks near the edge of the editor map no longer move the pin, so missing the
+  expand button by a few pixels stops costing a location
+- The pending queue keeps everything it has revealed when a file is approved,
+  instead of folding back to the first sixty
+- Thumbnails now show the time under on hover
+- A media opened full screen shows its title and description from response 
+  rather than only its file name on pending page
+- Coordinates can be set for a whole selection at once, and the editor's marks
+  show a third state where the selection disagrees with itself
+- The editor map names the two locations nearest the pin, and zooms with the
+  wheel alone when full screen
+
 ## 1.1.0 — smoother editing and map
 
 This release makes bulk editing feel a little less like fighting the 
