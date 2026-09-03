@@ -3,14 +3,14 @@ import { tagLabel } from './tags'
 /**
  * Writing a saved file back onto the copy the page is showing.
  *
- * A save answers with `MediaFileEditDto` — every language at once, tags as whole
- * entities — while the page holds `MediaFileDto`, already flattened to one
+ * A save answers with `MediaFileEditDto` - every language at once, tags as whole
+ * entities - while the page holds `MediaFileDto`, already flattened to one
  * language by the server. Projecting one onto the other is what lets a title,
  * a description or a tag appear under the photograph the moment the dialog
  * closes, instead of the page fetching the day again to learn what it just sent.
  *
  * Only what an edit can change is copied. The URLs, the miniature and the
- * proportions describe the file itself, which no edit touches — and the edit
+ * proportions describe the file itself, which no edit touches - and the edit
  * model's copies are not always the ones the page was given, so writing them
  * across would be swapping good data for data that merely looks like it.
  */
@@ -19,7 +19,7 @@ import { tagLabel } from './tags'
  * The row the server would have flattened to.
  *
  * The reader's language when it has anything in it, otherwise the first that
- * does — which is the same rule behind the "showing the original" notice, and
+ * does - which is the same rule behind the "showing the original" notice, and
  * `languageCode` is set to whichever row won so that notice keeps telling the
  * truth after a save.
  */
@@ -51,7 +51,7 @@ export function applySavedMedia(target, saved, locale) {
   /*
     An edit model gets its rows back as well.
 
-    The pending queue holds `MediaFileEditDto`s — every language at once — and
+    The pending queue holds `MediaFileEditDto`s - every language at once - and
     the editor reads them straight out of the object rather than fetching, on the
     grounds that they are already complete. Which meant a file edited from that
     queue kept its old rows: reopening it showed the text as it had been before
@@ -80,8 +80,8 @@ export function applySavedMedia(target, saved, locale) {
 /**
  * Writes a tag onto a file the page is already showing.
  *
- * `POST /tags/{id}/media` answers with a count and nothing else — it has no
- * reason to send back every file it touched — so the tag exists on the server
+ * `POST /tags/{id}/media` answers with a count and nothing else - it has no
+ * reason to send back every file it touched - so the tag exists on the server
  * and nowhere on screen until something says otherwise. This is that something:
  * the media objects handed to a bulk operation are the very ones in the grid
  * behind it, so putting the tag on them is what makes it appear.

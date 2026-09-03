@@ -9,7 +9,7 @@ import { useUiStore } from '@/stores/ui'
 
   Mounted once at app level and driven from the store, because the thing being
   confirmed is usually about to be done by a component that is itself inside a
-  dialog — and a question that has to be asked from anywhere cannot be a prop
+  dialog - and a question that has to be asked from anywhere cannot be a prop
   threaded down from a page.
 
   Refusing is the default in every direction: the backdrop, Escape and the cross

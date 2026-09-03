@@ -6,7 +6,7 @@ import { setFavorite } from '@/api/media'
  * The new state is written straight back onto the media object instead of
  * reloading the page it came from. Every list holds the very objects the stores
  * cached, so one write makes the star, the edit dialog and any other view of the
- * same file agree at once — and a mark is a single boolean, not worth pulling a
+ * same file agree at once - and a mark is a single boolean, not worth pulling a
  * whole day back over the wire.
  *
  * Throws whatever the API threw, so the caller can say so; nothing is written

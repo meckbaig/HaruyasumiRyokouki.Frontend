@@ -15,7 +15,7 @@ export function isMobileLayout() {
 }
 
 /**
- * Shorter side of the drawable area, in CSS pixels — the same unit space as
+ * Shorter side of the drawable area, in CSS pixels - the same unit space as
  * `devicePixelRatio`, so `min-side * dpr` is the real device pixel count.
  *
  * Measured from the viewport rather than from `screen`, because those two are
@@ -23,7 +23,7 @@ export function isMobileLayout() {
  * the OS scaling but ignore the browser's page zoom, while `devicePixelRatio`
  * includes both. Recovering the screen size in current CSS pixels would need the
  * zoom factor on its own, which no API exposes. `innerWidth/innerHeight` are
- * plain CSS pixels of this page, so they are exact — and they describe the space
+ * plain CSS pixels of this page, so they are exact - and they describe the space
  * an image is actually given, the browser's own chrome already excluded.
  *
  * The smaller of the two sides, rather than one picked per orientation: a
@@ -41,7 +41,7 @@ export function minViewportSide() {
  * Value of the `X-Display` request header, e.g. `dpr=1.375; min-side=1470`.
  *
  * Both values are in the same unit space: multiply them for device pixels. The
- * ratio is rounded to three decimals — enough to keep the product accurate, few
+ * ratio is rounded to three decimals - enough to keep the product accurate, few
  * enough to stop near-identical clients from each minting their own cache entry.
  * Bucketing stays on the server, so sizing policy can change without a frontend
  * release.

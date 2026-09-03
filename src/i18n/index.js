@@ -48,7 +48,7 @@ export function persistLocale(locale) {
 /**
  * Persists a locale only when the visitor has not chosen one before. Used for
  * the `?lang=` shared-link case: it should not override a returning visitor's
- * own saved preference — they still see the shared language this visit, but
+ * own saved preference - they still see the shared language this visit, but
  * their stored choice stays intact for next time.
  */
 export function persistLocaleIfUnset(locale) {
@@ -66,8 +66,8 @@ export const i18n = createI18n({
 /*
   Takes `?lang=` out of the address, now that it has been read.
 
-  Here, and at once, because this module is evaluated before the router exists —
-  the router imports it — so the parameter is gone before anything has looked at
+  Here, and at once, because this module is evaluated before the router exists -
+  the router imports it - so the parameter is gone before anything has looked at
   the address, and no navigation is needed to remove it.
 
   It used to be removed later, with a `router.replace` once routing was ready,
@@ -78,7 +78,7 @@ export const i18n = createI18n({
 
   Both halves had to line up for it to show, which is why it looked so arbitrary.
   The viewer is only open that early when the day's data has outrun the download
-  of the page's own code — that is, on a cold cache — and the removal only
+  of the page's own code - that is, on a cold cache - and the removal only
   happens when a language was shared in the first place. Hence: never on a second
   visit, never without `?lang=`, every time in Chrome's incognito, which starts
   cold each session, and not in Firefox's, which keeps its cache between them.

@@ -19,7 +19,7 @@ const expanded = ref(false)
 
 const heading = computed(() => formatLongDate(props.day.date, ui.locale))
 // When the whole note is shown, highlights have to be recomputed against the
-// full text — the snippet ranges are relative to their own slices.
+// full text - the snippet ranges are relative to their own slices.
 const fullRanges = computed(() => (expanded.value ? findRanges(props.day.note, props.tokens) : []))
 </script>
 

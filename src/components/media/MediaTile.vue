@@ -24,14 +24,14 @@ const props = defineProps({
   /**
    * Stamps the day the file was taken onto the tile. For the pending queue,
    * where files arrive from all over the trip with nothing else to place them
-   * by — everywhere else the day is the page they are already on.
+   * by - everywhere else the day is the page they are already on.
    */
   showDate: { type: Boolean, default: false },
   /**
    * Stamps the time the file was taken, offered on approach rather than always.
    *
-   * On a day and in search results the date is already established — by the page
-   * in one case and by the heading over each group in the other — so the useful
+   * On a day and in search results the date is already established - by the page
+   * in one case and by the heading over each group in the other - so the useful
    * half is the clock, and it is useful often enough to want and rarely enough
    * not to want printed across every photograph on the wall.
    */
@@ -41,7 +41,7 @@ const props = defineProps({
    *
    * On the queue of unfiled media they must be: the whole page is work, and on a
    * phone an invisible control is one only its author can find. On a day or a
-   * set of results they must not — those walls are photographs first, and a
+   * set of results they must not - those walls are photographs first, and a
    * pencil stamped onto every one of them turns reading into administration.
    */
   touchControls: { type: Boolean, default: false },
@@ -63,8 +63,8 @@ const hidden = computed(() => isPrivate(props.media))
 /*
   The stamp in the corner, in two halves.
 
-  The date is what a page asks for when its files come from all over the trip —
-  the pending queue — and it stays on show. The time is a detail wanted only when
+  The date is what a page asks for when its files come from all over the trip -
+  the pending queue - and it stays on show. The time is a detail wanted only when
   a hand is already on that tile, so it joins the date on approach instead of
   standing there being read all day.
 
@@ -94,7 +94,7 @@ watch(src, () => {
 })
 
 /**
- * `load` only means the bytes arrived — the browser still has to decode them,
+ * `load` only means the bytes arrived - the browser still has to decode them,
  * and it does that while painting, which is what makes a fresh preview appear
  * in bands over the miniature. Awaiting `decode()` does that work first, so the
  * swap is a single clean frame. From cache it resolves immediately, which is
@@ -131,7 +131,7 @@ const outlineClass = computed(() => {
   Sits opposite the pencil and appears the same way, with one difference: a file
   already marked keeps its star on show. The mark is the answer to "what have I
   picked out?", and a mark that only appears under the cursor cannot be scanned
-  — nor reached at all on a phone, where nothing hovers.
+  - nor reached at all on a phone, where nothing hovers.
 */
 const favorite = computed(() => props.media.favorite === true)
 const marking = ref(false)
@@ -176,7 +176,7 @@ async function hide() {
 }
 
 /**
- * The browser's own menu is replaced rather than merely suppressed — it was
+ * The browser's own menu is replaced rather than merely suppressed - it was
  * already being suppressed, because a long press on a phone means "select" here
  * and the native menu got in the way of it. What takes its place is offered from
  * the page that owns the grid, which is the one that knows what a link to this
@@ -189,15 +189,15 @@ function onContextMenu(event) {
 /*
   A tap is read here rather than waited for.
 
-  `click` is not an event a touchscreen produces — a browser invents one out of
+  `click` is not an event a touchscreen produces - a browser invents one out of
   a touch, and only if it decides that touch belonged to the page. After a quick
   swipe it decides otherwise: the whole invented sequence is suppressed, mouse
   events and all, and a tile tapped straight after a picture was flicked away
   answered nothing at all. Nothing was cancelling it and nothing was covering the
   page; the click was simply never made.
 
-  So the tap is recognised from the touch itself — pressed and released in the
-  same place — and a browser that does invent a click afterwards finds it already
+  So the tap is recognised from the touch itself - pressed and released in the
+  same place - and a browser that does invent a click afterwards finds it already
   answered. A mouse still comes through `click` as it always did.
 */
 const TAP_SLOP = 10
@@ -444,7 +444,7 @@ function activate() {
       The star has to stay on show when it is set, because nothing else on the
       tile says a file is a favourite. Hiding already has its own badge in the
       bottom-left corner, so a button repeating that would be the same fact
-      twice — and unlike the star it is a control, not a state, so it appears on
+      twice - and unlike the star it is a control, not a state, so it appears on
       approach like the pencil. Its colour still reports the state it would undo.
     -->
     <button

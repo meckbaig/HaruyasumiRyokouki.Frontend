@@ -32,7 +32,7 @@ const totalMedia = computed(() =>
   follows.
 
   A failed request leaves the wall out rather than putting an error on the front
-  page — nothing here is the reason a visitor came, and the calendar below is
+  page - nothing here is the reason a visitor came, and the calendar below is
   still the way in.
 
   Deliberately not linkable: the backend shuffles this list and caps it, so the

@@ -10,7 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
  *   i=<media id>  the file to single out, outlined in the list
  *   o=1           and it should be open full screen straight away
  *
- * `o` means nothing on its own — there has to be a file for it to open — so it
+ * `o` means nothing on its own - there has to be a file for it to open - so it
  * is only ever written alongside `i`.
  *
  * The page resolves `i` against what it actually holds, because a link can be
@@ -35,7 +35,7 @@ export function readMediaLink(query) {
  * What page a route is, ignoring which file it points at.
  *
  * Writing `i` changes the address, and anything watching the address for a page
- * change would read that as having been taken somewhere else — which is how
+ * change would read that as having been taken somewhere else - which is how
  * opening a file came to close the viewer the same instant. This is the address
  * with the pair taken out and the rest put in a fixed order, so it changes when
  * the reader is actually moved and not when a picture is named.
@@ -72,7 +72,7 @@ export function withMediaLink(query, id, open = false) {
  * navigation cancels it.
  *
  * @param {{ suspended?: () => boolean }} [options] `suspended` holds the
- *   dismissal off while the viewer is open — the outline is behind it, and the
+ *   dismissal off while the viewer is open - the outline is behind it, and the
  *   click that opened it must not take it away.
  */
 export function useMediaLink({ suspended = () => false } = {}) {
@@ -100,8 +100,8 @@ export function useMediaLink({ suspended = () => false } = {}) {
 
     A click is the tail of a gesture rather than an event in its own right: it is
     dispatched once a press that began some time earlier is released, and a
-    navigation can start in between. So a page arriving by way of a click — the
-    map's "open this day" button is one — can be handed the end of a gesture that
+    navigation can start in between. So a page arriving by way of a click - the
+    map's "open this day" button is one - can be handed the end of a gesture that
     was never aimed at it, and read it as the reader waving away an outline they
     have not had time to see.
 

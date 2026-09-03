@@ -14,7 +14,7 @@ const LABELS = { ru: 'RU', en: 'EN', ja: '日本語' }
 
 /**
  * The locale is also the `Accept-Language` the API is asked with, so switching
- * it invalidates every cached response — notes and titles come back translated.
+ * it invalidates every cached response - notes and titles come back translated.
  */
 function choose(locale) {
   if (locale === ui.locale) return

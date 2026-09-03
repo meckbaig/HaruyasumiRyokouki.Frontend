@@ -23,7 +23,7 @@ const ui = useUiStore()
 /*
   Adding tags to a selection, as opposed to editing it.
 
-  The bulk editor next to this one *replaces* — it is the right tool for saying
+  The bulk editor next to this one *replaces* - it is the right tool for saying
   what a set of files should be, and the wrong one for saying "these are all of
   the festival too". `POST /tags/{id}/media` adds and leaves everything else
   alone, which is what filing by subject needs: the files being touched have
@@ -67,7 +67,7 @@ async function apply() {
       if (!tag?.id) continue
       await addTagToMedia(tag.id, ids.value)
       // The selection *is* what the page is showing, so the tag goes onto those
-      // objects and appears wherever they are drawn — no refetch, no reload.
+      // objects and appears wherever they are drawn - no refetch, no reload.
       for (const media of props.items) addTagLocally(media, tag, ui.locale)
       // Usage counts order every tag list on the site; kept true here rather
       // than waiting for the dictionary to be fetched again.

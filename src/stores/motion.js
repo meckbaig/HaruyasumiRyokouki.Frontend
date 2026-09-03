@@ -8,7 +8,7 @@ const STORAGE_KEY = 'haruyasumi.motion'
  *
  * "auto" respects it, which is the right default for everyone. "always" opts
  * back into animation for a visitor who turned motion off system-wide but wants
- * it here anyway — the choice is written to <html>, where the reduced-motion
+ * it here anyway - the choice is written to <html>, where the reduced-motion
  * rules in main.css check for it.
  */
 export const MOTION_OPTIONS = ['auto', 'always']

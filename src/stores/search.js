@@ -11,7 +11,7 @@ const EMPTY = { tokens: [], mediaDays: [], noteDays: [] }
  * results themselves.
  *
  * The dictionary is behind the login and a visitor following a shared tag link
- * has none — but every file that came back carries the tag that fetched it,
+ * has none - but every file that came back carries the tag that fetched it,
  * already in the reader's language. So the name is in the answer by definition,
  * and only a tag that matched nothing leaves it blank.
  */
@@ -30,7 +30,7 @@ function captionFromResults(split, slug, locale) {
  *
  * The cache matters because shared links are opened repeatedly and going back
  * from a day to the results should not refetch. It is keyed by locale as well
- * as by the query — the same words return different notes per language — and by
+ * as by the query - the same words return different notes per language - and by
  * which of the two searches was asked for, since `text=ramen` and the tag
  * `ramen` are different questions with different answers.
  */
@@ -86,7 +86,7 @@ export const useSearchStore = defineStore('search', () => {
     error.value = null
     try {
       const items = await searchApi({ text: trimmed, tag }, controller.signal)
-      // A tag search highlights nothing — the words being looked for are the
+      // A tag search highlights nothing - the words being looked for are the
       // ones nobody typed. Passing no query is what leaves the tokens empty.
       const split = splitSearchResults(items, tag ? '' : trimmed)
       cache.set(key, split)
@@ -114,7 +114,7 @@ export const useSearchStore = defineStore('search', () => {
     cache.clear()
   }
 
-  /** Names a tag before its results are in — used when a chip is drawn first. */
+  /** Names a tag before its results are in - used when a chip is drawn first. */
   function rememberTag(slug, caption, locale) {
     if (!slug || !caption) return
     captions.set(`${locale}::${slug}`, caption)

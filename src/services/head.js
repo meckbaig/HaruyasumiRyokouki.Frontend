@@ -35,7 +35,7 @@ function setMeta(keyAttr, keyValue, content) {
  * Points the manifest link at the locale's own file.
  *
  * A browser reads the manifest when it offers to install, so the name under the
- * icon follows whatever language the reader had chosen by then — not the one the
+ * icon follows whatever language the reader had chosen by then - not the one the
  * page was served in. In development there are no per-locale manifests (the
  * build writes them), so a missing file is left alone rather than pointed at.
  */
@@ -54,7 +54,7 @@ export function applyHead({ title, description } = {}) {
   const site = t('app.title')
   const tagline = t('app.subtitle')
 
-  const fullTitle = title ? `${title} · ${site}` : `${site} — ${tagline}`
+  const fullTitle = title ? `${title} · ${site}` : `${site} - ${tagline}`
   const desc = description || tagline
 
   document.title = fullTitle

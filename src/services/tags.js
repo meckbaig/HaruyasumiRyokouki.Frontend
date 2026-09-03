@@ -4,7 +4,7 @@
  * A tag is an entity with an id, and its words hang off it: one **caption** per
  * language (`IsPrimary`), and any number of **aliases**. The difference is the
  * whole point of the arrangement. A caption is what a reader sees; an alias is
- * only ever a way in — someone looking for "noodles" finds photographs captioned
+ * only ever a way in - someone looking for "noodles" finds photographs captioned
  * "ramen", and never learns that "noodles" was written down anywhere.
  *
  * So aliases are searched and never rendered. Nothing in this module returns
@@ -21,7 +21,7 @@
  * **The slug is the name a tag is known by outside the editor.** It is what
  * public models carry, what a link puts in the address (`/search?tag=ramen`) and
  * what everything here keys on. The numeric `id` exists only in the editor's
- * model and only for one purpose — `changes.tagIds` on a save — so it is
+ * model and only for one purpose - `changes.tagIds` on a save - so it is
  * resolved from the dictionary at that one moment and nowhere else.
  */
 

@@ -33,7 +33,7 @@ const props = defineProps({
   framed: { type: Boolean, default: true },
   /**
    * Lets a bare wheel zoom, with no Ctrl held. Only for a map that fills the
-   * window — see `createBaseMap`.
+   * window - see `createBaseMap`.
    */
   wheelZoom: { type: Boolean, default: false },
 })
@@ -70,7 +70,7 @@ function locatedMedia() {
  * and a date in a narrow column, and a square one pushed both out of sight.
  *
  * It went square for a while because the miniature arrived pre-cropped to a
- * square and this box cropped that again — a horizontal file came out looking
+ * square and this box cropped that again - a horizontal file came out looking
  * zoomed in twice over. Miniatures now keep the file's own proportions, so there
  * is only ever the one crop, and the strip is safe again.
  */
@@ -191,8 +191,8 @@ function renderMarkers() {
   Framing the points.
 
   Kept apart from drawing them because it has to be done again: a map built
-  inside a box that has not been laid out yet — an overlay opening, a section
-  unfolding, a tab appearing — computes its zoom against a container of no size
+  inside a box that has not been laid out yet - an overlay opening, a section
+  unfolding, a tab appearing - computes its zoom against a container of no size
   and keeps that zoom for good. `invalidateSize` tells Leaflet the box changed
   and does nothing about the framing, which is why the map sometimes sat at the
   wrong scale over the right centre.
@@ -250,11 +250,11 @@ onMounted(() => {
   renderMarkers()
 
   // The map is often laid out inside a container that resizes after mount
-  // (sidebar, tab switch); without this it renders as a grey box — and without
+  // (sidebar, tab switch); without this it renders as a grey box - and without
   // the refit, one at the wrong scale.
   resizeObserver = new ResizeObserver(() => {
     // `pan: false`: Leaflet keeps the centre put by panning, and a pan is a move
-    // — which the listener above would have taken for the reader's own, so the
+    // - which the listener above would have taken for the reader's own, so the
     // map would never be re-framed after the very first resize.
     instance.invalidateSize({ pan: false })
     if (!userMoved) fitToContent()
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
 <template>
   <!--
     `isolate`: Leaflet stacks its panes from 200 up to 800, and without a
-    stacking context of their own those numbers compete with the whole page —
+    stacking context of their own those numbers compete with the whole page -
     which is how the map came to sit over the header and swallow the menus
     dropping out of it. Isolating pins every one of them inside this box.
   -->

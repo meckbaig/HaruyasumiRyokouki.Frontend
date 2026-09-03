@@ -31,7 +31,7 @@ const field = ref(null)
 
   This is what makes the vocabulary usable by someone who has never seen it. No
   operators, no syntax, no prefix to learn: the visitor types, and the tags that
-  answer to what they typed drop down underneath — matched on their aliases as
+  answer to what they typed drop down underneath - matched on their aliases as
   well as their captions, so "noodles" offers "ramen" though the word "noodles"
   appears on nothing. Picking one searches by its id; pressing Enter searches for
   the words themselves. Both are always available, and neither has to be
@@ -56,7 +56,7 @@ let controller = null
  *
  * Only on the search page. `?tag=` also names the tag being collected on the
  * admin screen, and the bar in the header was reading that as a search it was
- * showing the results of — a chip for something it had not found and could not
+ * showing the results of - a chip for something it had not found and could not
  * take the reader back to.
  */
 const routeTagSlug = computed(() =>
@@ -66,7 +66,7 @@ const routeTagSlug = computed(() =>
 /*
   Taking the chip off is about the field, not about the page.
 
-  It used to navigate — and the only honest place to navigate to, with nothing
+  It used to navigate - and the only honest place to navigate to, with nothing
   typed and nothing to search for, was home. Which threw away the results the
   reader was looking at in order to answer a gesture that only meant "I want to
   type something else". So the chip goes, the caret lands in the field, and what
@@ -135,7 +135,7 @@ watch(text, (next) => {
 
 /**
  * The `autofocus` attribute only counts on a page load, so a field that appears
- * later — the mobile search panel opens on a tap — is left unfocused and the
+ * later - the mobile search panel opens on a tap - is left unfocused and the
  * keyboard never comes up. Asking for focus once the element is in the document
  * does what the attribute promises.
  */
@@ -147,7 +147,7 @@ onMounted(async () => {
 
 onBeforeUnmount(stopFetch)
 
-// Keep the field in step with the URL — the query is the source of truth, and it
+// Keep the field in step with the URL - the query is the source of truth, and it
 // changes on back/forward and when a tag chip navigates here.
 watch(
   () => route.query.text,
@@ -179,8 +179,8 @@ function goToTag(tag) {
  * Free search over the words as typed, with a leading `#` taken off.
  *
  * Somebody who has seen a chip written `#ramen` will sooner or later type the
- * hash themselves, expecting it to mean something. It does not — tags are picked
- * from the list, never spelled — and searching for a hash that appears in no
+ * hash themselves, expecting it to mean something. It does not - tags are picked
+ * from the list, never spelled - and searching for a hash that appears in no
  * note would answer nothing at all. Dropping it searches for what they meant.
  */
 function submit() {
@@ -205,7 +205,7 @@ function move(step) {
   }
   const total = rowCount.value
   if (!total) return
-  // Wraps through -1, which is "nothing chosen" — Enter there means free search,
+  // Wraps through -1, which is "nothing chosen" - Enter there means free search,
   // and it has to stay reachable by keyboard like everything else.
   const next = cursor.value + step
   cursor.value = next >= total ? -1 : next < -1 ? total - 1 : next
@@ -247,7 +247,7 @@ async function clearTag() {
 
       <!-- The tag being filtered by, standing in the field rather than in it:
            it is not text that was typed and it cannot be edited a letter at a
-           time — it is either the tag or it is gone. -->
+           time - it is either the tag or it is gone. -->
       <span
         v-if="activeTagSlug"
         class="flex shrink-0 items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-ink"

@@ -31,7 +31,7 @@ const openDayDate = ref(null)
  * A plain tap opens the file full screen, the same as it does everywhere else.
  * Editing has a button of its own on the tile and a toolbar behind the
  * selection, so the tap was the one way of looking at a file that this page had
- * spent on a dialog — and the queue is exactly where a file most needs looking
+ * spent on a dialog - and the queue is exactly where a file most needs looking
  * at before anything is decided about it.
  */
 const lightboxIndex = ref(null)
@@ -96,11 +96,11 @@ async function removeMedia(list) {
  * An approved file is no longer pending, so it comes out of the list.
  *
  * A set, not a single id: a bulk save answers for the whole selection, and
- * comparing each file against the *array* of ids — which is what this used to do
- * — is never equal, so nothing was ever taken out.
+ * comparing each file against the *array* of ids - which is what this used to do
+ * - is never equal, so nothing was ever taken out.
  */
 function onMediaSaved({ ids, approved } = {}) {
-  // Saving without ticking "approved" is a correction, not a decision — the file
+  // Saving without ticking "approved" is a correction, not a decision - the file
   // is still waiting, and taking it off the queue would hide it from the person
   // who has yet to decide about it.
   if (!approved) return
@@ -117,7 +117,7 @@ function onMediaSaved({ ids, approved } = {}) {
 
   That toolbar is mounted at app level so the selection survives navigation, and
   a component mounted above every page cannot hand this one an event. It records
-  the save in the editor store and this reads it from there — otherwise a
+  the save in the editor store and this reads it from there - otherwise a
   selection approved in bulk stayed on the queue until the page was reloaded.
 */
 watch(() => editor.lastSave, onMediaSaved)
@@ -233,7 +233,7 @@ function dayTitle(day) {
             </button>
 
             <!-- The row folds open around the editor rather than snapping to
-                 its full height — see `.reveal` in assets/main.css. -->
+                 its full height - see `.reveal` in assets/main.css. -->
             <Transition name="reveal">
               <div v-if="openDayDate === day.date" class="reveal reveal-stagger">
                 <div class="border-t border-edge px-4 py-4">

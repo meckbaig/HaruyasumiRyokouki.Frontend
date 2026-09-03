@@ -5,7 +5,7 @@ import { fetchMediaLocations } from '@/api/media'
  * Loads the located media for a date range in a single request.
  *
  * Backed by `GET /v1/media/locations`, which returns only media that have
- * coordinates — no more walking the trip day by day. Each item is a
+ * coordinates - no more walking the trip day by day. Each item is a
  * MediaFileLocationDto: `{ id, created, latitude, longitude, fileName, title }`.
  */
 export function useTripMedia() {

@@ -129,8 +129,17 @@ PATCH /v1/media  { ids, changes, autoTranslate }
 
 ## Auto-translate
 
-`autoTranslate: true` asks the backend to fill the empty languages from the ones it is
-given and answer with `{ items: MediaFileEditDto[] }`.
+`autoTranslate: true` runs in two halves, and **only the first is persisted** (confirmed
+with the project owner, 2026-09-03):
+
+1. The backend saves the fields the request carried, exactly as a normal save would.
+2. It then translates into the languages that were left empty and returns those in
+   `{ items: MediaFileEditDto[] }` **without storing them**.
+
+Keeping the translation is therefore a **second save**, made by the editor once they have
+read it. That is the whole reason the dialog stays open on this path rather than closing:
+leaving without saving again discards the machine's work, which is the intended escape
+hatch when it got something wrong.
 
 Two consequences that look like bugs:
 

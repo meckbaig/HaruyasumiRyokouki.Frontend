@@ -10,9 +10,10 @@ const props = defineProps({
 /*
   Two stages, and never one.
 
-  Every file ships a `miniature`: a tiny base64 square that costs no request at
-  all and is therefore on screen in the first frame. The real preview settles
-  over it once it is whole — and only once it is whole, because a half-arrived
+  Every file ships a `miniature`: a tiny base64 image that costs no request at
+  all and is therefore on screen in the first frame. It arrives in the file's own
+  proportions, and the square below is this component's crop, not the data's. The real preview settles
+  over it once it is whole - and only once it is whole, because a half-arrived
   `<img>` draws its own alt text and an empty box, and both used to show through.
 
   Handing a single `<img>` `preview || miniature` looks like the same thing and
@@ -29,7 +30,7 @@ watch(src, () => {
 })
 
 /**
- * `load` only means the bytes arrived — the browser still has to decode them,
+ * `load` only means the bytes arrived - the browser still has to decode them,
  * and it does that while painting, which is what makes a fresh preview appear in
  * bands over the miniature. Awaiting `decode()` does that work first, so the
  * swap is a single clean frame. From cache it resolves at once.

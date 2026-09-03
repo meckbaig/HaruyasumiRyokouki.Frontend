@@ -18,7 +18,7 @@ export const useEditorStore = defineStore('editor', () => {
     What the last bulk save did, for a page that is showing a queue.
 
     The toolbar is mounted at app level so a selection survives navigation
-    between the day, the results and the pending queue — which is also why it
+    between the day, the results and the pending queue - which is also why it
     cannot simply tell the page underneath what just happened. Approving a
     selection took those files out of the queue on the server and left them
     sitting on the screen until a reload, because nothing carried the fact

@@ -49,7 +49,15 @@ function normalizeWithMap(text) {
   return { normalized, map }
 }
 
-/** Splits a query into normalised search tokens, dropping punctuation and noise. */
+/**
+ * Splits a query into normalised search tokens, dropping punctuation and noise.
+ *
+ * The character class below is the one place in this repo where an em dash and an
+ * en dash are load-bearing rather than typographic: they are separators a reader
+ * may type between words. Leave them where they are - the project-wide rule
+ * against those characters is about prose, and replacing these two would stop the
+ * tokeniser splitting on them.
+ */
 export function tokenize(query) {
   if (!query) return []
 

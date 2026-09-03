@@ -10,7 +10,7 @@ import { tokenize, hasMatch, buildSnippets } from './highlight'
  *   the matching files;
  * - a day that matched through its note alone comes back with `media` empty.
  *
- * A day can legitimately land in both tabs, and that is not a duplicate — it
+ * A day can legitimately land in both tabs, and that is not a duplicate - it
  * matched in both places.
  *
  * @param {Array} items DayDto[] straight from `GET /v1/search`.

@@ -61,8 +61,8 @@ async function refresh() {
   Fullscreen.
 
   A second map rather than this one moved into an overlay: a live Leaflet
-  instance carried through a Teleport comes out broken — blank tiles, and dead
-  once it is put back — which is why the location picker in the editor builds two
+  instance carried through a Teleport comes out broken - blank tiles, and dead
+  once it is put back - which is why the location picker in the editor builds two
   as well. Both are driven from the same media, so they show the same thing and
   neither knows about the other.
 */
@@ -104,7 +104,7 @@ watch(() => ui.locale, refresh)
       <!--
         Wraps within itself, not only against the heading. A default range means
         "whole route" is on show from the first frame, and three controls beside a
-        title is more than a phone has room for in one line — the last of them was
+        title is more than a phone has room for in one line - the last of them was
         simply off the right-hand edge.
       -->
       <div class="flex max-w-full flex-wrap items-center gap-2">

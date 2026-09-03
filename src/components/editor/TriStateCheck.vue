@@ -6,7 +6,7 @@ const props = defineProps({
   /**
    * The selection disagrees with itself: some carry the mark and some do not.
    *
-   * A third state, and it has to be one — showing a mixed selection as unticked
+   * A third state, and it has to be one - showing a mixed selection as unticked
    * says "none of these", which is a lie the editor would then act on. It is not
    * a value, though: the box holds `modelValue` either way, and the first press
    * settles the whole selection on ticked, the way a browser resolves it.
@@ -21,7 +21,7 @@ const input = ref(null)
 
 /*
   `indeterminate` is a property of the element and not an attribute, so it cannot
-  be bound in the template at all — it has to be written onto the node whenever
+  be bound in the template at all - it has to be written onto the node whenever
   the answer changes.
 */
 watchEffect(() => {

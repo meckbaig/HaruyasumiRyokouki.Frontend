@@ -40,7 +40,7 @@ function buildUrl(path, query) {
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined || value === null || value === '') continue
     // Arrays become repeated params (`ids=1&ids=2`), which is how ASP.NET binds
-    // an array query parameter — not a single comma-joined value.
+    // an array query parameter - not a single comma-joined value.
     if (Array.isArray(value)) {
       for (const item of value) {
         if (item !== undefined && item !== null && item !== '') params.append(key, item)
@@ -74,7 +74,7 @@ async function readProblem(response) {
  * @param {*}      [options.body]          Serialised as JSON when present.
  * @param {boolean}[options.requiresAuth]  Marks an editor-only call, so a 401
  *   drops the session and bounces to the login page. Public pages must leave
- *   this off — an anonymous 401 there should surface as a plain error instead
+ *   this off - an anonymous 401 there should surface as a plain error instead
  *   of yanking the visitor away from the content.
  * @param {string} [options.authHeader]    Overrides the stored credentials, used
  *   while verifying a login that has not been saved to the session yet.

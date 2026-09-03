@@ -2,7 +2,7 @@
  * What release this is, for the footer to say.
  *
  * The number lives in package.json and arrives here as a build-time constant.
- * Only feature releases carry a name — the third segment is for fixes, and a
+ * Only feature releases carry a name - the third segment is for fixes, and a
  * fix belongs to the feature release it follows, so the name is looked up by
  * major and minor alone. CHANGELOG.md is the long version of this list.
  */

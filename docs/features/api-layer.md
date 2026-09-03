@@ -144,6 +144,12 @@ placeholder. **It carries the file's original proportions** - cropping it to wha
 shape a view needs is the frontend's job, done in CSS. `aspectRatio` is measured
 server-side, so layout is known before any byte of the picture arrives.
 
+The raw base64 carries no type, and `miniatureSrc` wraps it as
+`data:image/octet-stream;base64,`. That is **deliberate, not a placeholder**: the server
+may store miniatures in any format, browsers sniff the magic bytes of a data URI whatever
+type is declared, and having the API name the type would cost a field on every file in
+every response to state something the browser works out for itself.
+
 **Downloads depend on the media host sending `Content-Disposition: attachment`** - a
 browser ignores a link's `download` attribute across origins. With imgproxy that is
 `return_attachment`.

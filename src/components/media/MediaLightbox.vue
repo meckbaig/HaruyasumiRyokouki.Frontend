@@ -46,7 +46,7 @@ const video = computed(() => isVideo(current.value))
   Public pages carry the flat model, where the server has already picked a
   language and put the text on the object. The pending queue carries the edit
   model, where the text lives in `translations[]` and the flat fields do not
-  exist at all — so a file opened full screen from that queue showed a file name
+  exist at all - so a file opened full screen from that queue showed a file name
   and nothing else, however carefully it had been described.
 */
 const text = computed(() => pickTranslation(current.value, ui.locale))
@@ -66,12 +66,12 @@ const nextItem = computed(() => (hasNext.value ? props.items[props.index + 1] : 
   A neighbour riding in the filmstrip is drawn from its preview, because that is
   the one thing certain to be there. But a file already looked at is in the
   browser's cache at full size, and sliding its preview past showed it soft for
-  the length of the turn before swapping at the end — which is exactly what a
+  the length of the turn before swapping at the end - which is exactly what a
   reader notices going back through an album.
 
   Kept as a list of what has been seen rather than asked of the browser each
   time. Asking means setting `src` on a probe, and for a file that is *not*
-  cached that is a request — one per neighbour, on every turn, for pictures
+  cached that is a request - one per neighbour, on every turn, for pictures
   nobody has opened. Fine for the file being opened, which is about to be
   fetched anyway; not fine for the two either side of it.
 */
@@ -89,8 +89,8 @@ function stripSrc(item) {
 }
 
 /**
- * The preview is the very image the grid tile already downloaded — the API
- * returns one preview URL per file — so it is served from cache and fills the
+ * The preview is the very image the grid tile already downloaded - the API
+ * returns one preview URL per file - so it is served from cache and fills the
  * frame at once while the full-screen version arrives over it. Both share the
  * file's aspect ratio, so nothing shifts on the swap.
  */
@@ -113,12 +113,12 @@ const onOwnDay = computed(() => route.name === 'day' && String(route.params.date
   A day and a search can both resolve `?i=`, so the link is built on the address
   the reader is at and lands them among the same neighbours. The front page
   cannot: its wall is reshuffled every visit, so a link into it would point at
-  nothing — there the file's own day is what gets shared instead.
+  nothing - there the file's own day is what gets shared instead.
 */
 const canResolveLink = computed(() => route.name === 'day' || route.name === 'search')
 
 /**
- * A file kept back from the public has no link worth handing out — whoever
+ * A file kept back from the public has no link worth handing out - whoever
  * received it would be sent to a day that does not contain it as far as they are
  * concerned. Taking the button away is also the plainest way of saying so: an
  * offer that is not there cannot be taken up by mistake, which a disabled one
@@ -166,8 +166,8 @@ function armSpinner() {
   if (!fullScreen.value || fullLoaded.value) return
 
   /*
-    Not on a phone. The wait there is longer — a mobile connection fetching a
-    full-size picture — and the difference the picture gains over the preview
+    Not on a phone. The wait there is longer - a mobile connection fetching a
+    full-size picture - and the difference the picture gains over the preview
     already standing in for it is smaller on a small screen. A spinner would
     mostly be something to watch, so the swap is left to happen quietly.
   */
@@ -182,7 +182,7 @@ function armSpinner() {
  * Aspect ratio of the open file.
  *
  * The file states it, so the fitting maths has it before a single byte of the
- * picture has arrived — which is what lets a file open at exactly its final size
+ * picture has arrived - which is what lets a file open at exactly its final size
  * instead of filling the cell and settling into place once a preview has
  * reported. Whatever does load afterwards refines it, and for a file that states
  * nothing that measurement is still the only source.
@@ -239,7 +239,7 @@ async function onPreviewLoaded(event) {
   const image = event.target
   rememberAspect(image)
   // Decoded before it is declared ready, or the layer above it stands down onto
-  // an image the browser is still turning into pixels — the banding `decode()`
+  // an image the browser is still turning into pixels - the banding `decode()`
   // exists to avoid.
   if (await revealWhenDecoded(image)) previewLoaded.value = true
 }
@@ -249,13 +249,13 @@ async function onPreviewLoaded(event) {
 
   A stand-in earns its place only while there is nothing better to show. If the
   full-size file is already in cache the preview is never wanted; if the preview
-  is, the miniature is never wanted — and "never wanted" has to mean never
+  is, the miniature is never wanted - and "never wanted" has to mean never
   painted, not painted and then faded away. A layer that gets its turn and is
   then taken back is worse than one that never appeared: what the reader sees is
   a sharp picture going soft and clearing again.
 
   So each layer is asked about before the first render rather than after it, and
-  a layer that was superseded before it was ever seen is also denied its fade —
+  a layer that was superseded before it was ever seen is also denied its fade -
   there is nothing to fade from.
 */
 
@@ -412,8 +412,8 @@ function frameSize() {
 }
 
 /**
- * Hands the picture back to its opening fit. The numbers here are provisional —
- * the proportions and the bars may not be known yet — and the sizing pass puts
+ * Hands the picture back to its opening fit. The numbers here are provisional -
+ * the proportions and the bars may not be known yet - and the sizing pass puts
  * the real ones in as soon as they are.
  */
 function resetZoom() {
@@ -431,7 +431,7 @@ function resetZoom() {
  * Measured from the picture as drawn, not from the window: a portrait file fills
  * the window's height and only a slice of its width, so bounds taken from the
  * window let it be dragged until half the screen is empty. What may be panned is
- * only ever the part that hangs past an edge — and an axis with nothing hanging
+ * only ever the part that hangs past an edge - and an axis with nothing hanging
  * past it does not move at all, which returns it to where the picture rests.
  */
 function clampOffset() {
@@ -454,7 +454,7 @@ function clampOffset() {
  * The box of the picture as it is drawn at this moment.
  *
  * Which element that is changes while a file is arriving. `.fit-media` gives an
- * image a width and lets its height follow its proportions — so the full-size
+ * image a width and lets its height follow its proportions - so the full-size
  * element, before its bytes land, has no proportions to be sized by and its box
  * is flat. Measuring it then put every tap beside the picture. The preview
  * standing in for it is the layer actually on screen, so it is the one to ask
@@ -506,7 +506,7 @@ function zoomTo(next, point) {
 
   scale.value = clamped
   if (clamped === min) {
-    // Pulled all the way back out — the picture is the viewer's to place again,
+    // Pulled all the way back out - the picture is the viewer's to place again,
     // so a later toggle of the chrome settles it afresh.
     applyRestingFit()
   } else {
@@ -523,7 +523,7 @@ let animationTimer = null
  * is the whole animation's length of nothing happening. Turning a page was the
  * plainest case: the strip was moved a frame along and the file underneath it
  * swapped a fifth of a second later, so what the reader looked at in between was
- * the neighbour's preview — even where the picture itself was already in hand.
+ * the neighbour's preview - even where the picture itself was already in hand.
  *
  * So the settling happens at once instead. Every caller here writes the finished
  * state in `done` and merely sets up for it in `change`, which is what makes
@@ -564,8 +564,8 @@ function withAnimation(change, done, duration = ANIM_MS) {
 /*
   Wheel zoom keeps the transition on for a moment after each notch. A wheel
   reports coarse, discrete steps, and applying them straight to the transform
-  makes the picture jump from size to size; letting each step ease out — and
-  letting the next one interrupt it — turns the same events into one continuous
+  makes the picture jump from size to size; letting each step ease out - and
+  letting the next one interrupt it - turns the same events into one continuous
   movement.
 */
 let wheelTimer = null
@@ -630,7 +630,7 @@ function updatePinch() {
   if (!pinch.distance || !distance) return
 
   const next = Math.min(MAX_SCALE, Math.max(1, (pinch.scale * distance) / pinch.distance))
-  // The midpoint may travel as well, which pans at the same time — the motion a
+  // The midpoint may travel as well, which pans at the same time - the motion a
   // maps app makes when the pinch and the hand move together.
   const centre = toFramePoint((a.x + b.x) / 2, (a.y + b.y) / 2)
   const ratio = next / pinch.scale
@@ -712,7 +712,7 @@ function settleStrip(dx) {
  *
  * Either way up. Pushing a picture off the top and pushing it off the bottom say
  * the same thing, and a reader who has just swiped down to leave one file often
- * swipes back up out of the next — asking which way they threw it would be
+ * swipes back up out of the next - asking which way they threw it would be
  * asking about nothing.
  */
 function settleDismiss(dy) {
@@ -776,13 +776,13 @@ function onPointerUp(event) {
   //
   // Hit-tested against the image's box rather than read from `event.target`:
   // the frame captures the pointer so that a pan survives the cursor leaving it,
-  // and capture retargets every later event to the frame itself — so the target
+  // and capture retargets every later event to the frame itself - so the target
   // was never the picture, and every click read as a click on empty space.
   //
   // A finger is told nothing of the sort: it can only ever hide the chrome, and
   // where it lands does not matter. A phone gives the picture the whole screen
   // and leaves only slivers beside it, so a tap that misses is a tap that was
-  // meant for the picture — closing on it dismissed the viewer by accident far
+  // meant for the picture - closing on it dismissed the viewer by accident far
   // more often than on purpose. The close button and the downward pull are what
   // remain, and both are deliberate.
   if (pointerType === 'mouse') {
@@ -799,7 +799,7 @@ function onPointerUp(event) {
     it on the second tap needs no wait at all, but shows the chrome leaving and
     coming back inside a single double tap; letting the first tap's work stand
     means a double tap quietly toggles the bars as well. Waiting is the honest
-    answer — the wait just has to be short enough not to be felt.
+    answer - the wait just has to be short enough not to be felt.
   */
   const now = Date.now()
   if (now - lastTapAt < TAP_WINDOW && Math.abs(event.clientX - lastTapX) < TAP_SLOP) {
@@ -849,7 +849,7 @@ function onFrameClickCapture(event) {
   It is the preview the tile is already showing, so it costs no request.
 
   The crop takes care of itself, which is the whole trick. A tile shows a square
-  cut out of the file — `object-fit: cover` — and the box it flies to has the
+  cut out of the file - `object-fit: cover` - and the box it flies to has the
   file's own proportions, where covering and containing are the same thing. So
   the same `cover` that crops it at the start shows all of it at the end, and
   the crop opens out along the way with nothing animating it.
@@ -871,7 +871,7 @@ let heroOrigin = null
 /**
  * The very element the viewer was opened from, and the file it held.
  *
- * A file can be on the page more than once — the front page hangs its wall
+ * A file can be on the page more than once - the front page hangs its wall
  * twice, and the pending queue can be showing the same photograph as the strip
  * inside a day being written. Searching for it again on the way out finds *a*
  * tile, not necessarily the one that was clicked, and the picture then flies off
@@ -928,7 +928,7 @@ function tileBox(item, { offscreen = false } = {}) {
 /**
  * Where a closing picture goes.
  *
- * Back into the tile it came out of, wherever that has got to — a page scrolled
+ * Back into the tile it came out of, wherever that has got to - a page scrolled
  * since is still a page the reader knows they scrolled, and watching the picture
  * go the way it came reads correctly even when it leaves the window doing it.
  *
@@ -937,7 +937,7 @@ function tileBox(item, { offscreen = false } = {}) {
  * would find by searching is one the reader has never seen: the picture slid off
  * to an edge for no reason, and because a flight suppresses the room's fade,
  * what was left was the whole thing vanishing in a single frame. No destination
- * is the better answer there — it leaves the plain fade to do its job.
+ * is the better answer there - it leaves the plain fade to do its job.
  */
 function tileBoxBack(item) {
   if (originTile?.id === item?.id && originTile.el.isConnected) {
@@ -949,7 +949,7 @@ function tileBoxBack(item) {
 
 /**
  * The box the open picture is drawn in, from the numbers that place it rather
- * than from the element — which has none until it has loaded.
+ * than from the element - which has none until it has loaded.
  */
 function pictureBox() {
   const ratio = knownAspect()
@@ -969,7 +969,7 @@ function pictureBox() {
  * The sharpest image of a file the browser can paint without asking for it.
  *
  * The flight ends at full size, so a stand-in flown all the way there arrives
- * visibly soft — and where the file itself is already in hand there is no reason
+ * visibly soft - and where the file itself is already in hand there is no reason
  * to fly the stand-in at all. Where it is not, the preview is still the only
  * thing that can set off at once, and it hands over below.
  */
@@ -984,7 +984,7 @@ function heroSource(item) {
 
   `fullLoaded` is only raised once the image has been decoded as well as
   fetched, so by the time this runs the browser can paint it in the frame it is
-  asked to — which is what makes swapping the source safely invisible.
+  asked to - which is what makes swapping the source safely invisible.
 */
 watch(fullLoaded, (loaded) => {
   if (!loaded || !hero.value) return
@@ -1031,7 +1031,7 @@ function boxKeyframe(box) {
 
 /**
  * @param {{ fly?: boolean }} options `fly` is false when the reader has already
- *   thrown the picture somewhere themselves — see `settleDismiss`.
+ *   thrown the picture somewhere themselves - see `settleDismiss`.
  */
 function close({ fly = true } = {}) {
   // Captured before the file is let go of: `current` is about to be null, and
@@ -1059,7 +1059,7 @@ function step(delta) {
 /**
  * Turning the page from an arrow or a key, by the movement a released swipe
  * already makes: the strip slides one whole frame, the neighbour riding there
- * lands dead centre, and the index changes underneath it — so the same picture
+ * lands dead centre, and the index changes underneath it - so the same picture
  * ends up in the same place whichever way it was asked for.
  *
  * This was tried once before and taken out again, because the neighbours were
@@ -1071,13 +1071,13 @@ function step(delta) {
  * running: holding an arrow down would otherwise cut each animation short and
  * strand the strip, since the swap only happens once the animation ends. And a
  * turn asked for while the picture is magnified, which a swipe cannot even ask
- * for — there the finger is panning.
+ * for - there the finger is panning.
  */
 let queuedTurn = 0
 /**
  * True while a turn's slide is running.
  *
- * Not `animating`, which is on for anything that moves — a zoom, a spring back,
+ * Not `animating`, which is on for anything that moves - a zoom, a spring back,
  * the picture following the bars as the chrome is toggled. A turn only has to
  * wait for another turn, and asking the general flag meant hiding the interface
  * swallowed the very next arrow press for a fifth of a second, whether or not
@@ -1100,8 +1100,8 @@ function slideOneFrame(delta) {
       if (!queuedTurn) return
       const waiting = queuedTurn
       queuedTurn = 0
-      // Next tick, so the strip is rendered back at rest — untransformed, and
-      // without its transition — before the following slide starts from there.
+      // Next tick, so the strip is rendered back at rest - untransformed, and
+      // without its transition - before the following slide starts from there.
       // Started in the same breath, the browser would never see the resting
       // position and the second slide would have nowhere to travel from.
       nextTick(() => page(waiting))
@@ -1113,8 +1113,8 @@ function page(delta) {
   const next = props.index + delta
   if (next < 0 || next >= props.items.length) return
 
-  // A magnified picture cannot be slid sideways — that is what the finger is
-  // doing there — so an arrow simply takes the reader to the next file.
+  // A magnified picture cannot be slid sideways - that is what the finger is
+  // doing there - so an arrow simply takes the reader to the next file.
   if (zoomed.value) {
     step(delta)
     return
@@ -1126,7 +1126,7 @@ function page(delta) {
 
       Cutting the running one short is not an option: the strip only swaps the
       file underneath it once the slide has finished, and interrupting halfway
-      shifts the contents by a frame while the transform still says otherwise —
+      shifts the contents by a frame while the transform still says otherwise -
       the picture jumps forward by a whole screen.
 
       Only one is remembered. A held-down arrow sends a stream of them, and a
@@ -1168,7 +1168,7 @@ watch(current, () => {
  */
 watch(
   // `aspect` is in here because the fit cannot be worked out without it, and it
-  // usually arrives after the first pass — with the preview, a moment later.
+  // usually arrives after the first pass - with the preview, a moment later.
   [open, current, uiVisible, aspect],
   () => {
     if (!open.value) return
@@ -1216,8 +1216,8 @@ watch(uiVisible, () => {
   Chrome measurements.
 
   The bars float over the picture, so the picture has to be told how much room
-  they take. Both grow with their contents — a long description, several rows of
-  tags, either one expanded by the reader — so the heights are measured rather
+  they take. Both grow with their contents - a long description, several rows of
+  tags, either one expanded by the reader - so the heights are measured rather
   than assumed, and fed back as the padding of the filmstrip cells.
 
   The same observer answers the other question the bars have about themselves:
@@ -1288,7 +1288,7 @@ function settleTagOverflow() {
  * A quick check comes first: with bars of the usual height, does the file run
  * out of height or out of width? If it runs out of width the bars never touch it
  * and their exact size does not matter. Only when it is the height that binds is
- * the band read from the element that sits in flow between the two bars — the
+ * the band read from the element that sits in flow between the two bars - the
  * browser has already solved that as part of laying them out.
  *
  * Returns null whenever the recipe cannot be followed, which hands the caller
@@ -1298,7 +1298,7 @@ function settleTagOverflow() {
  * Where the bars leave off, as the layout last had them.
  *
  * Held in state rather than read on demand, because the fit is now asked for
- * per file — the open one and both of its neighbours — and all three want the
+ * per file - the open one and both of its neighbours - and all three want the
  * same reading of the same bars. Keeping it here also makes every fit that
  * follows from it recompute when the bars change, which a `getBoundingClientRect`
  * buried in a function never would.
@@ -1331,7 +1331,7 @@ function exactBand(ratio) {
 /**
  * The scale and the shift that put a file of these proportions where it rests:
  * pulled back far enough to clear the bars, and moved into the middle of what
- * they leave. Pure — nothing but the ratio and the bars decides it — which is
+ * they leave. Pure - nothing but the ratio and the bars decides it - which is
  * what lets the neighbours in the filmstrip be placed by the very same sum.
  */
 function fitWithin(insets, ratio) {
@@ -1366,7 +1366,7 @@ const chromeReady = ref(false)
   Where the picture rests, and how far back it can be pulled.
 
   The cell is the whole window, so the browser lays the picture out as large as
-  the window allows — scale 1 means exactly that. `uiFitScale` is how much
+  the window allows - scale 1 means exactly that. `uiFitScale` is how much
   smaller it has to be to clear the bars, and `bandOffsetY` how far to shift it
   to sit in the middle of the band rather than the middle of the window. Both
   come from where the bars sit in the layout, which does not change when they
@@ -1376,7 +1376,7 @@ const chromeReady = ref(false)
   them, with the bars away it is the window. That resting fit is both where a
   file opens and the far end of the zoom.
 
-  A reader who has zoomed is left alone — their picture keeps its size through a
+  A reader who has zoomed is left alone - their picture keeps its size through a
   toggle, and only the limit beneath them moves. Pulling all the way back out
   hands them to the resting fit again.
 */
@@ -1426,7 +1426,7 @@ function neighbourFit(item) {
 }
 
 /**
- * And sized by the same rule too — `.fit-media` against the cell, not merely
+ * And sized by the same rule too - `.fit-media` against the cell, not merely
  * capped at it.
  *
  * `max-width`/`max-height` only ever shrink. The preview is sized by the server
@@ -1462,8 +1462,8 @@ function applyRestingFit() {
 /*
   Bars easing from one height to another.
 
-  Turning the page can change how much they have to say — a longer description,
-  another row of tags — and the layout answers that in a single frame. What the
+  Turning the page can change how much they have to say - a longer description,
+  another row of tags - and the layout answers that in a single frame. What the
   reader saw was the picture flinching as the bar it sits under changed size
   under a file that had only just arrived.
 
@@ -1474,7 +1474,7 @@ function applyRestingFit() {
   here, and nothing else in the file has to know it is happening.
 
   The picture needs no animation of its own. Its placement is read from the bars,
-  and the observer watching them reports every step of the way — so it follows
+  and the observer watching them reports every step of the way - so it follows
   frame by frame rather than being sent to where they are going to end up.
 */
 const barHeights = new WeakMap()
@@ -1485,8 +1485,8 @@ const barAnimations = new WeakMap()
  *
  * A tag list opening or closing eases its own height, in CSS, over its own
  * three hundred milliseconds. Easing the bar around it as well set a second
- * animation running over the first — from the height the bar had before all
- * this, back down to where the list was already taking it — which is the little
+ * animation running over the first - from the height the bar had before all
+ * this, back down to where the list was already taking it - which is the little
  * bounce at the end of a collapse. The reading is still wanted, so the next real
  * change is measured from where things actually ended up; only the movement is
  * not.
@@ -1629,13 +1629,13 @@ function trapFocus(event) {
   }
 }
 
-/** Its place in the shared overlay stack — see services/overlayStack. */
+/** Its place in the shared overlay stack - see services/overlayStack. */
 const overlayToken = Symbol('lightbox')
 
 function onKeydown(event) {
   // A viewer opened from inside an edit dialog sits over it, and both listen on
   // the document. Without this, one Escape closed the viewer and the dialog
-  // underneath it — along with whatever had been typed into it.
+  // underneath it - along with whatever had been typed into it.
   if (!open.value || !isTopmost(overlayToken)) return
 
   switch (event.key) {
@@ -1688,7 +1688,7 @@ function resetGestures() {
   open; from a search it meant the link did nothing at all.
 
   Waiting for the route to actually change instead covers every link in here at
-  once — the day and every tag — and it cannot race a navigation it is watching
+  once - the day and every tag - and it cannot race a navigation it is watching
   for. Links that lead exactly where the reader already is are the one case it
   does not answer, and there is nothing to answer there.
 
@@ -1707,12 +1707,12 @@ watch(
   The page behind the viewer is held still while it is up, and let go of a moment
   after it comes down.
 
-  A moment, and not at once, because a dismissal ends on `pointerup` — and the
+  A moment, and not at once, because a dismissal ends on `pointerup` - and the
   `touchend` that completes the sequence has not been dispatched yet. Unlocking
   there hands the browser a page that became scrollable in the middle of a
   gesture it is still reading, and a quick flick is handed to it as a fling. At
   the top of the page that fling has nowhere to go and moves nothing, which is
-  why no scrolling was ever visible — but the next tap is spent stopping it
+  why no scrolling was ever visible - but the next tap is spent stopping it
   instead of pressing what it landed on, and no click is made at all.
 
   It also explains the shape of the fault exactly: a slow drag ends with no
@@ -1728,7 +1728,7 @@ function lockScroll() {
 }
 
 /**
- * Giving the page its scrolling back — unless something else still wants it
+ * Giving the page its scrolling back - unless something else still wants it
  * held. A viewer opened from inside an edit dialog closes over that dialog,
  * which is still a full-window overlay and still needs the page still.
  */
@@ -1758,7 +1758,7 @@ watch(open, async (isOpen) => {
     /*
       Read now, with the page underneath still laid out as the reader left it.
 
-      Whoever answered the press says which element it was — see
+      Whoever answered the press says which element it was - see
       services/openedFrom. Searching for one by id is the fallback, and only that:
       a file can be on the page several times over, and the search cannot tell
       which of them was pressed.
@@ -1793,7 +1793,7 @@ watch(open, async (isOpen) => {
       Return focus to the tile that opened the viewer.
 
       Never scrolling to it. Focusing an element brings it into view, and the
-      page here scrolls smoothly — so a close could set a scroll running that
+      page here scrolls smoothly - so a close could set a scroll running that
       outlasted it. That cost twice over: a picture flying to a fixed point
       sailed past its tile as the page moved under it, and, worse, a browser
       throws away the click of any touch that began or ended while the page was
@@ -1825,7 +1825,7 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <!--
       A dark room under every theme, with the theme's accent carried through the
-      chrome — see `.lightbox` in main.css for the palette. It sits above
+      chrome - see `.lightbox` in main.css for the palette. It sits above
       Leaflet's panes (z-index ~1000), which otherwise poke through on the day
       page.
     -->
@@ -1929,7 +1929,7 @@ onBeforeUnmount(() => {
               <!--
               Three layers, sharpest at the bottom. Each is transparent until
               it is whole and steps aside once something sharper is, so exactly
-              one of them is ever solid — the same arrangement a grid tile uses,
+              one of them is ever solid - the same arrangement a grid tile uses,
               with the preview added in the middle.
 
               Transparent *until it is whole* is the half of it that matters:
@@ -1943,7 +1943,7 @@ onBeforeUnmount(() => {
               is already whole and waiting.
 
               The ground is the miniature. It ships inline with the file, so it
-              is there before a single request has been made — which matters most
+              is there before a single request has been made - which matters most
               on the one path where nothing is cached: a shared link, opened
               cold, where even the preview arrives over emptiness. Blurred,
               because it is a handful of pixels, and scaled past the blur inside
@@ -2100,7 +2100,7 @@ onBeforeUnmount(() => {
 
               Two limits at once, and each earns its place: the line clamp is
               what ends a cut-off line in an ellipsis, and the max-height is what
-              can be animated — a clamp cannot. They agree on two lines, so the
+              can be animated - a clamp cannot. They agree on two lines, so the
               clamp decides how the text looks and the height decides how it
               moves. The height is also what the overflow check reads, which is
               what offers the description as something to tap.
@@ -2146,7 +2146,7 @@ onBeforeUnmount(() => {
           height moved them whenever a description or a row of tags did.
 
           Each leaves towards its own edge, the way the bars leave towards
-          theirs — and, like them, sliding rather than fading is what keeps the
+          theirs - and, like them, sliding rather than fading is what keeps the
           blur behind them alive through the animation.
         -->
           <div
@@ -2204,7 +2204,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!--
-          Pushes the footer to the bottom now that the arrows float free — and,
+          Pushes the footer to the bottom now that the arrows float free - and,
           because it is in flow between the two bars, it *is* the space left for
           the picture. Asking it where it ended up is how that space is learnt:
           the browser works it out as part of laying the bars out, so the answer
@@ -2299,7 +2299,7 @@ onBeforeUnmount(() => {
 
               <!--
               Carries the file into the day so it arrives outlined among the
-              rest — a picture met on the front page keeps its identity once it
+              rest - a picture met on the front page keeps its identity once it
               is back among its neighbours. Without `o`: it was just being looked
               at full screen, and opening it again there would be no arrival.
 

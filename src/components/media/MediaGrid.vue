@@ -35,7 +35,7 @@ const props = defineProps({
    * Where the grid is one section among several, it must not. The queue of
    * unfiled media sits above the queue of unwritten days, and with a few
    * thousand files waiting the grid grew a chunk every time the bottom came near
-   * — so the days below it could not be reached at all. There the button is the
+   * - so the days below it could not be reached at all. There the button is the
    * only way past.
    */
   autoReveal: { type: Boolean, default: true },
@@ -61,7 +61,7 @@ const visibleItems = computed(() => props.items.slice(0, visibleCount.value))
 const hasMore = computed(() => visibleCount.value < props.items.length)
 
 /*
-  A new result set starts from the first chunk again — but a shrunken one does not.
+  A new result set starts from the first chunk again - but a shrunken one does not.
 
   Approving a file takes it out of the pending queue, which hands this a new
   array; treating that as a new answer folded four hundred revealed thumbnails
@@ -91,7 +91,7 @@ function revealMore() {
 
 /**
  * A linked file has to be in the DOM to be outlined or scrolled to, and it may
- * sit past the first chunk — the eightieth photo of a day is one link away like
+ * sit past the first chunk - the eightieth photo of a day is one link away like
  * any other. Revealing up to it is enough; the rest still waits for the reader.
  */
 watch(
@@ -122,7 +122,7 @@ watch(sentinel, (element) => {
 
 /*
   Press-and-drag selection lives in `composables/useTilePaint`, shared with the
-  other walls of thumbnails that need it — the "similar" panel in the media
+  other walls of thumbnails that need it - the "similar" panel in the media
   editor and the tag-collecting screen. What differs between them is only what
   "selected" means, so this supplies the four functions that say it.
 */

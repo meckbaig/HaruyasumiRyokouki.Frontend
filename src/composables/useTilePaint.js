@@ -10,8 +10,8 @@ import { onBeforeUnmount } from 'vue'
  * the selection from the snapshot taken at press time plus the origin→current
  * range, so dragging back shrinks it again.
  *
- * Every caller keeps its own idea of what "selected" means — a Pinia store of
- * media objects in one place, a plain Set of ids in another — so this knows only
+ * Every caller keeps its own idea of what "selected" means - a Pinia store of
+ * media objects in one place, a plain Set of ids in another - so this knows only
  * ids and hands the whole resulting list back through `apply`.
  *
  * @param {object} options
@@ -117,7 +117,7 @@ export function useTilePaint({
       longPressTimer: null,
     }
 
-    // A held press with no movement still enters selection — the touch way in,
+    // A held press with no movement still enters selection - the touch way in,
     // and a mouse shortcut for marking a single tile.
     gesture.longPressTimer = setTimeout(beginPaint, LONG_PRESS_MS)
     return true
@@ -137,12 +137,12 @@ export function useTilePaint({
     Touch takes its own path rather than sharing the pointer one.
 
     A browser hands out pointer events only until it decides the gesture belongs
-    to it — the moment it starts scrolling the page it cancels the stream and
+    to it - the moment it starts scrolling the page it cancels the stream and
     sends nothing more. A press held still on a phone is exactly the case it
     guesses wrong, which is why the long press worked with a mouse and inside a
     devtools emulator, where nothing competes for the gesture, and never on a
     real device. Touch events keep arriving throughout, and `preventDefault` on a
-    touchmove genuinely stops the page from scrolling once painting has begun —
+    touchmove genuinely stops the page from scrolling once painting has begun -
     something a pointermove cannot do.
   */
   function onTouchStart(event) {
@@ -165,7 +165,7 @@ export function useTilePaint({
       const dy = touch.clientY - gesture.startY
       if (Math.hypot(dx, dy) <= TOUCH_THRESHOLD) return
 
-      // Sideways means marking, downwards means scrolling — and the page is
+      // Sideways means marking, downwards means scrolling - and the page is
       // handed straight back for the second, or a wall of tiles would be a
       // region of the page that cannot be scrolled past.
       if (armed() && Math.abs(dx) > Math.abs(dy)) beginPaint()

@@ -70,8 +70,8 @@ const locatedMedia = computed(() =>
 /*
   The path through the day, in the order the photographs were taken.
 
-  A scatter of pins says where the day happened; the line says how it went — up
-  the hill, along the river, back to the station — which on the scale of one day
+  A scatter of pins says where the day happened; the line says how it went - up
+  the hill, along the river, back to the station - which on the scale of one day
   is most of what a map of it has to say. Same line as the trip map draws across
   months, and built by the same function.
 */
@@ -79,7 +79,7 @@ const dayRoute = computed(() => routeFromMedia(locatedMedia.value))
 
 /**
  * How many files this day holds, known from the day list before the day itself
- * has been fetched — which is what lets the placeholder be the right size. Null
+ * has been fetched - which is what lets the placeholder be the right size. Null
  * until the list has arrived, and the placeholder falls back to two rows.
  */
 const expectedMedia = computed(() => days.byDate.get(props.date)?.mediaCount ?? null)
@@ -129,14 +129,14 @@ function openDay(date) {
   A link pointing at one file of this day.
 
   Reading it and writing it are two halves of the same contract. Reading happens
-  as soon as the day's files are known: the file is either here — outlined, and
-  opened if the link asked for that — or it is not, and the parameters are
+  as soon as the day's files are known: the file is either here - outlined, and
+  opened if the link asked for that - or it is not, and the parameters are
   dropped rather than left in the address bar promising something the page cannot
   show.
 
   Read every time the file being pointed at changes, not once per day. The day's
   own map links back into the day it is already on, which changes nothing but the
-  parameter — and a reading that had already happened left that link outlining
+  parameter - and a reading that had already happened left that link outlining
   nothing and scrolling nowhere.
 
   Writing happens whenever the viewer opens or pages, so the address bar always
@@ -162,7 +162,7 @@ watch(
     const index = list.findIndex((item) => item.id === link.id)
     if (index < 0) {
       // Not this day's file: a stale link, or one shared from somewhere else.
-      // Only once the day has settled, though — a reload leaves the previous
+      // Only once the day has settled, though - a reload leaves the previous
       // day's files standing until the new ones arrive, and a link answered
       // against those would be thrown away for the wrong reason.
       if (!loading.value) mediaLink.clear()
@@ -191,7 +191,7 @@ watch(lightboxIndex, (index) => {
  *
  * "Anything", not "this page's viewer": a viewer can be opened from inside the
  * note editor's strip or from the "similar" panel of an edit dialog, and those
- * are other instances entirely — the page had no idea they existed and went on
+ * are other instances entirely - the page had no idea they existed and went on
  * turning days under them. The overlay stack is what every overlay announces
  * itself to, so it is the one thing that knows.
  */
@@ -214,8 +214,8 @@ onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
 /**
- * Touch equivalent of the arrow keys. Suspended while the lightbox is open — it
- * runs its own swipe over the file list — and while files are being selected,
+ * Touch equivalent of the arrow keys. Suspended while the lightbox is open - it
+ * runs its own swipe over the file list - and while files are being selected,
  * where the same sideways stroke extends the selection and must not also throw
  * the reader onto another day. Never fires inside the calendar or the map, both
  * of which pan horizontally themselves.
@@ -228,7 +228,7 @@ const swipe = useHorizontalSwipe({
 
 /**
  * The dialog writes the saved model straight onto the file it was editing, and
- * that file is the one in the grid — so the tile, its tags and its marks are
+ * that file is the one in the grid - so the tile, its tags and its marks are
  * already right by the time this runs. Only a save that answered with nothing to
  * write leaves the page having to ask the server what it just sent.
  */
@@ -240,8 +240,8 @@ function onMediaSaved({ applied } = {}) {
 /**
  * Deleting is offered wherever a file can be edited, not only in the queue.
  *
- * The mistakes worth removing — a blurred frame, a duplicate of the one beside
- * it — are the ones seen while reading the day, and sending someone back to the
+ * The mistakes worth removing - a blurred frame, a duplicate of the one beside
+ * it - are the ones seen while reading the day, and sending someone back to the
  * pending screen to act on what they are looking at is asking them to find it
  * twice. The confirmation and the request belong to the page rather than to the
  * dialog, because what to do with the hole left behind differs by page.

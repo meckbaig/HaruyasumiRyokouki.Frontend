@@ -3,7 +3,7 @@ import { setPrivate } from '@/api/media'
 /**
  * Files kept out of public view.
  *
- * `private` is one of the fields the API only fills in for an editor — an
+ * `private` is one of the fields the API only fills in for an editor - an
  * anonymous reader gets null, and never sees the file at all. So the test is
  * against `true` rather than truthiness: null means "not being told", not "no",
  * and the difference matters at the one place it is asked, which is whether to
@@ -20,7 +20,7 @@ export function isPrivate(media) {
 
 /**
  * Hides a file or shows it again, writing the answer straight back onto the
- * object the page is holding — the same one-write-updates-every-view arrangement
+ * object the page is holding - the same one-write-updates-every-view arrangement
  * the star uses (`services/favorites.js`).
  *
  * @returns {Promise<boolean|null>} the state it settled on, or null if there was

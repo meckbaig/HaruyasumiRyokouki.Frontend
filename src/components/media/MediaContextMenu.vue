@@ -16,14 +16,14 @@ const { t } = useI18n()
 /*
   What a right-click on a picture offers.
 
-  There is one thing to offer so far — a link to that picture where it sits, so
+  There is one thing to offer so far - a link to that picture where it sits, so
   it can be sent to someone and land outlined among its neighbours. A menu for a
   single action is still worth having: the alternative is a permanent button on
   every tile, and the grid is meant to be photographs rather than controls.
 
   The menu is placed where the click was and nudged back inside the window if it
-  would hang off an edge. Everything closes it — another click, a key, a scroll,
-  the window changing size — because a menu that outlives its moment is a menu
+  would hang off an edge. Everything closes it - another click, a key, a scroll,
+  the window changing size - because a menu that outlives its moment is a menu
   in the way.
 */
 const menu = ref(null)

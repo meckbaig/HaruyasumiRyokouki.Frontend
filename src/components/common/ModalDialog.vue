@@ -8,8 +8,8 @@ const props = defineProps({
   open: { type: Boolean, default: false },
   title: { type: String, default: '' },
   /**
-   * Raises this dialog above another one. A dialog opened *from* a dialog — a
-   * new tag coined while a photograph is being filed — has to sit over the one
+   * Raises this dialog above another one. A dialog opened *from* a dialog - a
+   * new tag coined while a photograph is being filed - has to sit over the one
    * that asked for it, and the two would otherwise be at the same height and
    * settle it by which happened to render last.
    */
@@ -19,7 +19,7 @@ const props = defineProps({
 /*
   Two ways out, and they are not the same intention.
 
-  The cross is "I am done with this" — a decision, and whatever it costs is
+  The cross is "I am done with this" - a decision, and whatever it costs is
   accepted. A press on the backdrop or a tap of Escape is "get out of my way",
   which people do to see what is behind a dialog and expect to be able to undo by
   reopening it. Treating both as the same event is how a form full of typing gets
@@ -35,7 +35,7 @@ const { t } = useI18n()
 const panel = ref(null)
 let lastFocused = null
 
-/** This dialog's place in the shared overlay stack — see services/overlayStack. */
+/** This dialog's place in the shared overlay stack - see services/overlayStack. */
 const token = Symbol('dialog')
 
 const FOCUSABLE =
@@ -125,7 +125,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <!-- Keyframes rather than transitions, so the reduced-motion rules still
-         leave Vue an `animationend` to wait for — see assets/main.css. -->
+         leave Vue an `animationend` to wait for - see assets/main.css. -->
     <Transition name="modal">
       <div
         v-if="open"
@@ -137,7 +137,7 @@ onBeforeUnmount(() => {
         <!--
           A frame around the scroller rather than one box doing both jobs. The
           overlay scrollbar has to be positioned against something that does not
-          scroll, and the browser's own bar — the reason for drawing one at all —
+          scroll, and the browser's own bar - the reason for drawing one at all -
           cuts a straight grey lane down a panel whose corners are rounded.
         -->
         <div class="modal-panel relative w-full sm:max-w-lg">

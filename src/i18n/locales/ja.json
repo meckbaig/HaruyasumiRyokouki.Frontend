@@ -4,7 +4,7 @@
     "subtitle": "日本を巡る三か月"
   },
   "seo": {
-    "description": "日本を巡る三か月の旅の記録 — 日ごとのノート、写真、動画、地図。"
+    "description": "日本を巡る三か月の旅の記録 - 日ごとのノート、写真、動画、地図。"
   },
   "nav": {
     "home": "ホーム",
@@ -91,7 +91,7 @@
     "unfavorite": "トップページから外す",
     "shareFile": "この写真を共有",
     "hidden": "非公開",
-    "hiddenNoShare": "非公開のファイルです — 共有できるリンクはありません",
+    "hiddenNoShare": "非公開のファイルです - 共有できるリンクはありません",
     "hide": "非公開にする",
     "unhide": "公開する"
   },
@@ -144,7 +144,7 @@
     "saved": "保存しました",
     "deleted": "メディアを削除しました",
     "deleteConfirm": "「{name}」を削除しますか？元に戻せません。",
-    "markReady": "完成 — 一覧から外す",
+    "markReady": "完成 - 一覧から外す",
     "deleteTitle": "メディアを削除",
     "deleteConfirmMany": "{count}件のファイルを削除しますか？元に戻せません。",
     "deleteCount": "{count}件を削除",
@@ -177,7 +177,7 @@
     "clearPoint": "ピンを削除",
     "neighborPoints": "グレーのピンは、この日と前後の日にすでに置かれた写真です（位置の目安）",
     "dayThumbs": "この日の写真",
-    "favorite": "お気に入り — トップページに表示",
+    "favorite": "お気に入り - トップページに表示",
     "favoriteBulkHint": "この印は、付ける場合も外す場合も、選択したすべてのファイルに適用されます。",
     "hidden": "非公開にする",
     "hiddenHint": "自分には見えたままですが、日ページにも検索にもリンクにも出ません。",

@@ -5,7 +5,7 @@ const props = defineProps({
   /** How many rows of placeholders to draw when the count is not known. */
   rows: { type: Number, default: 2 },
   /**
-   * How many files are actually coming, when that is known ahead of time — the
+   * How many files are actually coming, when that is known ahead of time - the
    * day list carries `mediaCount` for every day, so the day page knows before
    * the day itself has arrived. Drawing exactly that many makes the placeholder
    * the same shape as what replaces it, and the page stops jumping.

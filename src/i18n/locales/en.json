@@ -4,7 +4,7 @@
     "subtitle": "Three months across Japan"
   },
   "seo": {
-    "description": "A timeline of a three-month trip across Japan — notes, photos, video and a map, day by day."
+    "description": "A timeline of a three-month trip across Japan - notes, photos, video and a map, day by day."
   },
   "nav": {
     "home": "Home",
@@ -72,7 +72,7 @@
     "zoomHint": "Ctrl + scroll to zoom",
     "expand": "Expand map",
     "collapse": "Collapse map",
-    "pickRange": "Pick a first day in the calendar, then a last one — the map keeps only that stretch of the route.",
+    "pickRange": "Pick a first day in the calendar, then a last one - the map keeps only that stretch of the route.",
     "pickEnd": "Now pick the second day. If it falls before the first, the two ends swap over."
   },
   "media": {
@@ -91,13 +91,13 @@
     "unfavorite": "Remove from the front page",
     "shareFile": "Share this file",
     "hidden": "Hidden",
-    "hiddenNoShare": "This file is hidden — there is no link to share",
+    "hiddenNoShare": "This file is hidden - there is no link to share",
     "hide": "Hide",
     "unhide": "Show"
   },
   "language": {
     "label": "Language",
-    "fallbackNotice": "No translation for the selected language — showing the original."
+    "fallbackNotice": "No translation for the selected language - showing the original."
   },
   "theme": {
     "label": "Theme"
@@ -137,14 +137,14 @@
     "title": "Pending",
     "mediaSection": "Media without a description",
     "daysSection": "Unfinished notes",
-    "allDone": "Everything is filled in — nothing here.",
+    "allDone": "Everything is filled in - nothing here.",
     "sync": "Sync storage",
     "syncing": "Syncing…",
     "syncDone": "Storage rescanned",
     "saved": "Saved",
     "deleted": "Media deleted",
     "deleteConfirm": "Delete “{name}”? This cannot be undone.",
-    "markReady": "Ready — remove from pending",
+    "markReady": "Ready - remove from pending",
     "deleteTitle": "Delete media",
     "deleteConfirmMany": "Delete {count} file? This cannot be undone. | Delete {count} files? This cannot be undone.",
     "deleteCount": "Delete {count} file | Delete {count} files",
@@ -154,7 +154,7 @@
     "editMedia": "Edit media",
     "editBulk": "Bulk edit ({count})",
     "editDay": "Edit day",
-    "bulkHint": "Fields are prefilled from the first selected file with content. Only what you change is sent — anything left alone stays as each file had it.",
+    "bulkHint": "Fields are prefilled from the first selected file with content. Only what you change is sent - anything left alone stays as each file had it.",
     "title": "Title",
     "description": "Description",
     "tags": "Tags",
@@ -169,7 +169,7 @@
     "partialFailure": "Saved {ok} of {total}",
     "autoTranslate": "Translate to the other languages",
     "autoTranslateHint": "On save the backend fills the empty languages by translating the one you wrote.",
-    "translationReview": "Machine translation filled in — review the other languages before leaving.",
+    "translationReview": "Machine translation filled in - review the other languages before leaving.",
     "setOnMap": "Set on the map",
     "mapHint": "Click the map to drop a pin. The marker can be dragged.",
     "expandMap": "Expand map",
@@ -177,11 +177,11 @@
     "clearPoint": "Clear pin",
     "neighborPoints": "Grey pins are files already placed on this day and the ones either side, to go by",
     "dayThumbs": "Photos of this day",
-    "favorite": "Featured — show on the front page",
-    "favoriteBulkHint": "The mark applies to every selected file — both when it is set and when it is taken off.",
-    "hidden": "Hide — keep out of public view",
+    "favorite": "Featured - show on the front page",
+    "favoriteBulkHint": "The mark applies to every selected file - both when it is set and when it is taken off.",
+    "hidden": "Hide - keep out of public view",
     "hiddenHint": "The file stays visible to you, but not in the day, the search, or behind a link.",
-    "hiddenBulkHint": "The mark applies to every selected file — both when it is set and when it is taken off.",
+    "hiddenBulkHint": "The mark applies to every selected file - both when it is set and when it is taken off.",
     "translateAction": "Translate",
     "autoTranslateBulkWarning": "Translating sends the text of every filled language to all selected files, changed or not.",
     "draftRestored": "An unsaved draft has been restored.",
@@ -250,7 +250,7 @@
     "bulkHint": "Changing the tags overwrites them on every selected file. Left alone, each file keeps its own.",
     "seedLabel": "What word are we starting from?",
     "seedPlaceholder": "ramen, say",
-    "seedHint": "One word, in any language. Captions for all three languages, aliases and a slug are proposed from it — and have to be read before saving.",
+    "seedHint": "One word, in any language. Captions for all three languages, aliases and a slug are proposed from it - and have to be read before saving.",
     "propose": "Propose",
     "manual": "Fill in by hand",
     "needCaptionFirst": "Write a caption in at least one language first.",
@@ -258,7 +258,7 @@
     "suggesting": "Waiting…",
     "usedOn": "on {count} file | on {count} files",
     "similarUse": "Take this tag instead of a new one",
-    "similarInspect": "Show this tag in the list — the draft is kept",
+    "similarInspect": "Show this tag in the list - the draft is kept",
     "draft": "Draft tag “{tag}”",
     "resumeDraft": "Resume",
     "discardDraft": "Discard",
@@ -272,18 +272,18 @@
     "chosen": "{count} chosen | {count} chosen",
     "chooseThrough": "Choose everything down to this one",
     "openFull": "Open full screen",
-    "noTags": "Tag this photo first — its tags are what the chosen ones get.",
+    "noTags": "Tag this photo first - its tags are what the chosen ones get.",
     "apply": "Apply tags to the chosen",
     "progress": "Tag {done} of {total}",
     "applied": "Tags applied to {count} photo | Tags applied to {count} photos",
-    "hint": "The percentage is how alike. Above 95% is usually the next frame of a series, 80–95% the same place, below 70% is mostly unrelated.",
+    "hint": "The percentage is how alike. Above 95% is usually the next frame of a series, 80-95% the same place, below 70% is mostly unrelated.",
     "pickTags": "Choose the tags to hand over. The list narrows to the files that do not have them yet.",
-    "filtered": "{count} hidden — they already carry the chosen tags.",
+    "filtered": "{count} hidden - they already carry the chosen tags.",
     "allTagged": "Every similar file already carries the chosen tags."
   },
   "collect": {
     "title": "Collecting a tag",
-    "subtitle": "A second pass over the archive — by subject rather than by day.",
+    "subtitle": "A second pass over the archive - by subject rather than by day.",
     "find": "Find similar",
     "pickTag": "Choose a tag to find candidates for.",
     "searching": "Searching the archive…",

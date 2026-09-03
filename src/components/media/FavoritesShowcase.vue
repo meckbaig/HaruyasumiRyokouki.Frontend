@@ -42,7 +42,7 @@ const settled = ref(0)
  *
  * Honours the same choice as the rest of the site: the system's reduce-motion
  * setting, unless the visitor has opted back in here. Standing still is a fine
- * state to be in — the wall is still a scroll container, so every picture stays
+ * state to be in - the wall is still a scroll container, so every picture stays
  * reachable by hand.
  */
 const drifting = computed(() => {
@@ -53,7 +53,7 @@ const drifting = computed(() => {
 /**
  * Drifting needs somewhere to drift to. A second copy of the wall sits after the
  * first, and the scroll jumps back by exactly one copy's width each time it has
- * passed one — landing on an identical picture in an identical place, so the
+ * passed one - landing on an identical picture in an identical place, so the
  * seam is invisible and the wall reads as endless. Standing still, one copy is
  * all there is to show.
  */
@@ -70,7 +70,7 @@ function fileAt(index) {
   Proportions come with the file.
 
   Each one carries its own `aspectRatio`, so the wall is laid out correctly on
-  the first frame — nothing is hung at a guess and corrected as pictures arrive,
+  the first frame - nothing is hung at a guess and corrected as pictures arrive,
   and no frame resizes under a wall that is trying to drift. A file without one
   is hung as a modest landscape and corrected from its miniature, which ships
   inline and can be measured before anything is fetched.
@@ -99,7 +99,7 @@ function ratioOf(media) {
 
   Its position is kept here rather than read back out of the element each frame.
   A browser hands `scrollLeft` back rounded to whole pixels, so a step of a third
-  of a pixel was written and then read as nothing, over and over — the wall stood
+  of a pixel was written and then read as nothing, over and over - the wall stood
   still while the loop ran perfectly. Keeping the fractional position in hand and
   only ever writing it is what makes a slow drift possible at all.
 */
@@ -134,7 +134,7 @@ function copyWidth() {
 /**
  * Keeps the scroll inside one copy's worth of travel, in either direction.
  *
- * Past the end it goes back a copy, and short of the start it goes forward one —
+ * Past the end it goes back a copy, and short of the start it goes forward one -
  * both landing on the identical picture in the identical place, so the jump
  * cannot be seen. The second is what lets the wall be pushed backwards at all: a
  * browser stops a scroll dead at zero, and without somewhere to be sent the wall
@@ -172,7 +172,7 @@ function step(now) {
 }
 
 /**
- * A scroll this component did not write is the reader's — a finger, or a wheel
+ * A scroll this component did not write is the reader's - a finger, or a wheel
  * held sideways. Take the position as the new truth, and wrap it the same way,
  * so their push loops exactly as the drift does.
  */
@@ -203,8 +203,8 @@ function stop() {
 
   A wheel is left alone on purpose: the wall loops, so it never reaches an end to
   hand the gesture back at, and translating a vertical wheel into it would trap
-  the page every time the cursor passed over. Dragging is unambiguous — it can
-  only have been meant for the wall — and shift-wheel still works as it always
+  the page every time the cursor passed over. Dragging is unambiguous - it can
+  only have been meant for the wall - and shift-wheel still works as it always
   does. A drag that actually moved swallows the click that follows, or letting go
   over a picture would open it.
 */

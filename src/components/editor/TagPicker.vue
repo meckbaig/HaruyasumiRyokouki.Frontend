@@ -13,13 +13,13 @@ const props = defineProps({
   /**
    * One tag at a time. The tag-collecting screen asks about exactly one tag, and
    * the alternative to reusing this field there is a second autocomplete over
-   * the same dictionary with the same matching rules — two of them to keep in
+   * the same dictionary with the same matching rules - two of them to keep in
    * step, for the sake of one line of behaviour.
    */
   single: { type: Boolean, default: false },
   /**
    * Marks the field as where a dialog's focus should land. The dialog does the
-   * focusing — see ModalDialog — because two of them racing for it is how the
+   * focusing - see ModalDialog - because two of them racing for it is how the
    * caret ends up somewhere neither meant.
    */
   autofocus: { type: Boolean, default: false },
@@ -45,7 +45,7 @@ const creating = ref(false)
   existence is deliberately, through the form below.
 
   The whole dictionary is in memory, so the filtering is a plain array scan on
-  every keystroke — no debounce, no request to outrun. It matches captions and
+  every keystroke - no debounce, no request to outrun. It matches captions and
   aliases in all three languages at once, so an editor typing "temple" in a
   Russian interface still finds the tag they know by its English name.
 */
@@ -142,7 +142,7 @@ function onBackspace() {
 
 <template>
   <!-- Lifted into the positioned layer so the list drops *over* what follows it
-       in the dialog — the map below is the thing it kept landing behind. -->
+       in the dialog - the map below is the thing it kept landing behind. -->
   <div class="relative z-30">
     <span class="field-label">{{ t('editor.tags') }}</span>
 

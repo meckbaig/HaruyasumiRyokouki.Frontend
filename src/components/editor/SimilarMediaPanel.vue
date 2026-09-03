@@ -17,7 +17,7 @@ import { useTilePaint } from '@/composables/useTilePaint'
 const props = defineProps({
   /** The file being edited; null while the dialog is shut or editing many. */
   media: { type: Object, default: null },
-  /** Slugs currently on that file, as the editor has them — saved or not. */
+  /** Slugs currently on that file, as the editor has them - saved or not. */
   tagSlugs: { type: Array, default: () => [] },
 })
 
@@ -33,13 +33,13 @@ const ui = useUiStore()
   other side of the square a week later. The server can find those, so the tags
   written here can be handed to them without leaving the dialog.
 
-  It loads on its own and is allowed to be slow — the card above it must not wait
+  It loads on its own and is allowed to be slow - the card above it must not wait
   on a fingerprint search to be readable.
 */
 /**
  * Asked for generously, because the tags chosen below then take a bite out of
  * the answer. Filtering the list down to files a tag would actually change is
- * done here — the server has no idea which tags are being handed out — so the
+ * done here - the server has no idea which tags are being handed out - so the
  * list has to arrive with enough in it to still be worth reading afterwards.
  */
 const TAKE = 200
@@ -62,7 +62,7 @@ const progress = ref(null)
 
   With no tags chosen this is the whole answer, sorted by likeness, which is what
   the panel is for on its own. Choose a tag and it becomes the far more useful
-  question: which of these does *not* already carry it — because a file that
+  question: which of these does *not* already carry it - because a file that
   already has every chosen tag gains nothing from being ticked, and leaving it in
   the wall means reading past it and deciding about it again.
 
@@ -165,7 +165,7 @@ watch(
 )
 
 // A file the filter has taken away is a file the operation would not change, so
-// it stops being ticked with it — otherwise "12 chosen" counts things nobody can
+// it stops being ticked with it - otherwise "12 chosen" counts things nobody can
 // see and the button quietly does less than it says.
 watch(shown, (visible) => {
   const present = new Set(visible.map((entry) => entry.media.id))
@@ -191,7 +191,7 @@ function toggleTag(slug) {
  * Everything from the top down to and including this one.
  *
  * The list falls away monotonically, so what a reader wants is almost always an
- * unbroken run from the top — the drop is visible, and marking it one tile at a
+ * unbroken run from the top - the drop is visible, and marking it one tile at a
  * time is work the shape of the data makes unnecessary.
  */
 function chooseThrough(index) {
@@ -205,7 +205,7 @@ function chooseThrough(index) {
  *
  * `POST /tags/{id}/media` adds a tag without touching the others on those files,
  * which is exactly what is wanted here and is not what a media PATCH would do.
- * It takes one tag at a time, so several tags are several requests — run in
+ * It takes one tag at a time, so several tags are several requests - run in
  * sequence rather than at once, both to keep the progress honest and to leave a
  * failure halfway with a clear account of what did land.
  */

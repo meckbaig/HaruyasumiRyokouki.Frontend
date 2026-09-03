@@ -1,14 +1,14 @@
 /**
  * Which thumbnail the viewer was opened from.
  *
- * The viewer is handed a list and an index, never an element — so to fly the
+ * The viewer is handed a list and an index, never an element - so to fly the
  * picture out of the thing that was pressed it used to go looking for it, by the
  * file's id, across the whole document. That is wrong in every case where a file
  * appears on the page more than once, and it appears more than once often: the
  * front page hangs its wall twice so it can drift endlessly, the pending queue
  * shows the same photograph as the strip inside a day being written, and the
  * "similar" panel shows one that is very likely also in the grid behind it. The
- * search found *a* tile — usually the first — and the picture set off from
+ * search found *a* tile - usually the first - and the picture set off from
  * somewhere the reader was not looking.
  *
  * Nothing about that is guessable after the fact, so the answer is handed over

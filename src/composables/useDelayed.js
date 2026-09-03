@@ -5,11 +5,11 @@ import { ref, watch, onBeforeUnmount } from 'vue'
  *
  * For "loading" notices. A request answered from nearby is answered in a few
  * dozen milliseconds, and a line of text that appears and is gone again before
- * it can be read is not information — it is a flicker, and it takes the rest of
+ * it can be read is not information - it is a flicker, and it takes the rest of
  * the form with it as the layout closes back up.
  *
  * Held back, it says what it is for: nothing has come back yet, and the wait is
- * long enough to be worth mentioning. Turning off is immediate — once the answer
+ * long enough to be worth mentioning. Turning off is immediate - once the answer
  * is here there is nothing left to wait for.
  *
  * @param {() => boolean} source what is being waited on

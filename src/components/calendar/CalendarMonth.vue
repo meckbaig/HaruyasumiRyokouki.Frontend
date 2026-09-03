@@ -51,7 +51,7 @@ function inRange(iso) {
  * Cell styling carries three signals at once: whether the day exists in the
  * timeline, whether its note is finished, and whether it is currently picked.
  *
- * The same calendar date can appear in two month grids at once — 28 Feb shows in
+ * The same calendar date can appear in two month grids at once - 28 Feb shows in
  * both February's own cells and as a leading cell of March. Only the owning
  * month gets any selection or range highlight, so a picked day never lights up
  * twice; foreign cells are always rendered plain.
@@ -59,8 +59,8 @@ function inRange(iso) {
 /**
  * Two things, drawn two ways.
  *
- * The fill says what kind of day this is — nothing recorded, a draft, a finished
- * note — and it is the same fill on every calendar on the site. Belonging to a
+ * The fill says what kind of day this is - nothing recorded, a draft, a finished
+ * note - and it is the same fill on every calendar on the site. Belonging to a
  * picked range is not a kind of day; it is a thing done to a stretch of them, and
  * giving it a fill of its own put it in the same channel as the other three. A
  * finished day and a day inside the range then looked alike, and inside the range

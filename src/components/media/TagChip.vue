@@ -17,7 +17,7 @@ const label = computed(() => tagLabel(props.tag, ui.locale))
     The link is built on the slug, never on the caption.
 
     A caption can be rewritten, and it is different in each of the three
-    languages — a link carrying it would break on the first rename and would send
+    languages - a link carrying it would break on the first rename and would send
     a Japanese reader to a search for a Russian word. The slug is one name for
     the tag across every locale, and unlike the numeric id it is readable in the
     address bar, which is where these links are read.

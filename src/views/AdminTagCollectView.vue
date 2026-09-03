@@ -27,8 +27,8 @@ const ui = useUiStore()
 
   Filing day by day gets every photograph described; it does not get every
   photograph of a festival tagged "festival", because the festival happened in
-  four different weeks. This screen asks the opposite question — given what
-  already carries this tag, what else in the archive belongs with it — and
+  four different weeks. This screen asks the opposite question - given what
+  already carries this tag, what else in the archive belongs with it - and
   answers it with the whole archive at once.
 
   The tag lives in the address so the screen can be linked to from the tag list
@@ -57,7 +57,7 @@ const lightboxItems = computed(() => items.value.map((entry) => entry.media))
 /*
   The same press-and-drag marking used on every other wall of thumbnails: a long
   press opens it on a touchscreen, a sideways drag extends it, and a downwards
-  one goes back to the page — three hundred tiles that could not be scrolled past
+  one goes back to the page - three hundred tiles that could not be scrolled past
   would be the worst possible place to get that wrong.
 */
 const paint = useTilePaint({

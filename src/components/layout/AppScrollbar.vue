@@ -4,7 +4,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 const props = defineProps({
   /**
    * The box whose scrolling this describes. Null is the page itself, which is
-   * what it was built for; an element is a scroller inside the page — a dialog
+   * what it was built for; an element is a scroller inside the page - a dialog
    * tall enough to need one, where the browser's own bar cuts a straight grey
    * lane through a panel with rounded corners.
    */
@@ -15,7 +15,7 @@ const props = defineProps({
   The page's scrollbar, drawn over the page rather than beside it.
 
   A desktop browser's own bar takes a lane out of the layout, and a lane that
-  appears and disappears moves the whole page sideways with it — which is what
+  appears and disappears moves the whole page sideways with it - which is what
   made the picture jump as the viewer opened and locked the page behind it.
   Reserving the lane for good fixed that but left an empty strip on every page
   that does not scroll. Drawing the bar on top settles both: it costs no width,
@@ -23,7 +23,7 @@ const props = defineProps({
 
   It is only ever drawn for a pointer that can hover. A touchscreen already has
   an overlay bar of its own that costs nothing, and a thumb has no use for a
-  four-pixel target — the CSS hides this one there entirely.
+  four-pixel target - the CSS hides this one there entirely.
 
   The native bar is hidden in main.css. Should this component fail to run, the
   page still scrolls by every other means; what is lost is the drawn bar, not
@@ -85,7 +85,7 @@ function measure() {
   Dragging.
 
   The pointer is captured so the gesture survives leaving the four pixels the
-  thumb occupies — without that, a hand that strays sideways while scrolling
+  thumb occupies - without that, a hand that strays sideways while scrolling
   drops the bar mid-stroke. What is remembered is where inside the thumb the
   press landed, so the thumb does not jump under the cursor as it starts.
 */
@@ -138,7 +138,7 @@ function detach() {
 
 /**
  * A target handed down as a template ref arrives after this has mounted, and
- * changes again whenever the box it describes is torn down and rebuilt — so the
+ * changes again whenever the box it describes is torn down and rebuilt - so the
  * listeners follow it rather than being attached once and hoping.
  */
 function attach() {
@@ -148,8 +148,8 @@ function attach() {
   watched.addEventListener('scroll', measure, { passive: true })
   window.addEventListener('resize', measure)
 
-  // A page and a panel both grow and shrink on their own — pictures arriving, a
-  // day loading, a section opening — and none of that is a scroll or a resize.
+  // A page and a panel both grow and shrink on their own - pictures arriving, a
+  // day loading, a section opening - and none of that is a scroll or a resize.
   if (typeof ResizeObserver !== 'undefined') {
     observer = new ResizeObserver(measure)
     if (box) {

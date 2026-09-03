@@ -9,7 +9,7 @@ import { compareTags, tagMatches } from '@/services/tags'
  *
  * Fetched once rather than searched over the wire. The dictionary is a few
  * hundred entries and a few dozen kilobytes, it changes rarely, and filtering it
- * on the client answers on the keystroke — no debounce, no request racing
+ * on the client answers on the keystroke - no debounce, no request racing
  * another request back.
  *
  * The real reason is not speed, though. Half the work of filing a photograph is
@@ -74,7 +74,7 @@ export const useTagsStore = defineStore('tags', () => {
 
   /**
    * The dictionary is the one place a slug can be turned back into the numeric
-   * id a save needs — nothing else on the client has both.
+   * id a save needs - nothing else on the client has both.
    */
   function getBySlug(slug) {
     return bySlug.value.get(slug) ?? null

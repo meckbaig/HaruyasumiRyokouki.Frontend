@@ -65,7 +65,7 @@ export function formatShortDate(iso, locale) {
  * Day and clock time together: "12 Apr, 14:35".
  *
  * Both halves, because the reference points on the location picker are drawn
- * from a three-day window — a bare time there could belong to any of them, and
+ * from a three-day window - a bare time there could belong to any of them, and
  * "was this before or after lunch on which day" is the question being asked.
  */
 export function formatShortDateTime(iso, locale) {

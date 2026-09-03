@@ -62,7 +62,7 @@ const counts = computed(() => ({
  * login, and a visitor following a shared tag link has none. Every file in the
  * results carries the tag that fetched them, already in the right language, so
  * the caption is in the response by definition. The dictionary is only the
- * fallback for the one case the response cannot cover — a tag that matched
+ * fallback for the one case the response cannot cover - a tag that matched
  * nothing at all.
  */
 const tagName = computed(() => {
@@ -85,7 +85,7 @@ watch([query, tagSlug], run)
 watch(() => ui.locale, run)
 
 /*
-  A link pointing at one file of these results — the same contract the day page
+  A link pointing at one file of these results - the same contract the day page
   keeps (composables/useMediaLink).
 
   Resolved against the matched files only, which is what a search link can
@@ -104,8 +104,8 @@ const highlightedId = computed(() => mediaLink.link.value.id)
 let linkResolved = false
 watch([query, tagSlug], () => (linkResolved = false))
 
-// The store replaces its whole result object once per completed run — cached or
-// fetched, hit or miss — which makes it the one signal that says "these are the
+// The store replaces its whole result object once per completed run - cached or
+// fetched, hit or miss - which makes it the one signal that says "these are the
 // results now". Counting groups would fire early, when there are none yet.
 watch(
   () => search.results,
@@ -227,7 +227,7 @@ async function removeMedia(list) {
     </div>
 
     <!-- A skeleton grid would promise media results before the shape of the
-         answer is known — a query may return only notes, or nothing. -->
+         answer is known - a query may return only notes, or nothing. -->
     <LoadingIndicator v-if="search.loading" />
 
     <ErrorState v-else-if="search.error" :error="search.error" @retry="run" />

@@ -1,6 +1,6 @@
 /**
- * Sharing is just "copy the current URL": every shareable state — the day, the
- * search query, the active tab, the map range — already lives in the address
+ * Sharing is just "copy the current URL": every shareable state - the day, the
+ * search query, the active tab, the map range - already lives in the address
  * bar, so there is nothing else to serialise. The one addition is ?lang=<current
  * locale>, so the recipient opens the site in the language the sender was using
  * (and the crawler serves a preview card in that language).
@@ -51,8 +51,8 @@ export async function copyToClipboard(text) {
  *
  * Built on top of wherever the reader is, so a file shared from a search carries
  * the search with it and lands among the same results. `path` overrides that for
- * a page that cannot resolve a file at all — the front page, whose wall is
- * reshuffled per visit — where the file's own day is the honest destination.
+ * a page that cannot resolve a file at all - the front page, whose wall is
+ * reshuffled per visit - where the file's own day is the honest destination.
  *
  * See composables/useMediaLink for what `i` and `o` mean.
  */

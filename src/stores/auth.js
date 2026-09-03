@@ -9,7 +9,7 @@ const STORAGE_KEY = 'haruyasumi.auth'
 /**
  * Editor session.
  *
- * There is no token endpoint — the API uses HTTP Basic — so "staying signed in"
+ * There is no token endpoint - the API uses HTTP Basic - so "staying signed in"
  * means keeping the encoded credentials around. With "remember me" they go to
  * localStorage and survive a restart; without it they live only in memory and
  * disappear when the tab is closed.

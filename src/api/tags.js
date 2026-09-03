@@ -1,11 +1,14 @@
 import { request } from './client'
 
 /**
- * GET /v1/tags/suggestion?text=&take= -> `{ id, value, usageCount }[]`.
+ * GET /v1/tags/suggestion?text=&take= -> `TagSuggestionDto[]`,
+ * i.e. `{ slug, value, usageCount }`. There is no numeric id here: the slug is
+ * the only name a tag is known by outside the editor, and it is what a search
+ * link carries (`/search?tag=ramen`).
  *
  * Public, and the one tag call a visitor ever makes. Matches captions and
  * aliases across every language at once, and answers with the caption in the
- * language asked for — which is how typing "лапша" offers "рамэн".
+ * language asked for - which is how typing "лапша" offers "рамэн".
  */
 export async function fetchTagSuggestions(text, take = 8, signal) {
   const data = await request('/tags/suggestion', { query: { text, take }, signal })
@@ -25,7 +28,7 @@ export async function fetchTags(signal) {
  * for a word, and hands back the existing tags that look like near-duplicates.
  * The proposal comes from a language model, which is exactly why it is a
  * separate step: it has to be read before it reaches the database, and the
- * mistakes it makes are the quiet kind — katakana where kanji belongs, aliases
+ * mistakes it makes are the quiet kind - katakana where kanji belongs, aliases
  * broader than the thing they name.
  */
 export async function completeTag(tag, signal) {
@@ -77,7 +80,7 @@ export async function fetchTagCandidates(tagId, take = 300, signal) {
 /**
  * POST /v1/tags/{id}/media -> `{ affected }`.
  *
- * **Adds** the tag, leaving every other tag on those files alone — which is what
+ * **Adds** the tag, leaving every other tag on those files alone - which is what
  * separates it from `PATCH /v1/media`, where `tagIds` replaces the set outright.
  * Filing by subject means touching files whose other tags are none of this
  * operation's business, so this is the one to use for it. Editor-only.

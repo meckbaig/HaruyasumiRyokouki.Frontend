@@ -1,5 +1,5 @@
 /*
-  Service worker — deliberately the smallest one that works.
+  Service worker - deliberately the smallest one that works.
 
   A browser will only offer to install a site that has one with a fetch handler,
   and that is the whole reason this file exists. It caches nothing: every request
@@ -7,7 +7,7 @@
 
   That restraint is on purpose. A caching worker decides for itself when a
   visitor sees a new deployment, and getting that wrong means serving a stale
-  site to someone who cannot tell why — a worse problem than the one offline
+  site to someone who cannot tell why - a worse problem than the one offline
   support would solve for a site whose content is photographs it has to fetch
   anyway. Add caching deliberately, if ever, not as a side effect of wanting an
   installable icon.

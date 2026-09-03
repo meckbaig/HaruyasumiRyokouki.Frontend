@@ -10,7 +10,7 @@ import { fetchDays, fetchDay } from '@/api/days'
  * visitor expands "show the rest of this day".
  *
  * Caches are keyed only by date, so anything that changes the language must call
- * `invalidate()` — the stored notes and titles are locale-specific.
+ * `invalidate()` - the stored notes and titles are locale-specific.
  */
 export const useDaysStore = defineStore('days', () => {
   const list = ref([])
@@ -49,7 +49,7 @@ export const useDaysStore = defineStore('days', () => {
   /**
    * Requests already on their way, so two callers asking for the same day get
    * one fetch between them. That is what lets the router start a day loading
-   * the moment a navigation begins while the page still asks for it on mount —
+   * the moment a navigation begins while the page still asks for it on mount -
    * see `prefetchRoute` in the router.
    */
   const inFlight = new Map()

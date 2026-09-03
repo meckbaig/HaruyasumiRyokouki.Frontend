@@ -14,14 +14,14 @@ import { useDelayed } from '@/composables/useDelayed'
 import { readDraft, writeDraft, clearDraft, sameNotes } from '@/services/dayDrafts'
 
 const props = defineProps({
-  /** DayDto (read model) or DayEditDto (pending list) — both are accepted. */
+  /** DayDto (read model) or DayEditDto (pending list) - both are accepted. */
   day: { type: Object, required: true },
   date: { type: String, required: true },
   /**
    * The strip of the day's photos above the note.
    *
    * It is here so the day can be written while looking at it, which the pending
-   * queue needs — nothing else on that screen shows what the day held. On the day
+   * queue needs - nothing else on that screen shows what the day held. On the day
    * page the same grid is already a few centimetres below the form, and a second
    * copy of it says nothing the first did not.
    */
@@ -62,7 +62,7 @@ function openThumb(event, index) {
   lightboxIndex.value = index
 }
 
-// Said out loud only if the wait actually lasts — see composables/useDelayed.
+// Said out loud only if the wait actually lasts - see composables/useDelayed.
 const showLoading = useDelayed(() => loading.value)
 
 const active = computed(() => form[activeLang.value] ?? { note: '' })
@@ -105,7 +105,7 @@ const dirty = computed(() => !sameNotes(currentNotes(), baseline, SUPPORTED_LOCA
   The draft, kept on this machine.
 
   Written every ten seconds and only while the form says something the server
-  does not — so a day opened and closed untouched leaves nothing behind, and one
+  does not - so a day opened and closed untouched leaves nothing behind, and one
   edited and abandoned is waiting when the editor comes back to it. Reverting the
   text by hand takes the draft with it: at that point there is nothing to
   recover.
@@ -259,7 +259,7 @@ async function save() {
 
     ui.notify(t('admin.saved'), 'success')
     /*
-      Saved is exactly when a draft stops being worth keeping — and the baseline
+      Saved is exactly when a draft stops being worth keeping - and the baseline
       has to move with it. Without that the form still counts as unsaved against
       the text the server held a moment ago, and the flush on the way out would
       write back the very draft this line just removed.
@@ -279,7 +279,7 @@ async function save() {
 <template>
   <!--
     The fields arrive one under another rather than as a block, and go the same
-    way — the stagger is `.cascade-item`, the fold around them is `.reveal` on
+    way - the stagger is `.cascade-item`, the fold around them is `.reveal` on
     whoever mounts this form. The delays are written by hand rather than counted
     off the loop, so a notice that only sometimes appears cannot shift the
     others' place in the order; the two that do appear mid-editing carry none at

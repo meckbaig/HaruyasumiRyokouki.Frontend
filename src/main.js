@@ -25,7 +25,7 @@ installAuthRedirect()
 app.use(router)
 
 // A shared link's `?lang=` is read and removed in @/i18n, before the router is
-// built — see the note there for why it must not be a navigation.
+// built - see the note there for why it must not be a navigation.
 document.documentElement.setAttribute('lang', i18n.global.locale.value)
 
 app.mount('#app')
@@ -37,7 +37,7 @@ prefetchViews()
   site as an app. Production only: in development the dev server owns the
   requests, and a worker sitting in front of it only confuses reloading.
 
-  The worker itself caches nothing — see public/sw.js for why.
+  The worker itself caches nothing - see public/sw.js for why.
 */
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

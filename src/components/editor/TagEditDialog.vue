@@ -15,12 +15,12 @@ const props = defineProps({
   tag: { type: Object, default: null },
   /** Word the new tag is being made from, when creating. */
   seed: { type: String, default: '' },
-  /** Sits over another dialog — see ModalDialog. */
+  /** Sits over another dialog - see ModalDialog. */
   stacked: { type: Boolean, default: false },
   /**
    * What clicking a near-duplicate means to the host.
    *
-   * In the media editor it means "that one is what I meant" — the tag goes onto
+   * In the media editor it means "that one is what I meant" - the tag goes onto
    * the photograph and the dialog is done with. On the tag screen it means "let
    * me see that one first", which is a different thing entirely: the proposal
    * has already been paid for, and throwing it away to go and look at something
@@ -40,8 +40,8 @@ const editing = computed(() => Boolean(props.tag?.id))
 /*
   Coining a tag is two steps, and the first one is a single word.
 
-  Opened from the picker in the media editor, that word is already known — it is
-  what was being typed when nothing matched — so the first step is skipped and
+  Opened from the picker in the media editor, that word is already known - it is
+  what was being typed when nothing matched - so the first step is skipped and
   the proposal is on its way before the dialog has finished appearing. Opened
   from the tag screen there is no word yet, and this is where it is asked for.
   Without it the button read "new tag" and produced an empty form, which is the
@@ -73,7 +73,7 @@ const similar = ref([])
 /*
   Two waits, and they are not the same wait.
 
-  A proposal *replaces* the form — three captions, the slug, the aliases — so the
+  A proposal *replaces* the form - three captions, the slug, the aliases - so the
   fields are locked while it is in flight: anything typed into them is about to
   be thrown away, and letting it be typed is inviting the editor to waste it.
 
@@ -123,8 +123,8 @@ function hydrate(tag) {
 /**
  * The first of the two steps that coining a tag is deliberately split into.
  *
- * Nothing is saved. The proposal — three captions, a slug, a handful of aliases
- * — comes from a language model, and it is wrong often enough that it has to be
+ * Nothing is saved. The proposal - three captions, a slug, a handful of aliases
+ * - comes from a language model, and it is wrong often enough that it has to be
  * read before it reaches the database. Japanese is where it slips most (katakana
  * where kanji belongs), and aliases second (words broader than the thing they
  * name).
@@ -209,7 +209,7 @@ function removeAlias(index) {
 /**
  * Asks for aliases without touching the captions already written.
  *
- * Asks on whichever caption is filled in — the reader's language first, then any
+ * Asks on whichever caption is filled in - the reader's language first, then any
  * of the others. A tag half-written in Japanese alone still has something to ask
  * about, and refusing because the interface is in Russian would be a silent
  * no-op, which is the worst answer a button can give.

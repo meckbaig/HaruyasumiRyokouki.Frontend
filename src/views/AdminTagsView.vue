@@ -24,7 +24,7 @@ onMounted(() => tags.load().catch(() => {}))
 
   Order is the point of this screen. Filing a photograph means remembering what
   this sort of thing was called last time, and a list sorted alphabetically
-  answers a question nobody asked — the working vocabulary is the top of the
+  answers a question nobody asked - the working vocabulary is the top of the
   usage list, and everything below the fold is the long tail of one-offs.
 
   Filtering runs over captions *and* aliases in every language, the same as the
@@ -41,7 +41,7 @@ const visible = computed(() =>
  * A near-duplicate was clicked in the tag being written: put it in the search
  * field, so the table underneath narrows to it and it can be read where every
  * other tag is read. The dialog folds itself down to a draft rather than
- * closing — the proposal in it has been paid for.
+ * closing - the proposal in it has been paid for.
  */
 function onSimilar(tag) {
   filter.value = tagLabel(tag, ui.locale)
@@ -51,7 +51,7 @@ function aliasCount(tag) {
   return Array.isArray(tag.aliases) ? tag.aliases.length : 0
 }
 
-/** Which languages still have no caption — the hole this screen exists to find. */
+/** Which languages still have no caption - the hole this screen exists to find. */
 function missingCaptions(tag) {
   const written = new Set(
     (tag.translations ?? []).filter((row) => row?.text?.trim()).map((row) => row.languageCode),

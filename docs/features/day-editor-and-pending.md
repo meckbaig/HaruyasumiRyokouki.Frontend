@@ -68,9 +68,10 @@ Rules:
 
 ## Auto-translate
 
-Same contract as the media editor: `PUT /days/{date}` with `{ day, autoTranslate }` answers
-`{ day: DayEditDto }`, the form rehydrates from it and stays open so the machine output can
-be read. See [media-editor.md](media-editor.md).
+Same contract as the media editor. `PUT /days/{date}` with `{ day, autoTranslate }` saves
+the notes it was sent, then answers `{ day: DayEditDto }` carrying translations it has
+**not** stored. The form rehydrates from that and stays open; keeping the translation is a
+second save. See [media-editor.md](media-editor.md).
 
 ## The pending queue
 

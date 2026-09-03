@@ -17,13 +17,13 @@ const tagOpen = ref(false)
 
 /*
   Deleting the whole selection, asked for from the edit dialog's own delete
-  button — the same button, and the same place, as deleting one file.
+  button - the same button, and the same place, as deleting one file.
 
   Asked for through the site's own dialog rather than `window.confirm`, because
   this is the one irreversible action here and the question has to be able to say
   how many files it is about to take.
 
-  One request per file — the API deletes by id — run in sequence so a failure
+  One request per file - the API deletes by id - run in sequence so a failure
   halfway leaves a clear account of what did go, and so the pages hear about
   exactly those.
 */
@@ -58,7 +58,7 @@ async function removeSelection(list) {
 
 /**
  * The toolbar floats above every page, so the page underneath never hears about
- * a bulk save. The record goes through the store instead — a queue of unfiled
+ * a bulk save. The record goes through the store instead - a queue of unfiled
  * media has to know that the files it is showing have just been approved.
  */
 function onSaved(result) {

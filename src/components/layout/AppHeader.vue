@@ -23,8 +23,8 @@ const showSearch = computed(() => route.name !== 'home')
 const LOGO_GLYPH = '春'
 
 /**
- * The Japanese title opens with the very character the logo draws — 春休み旅行記
- * against a mark reading 春 — so the mark is read as the first character and the
+ * The Japanese title opens with the very character the logo draws - 春休み旅行記
+ * against a mark reading 春 - so the mark is read as the first character and the
  * word carries on from it. The rest of the title is what goes beside it.
  *
  * Decided by looking at the title rather than at the locale, so a rewritten
@@ -66,7 +66,7 @@ function signOut() {
         both. Below `sm` the search is a button again and the name fits, above
         `md` there is room for everything.
 
-        `aria-label` carries the full title regardless — of the breakpoint, and
+        `aria-label` carries the full title regardless - of the breakpoint, and
         of the character the logo has taken over.
       -->
       <RouterLink

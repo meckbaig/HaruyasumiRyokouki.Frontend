@@ -92,12 +92,12 @@ function directionBetween(to, from) {
 
   The transition between pages runs the departure first and mounts the arriving
   page only once it has finished, so a page that asks for its data on mount asks
-  a sixth of a second late — and the reader watches an empty frame for exactly as
+  a sixth of a second late - and the reader watches an empty frame for exactly as
   long as the animation was meant to be covering. Asking here instead puts the
   request and the animation side by side.
 
   Fire and forget: the page asks for the same day itself, and the store hands
-  both of them the one request. A failure here is not this hook's to report — the
+  both of them the one request. A failure here is not this hook's to report - the
   page will ask, and will show its own error state.
 */
 function prefetchRoute(to) {
@@ -157,7 +157,7 @@ router.afterEach((to) => updateHead(to))
  *
  * Every view is loaded on demand, which keeps the first paint small but makes
  * the first navigation to each one wait on a download. Fetching the two that
- * every path leads to — a day and a search — while the browser is otherwise idle
+ * every path leads to - a day and a search - while the browser is otherwise idle
  * turns that wait into nothing at all; anything still cold falls back to the
  * loading indicator. Failures are ignored on purpose: this is an optimisation,
  * and the router will simply load the chunk again when it is really needed.

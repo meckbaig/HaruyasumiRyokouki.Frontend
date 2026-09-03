@@ -21,10 +21,14 @@ export async function fetchMediaEdit(ids, signal) {
 /**
  * GET /v1/media/locations?from=&to= -> MediaFileLocationDto[].
  *
- * Only media that carry coordinates, as `{ id, created, latitude, longitude,
- * fileName, title, languageCode }`. One request draws the whole map for a range;
- * the route line is the points ordered by `created`. Both `from` and `to` are
- * required (inclusive ISO dates). Public.
+ * Only media that carry coordinates. `MediaFileLocationDto` is the flat model
+ * minus its text: `{ id, created, latitude, longitude, fileName, aspectRatio,
+ * title, languageCode, miniature, imageUrls, videoUrls }` - so a map popup can
+ * draw a real thumbnail from it without fetching the day.
+ *
+ * One request draws the whole map for a range; the route line is the points
+ * ordered by `created`. Both `from` and `to` are required (inclusive ISO dates).
+ * Public.
  */
 export async function fetchMediaLocations(from, to, signal) {
   const data = await request('/media/locations', { query: { from, to }, signal })
@@ -32,20 +36,27 @@ export async function fetchMediaLocations(from, to, signal) {
 }
 
 /**
- * PATCH /v1/media — applies one set of changes to every id at once.
+ * PATCH /v1/media - applies one set of changes to every id at once.
  *
  * `changes.translations` entries deliberately omit the translation `id`: in a
  * bulk edit each media file has its own translation row, so the backend is
  * expected to match on `languageCode`.
  *
- * With `autoTranslate: true` the backend fills the missing languages from the
- * one that was written and returns the updated media (translations array) so the
- * editor can review the machine translation. Without it the call just saves.
+ * `autoTranslate: true` runs in two halves, and only the first is persisted: the
+ * backend saves the fields it was sent, then translates into the languages that
+ * were left empty and returns those **without storing them**. Keeping the
+ * translation is a second save, made by the editor once they have read it - which
+ * is why the dialog stays open on this path instead of closing.
  *
  * @param {string[]} ids
  * @param {{latitude?: number, longitude?: number, isApproved?: boolean,
- *          translations?: Array<{languageCode: string, title?: string,
- *          description?: string, tags?: string[]}>}} changes
+ *          private?: boolean, favorite?: boolean, tagIds?: number[],
+ *          translations?: Array<{id?: number, languageCode: string,
+ *          title?: string, description?: string}>}} changes
+ *   Whatever is left out is left alone by the backend, which is what lets the
+ *   star and the privacy toggle be a PATCH carrying a single key. `tagIds`
+ *   **replaces** the file's tags rather than adding to them - to add one, use
+ *   `POST /v1/tags/{id}/media` (see api/tags.js).
  * @param {{autoTranslate?: boolean}} [options]
  * @returns {Promise<object|null>} `{ items: MediaFileEditDto[] }` when translating, else null.
  */
@@ -92,7 +103,7 @@ export async function fetchFavoriteMedia(signal) {
   return data?.items ?? []
 }
 
-/** DELETE /v1/media/{mediaId}. Irreversible — always confirm first. */
+/** DELETE /v1/media/{mediaId}. Irreversible - always confirm first. */
 export function deleteMedia(mediaId) {
   return request(`/media/${mediaId}`, {
     method: 'DELETE',
@@ -100,7 +111,7 @@ export function deleteMedia(mediaId) {
   })
 }
 
-/** PUT /v1/media/sync — rescans the storage and picks up newly uploaded files. */
+/** PUT /v1/media/sync - rescans the storage and picks up newly uploaded files. */
 export function syncMedia() {
   return request('/media/sync', {
     method: 'PUT',
@@ -112,13 +123,13 @@ export function syncMedia() {
  * GET /v1/media/{id}/similar -> `{ media, score }[]`, most alike first.
  *
  * The server holds a fingerprint of every photograph's content and compares
- * across the whole archive — other days, other places. It deliberately does
+ * across the whole archive - other days, other places. It deliberately does
  * **not** cut the list off at a threshold: how alike is alike enough depends on
  * how narrow the thing being looked for is, and there is no one right number.
  * So it always answers with `take` of them and the score comes along, for a
  * person to see where the useful part ended. Editor-only.
  *
- * An empty list means this file has no fingerprint — a video, typically. That is
+ * An empty list means this file has no fingerprint - a video, typically. That is
  * an answer, not a failure.
  */
 export async function fetchSimilarMedia(id, take = 50, signal) {

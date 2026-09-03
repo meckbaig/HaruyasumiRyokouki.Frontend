@@ -6,7 +6,7 @@ import LanguageTabs from './LanguageTabs.vue'
 import TagPicker from './TagPicker.vue'
 import TriStateCheck from './TriStateCheck.vue'
 import SimilarMediaPanel from './SimilarMediaPanel.vue'
-// Lazy so Leaflet is not pulled into the main bundle — this dialog is mounted
+// Lazy so Leaflet is not pulled into the main bundle - this dialog is mounted
 // app-wide via the selection toolbar, and the map only loads when it opens.
 const MediaLocationPicker = defineAsyncComponent(() => import('./MediaLocationPicker.vue'))
 import { editMedia, fetchMediaEdit, fetchMediaLocations } from '@/api/media'
@@ -31,7 +31,7 @@ const props = defineProps({
   /**
    * Offers a delete action; the parent owns the confirmation and the request.
    *
-   * For one file or for the whole selection alike — `delete` carries the list,
+   * For one file or for the whole selection alike - `delete` carries the list,
    * and how many it holds is the caller's own business.
    */
   deletable: { type: Boolean, default: false },
@@ -49,7 +49,7 @@ const tagsStore = useTagsStore()
 
   Derived, and deliberately not kept in a ref updated by a watcher. Props are
   patched one at a time in template order, so `open` becomes true a moment before
-  `media` does — and a watcher holding the list therefore ran *after* the one that
+  `media` does - and a watcher holding the list therefore ran *after* the one that
   reads it. The dialog opened, found nothing to edit, and made none of its
   requests; a second attempt worked only because the stale value from the first
   was still lying around. A computed has no order to get wrong.
@@ -70,7 +70,7 @@ const loading = ref(false)
 
   Nothing here is inferred, prefilled from the page, or held back. The public
   models the pages carry are flattened to *one* language by the server, and that
-  one is chosen by fallback — ask for Russian for a file described only in
+  one is chosen by fallback - ask for Russian for a file described only in
   Japanese and Russian is what the response is labelled, with Japanese text in
   it. Seeding the editor from that put the Japanese text in the Russian field and
   then deliberately refused to overwrite it when the real rows arrived, so the
@@ -79,7 +79,7 @@ const loading = ref(false)
 
   So the editor waits for `/media/edit`, which carries every language separately
   and never falls back, and fills all three from that. The fields are held shut
-  until it lands — see the `fieldset` in the template — because an empty field
+  until it lands - see the `fieldset` in the template - because an empty field
   that is about to be filled in is a field somebody will otherwise start typing
   into.
 */
@@ -88,14 +88,14 @@ const form = reactive({})
   What each language looked like when the editor last received it.
 
   The backend writes only the fields a request carries, so a field that is sent
-  unchanged is still a write — and the editor sent every language on every save,
+  unchanged is still a write - and the editor sent every language on every save,
   whatever had been touched. On a bulk edit that was destructive rather than
   merely wasteful: the fields there are prefilled from the *first* selected file
   that has any text, so saving a batch to set their coordinates posted that one
   file's title and description onto every other file in the selection.
 
-  Nothing is sent now unless it differs from this. A translation is atomic — the
-  title and the description are one object on the server — so a change to either
+  Nothing is sent now unless it differs from this. A translation is atomic - the
+  title and the description are one object on the server - so a change to either
   sends both, and a language nobody touched is not in the request at all.
 */
 const baseline = reactive({})
@@ -110,7 +110,7 @@ const coordsTouched = ref(false)
   than inside it. Nothing about them needs translating: the tag already knows its
   own three captions.
 
-  Held as slugs, because that is the only name the media models carry — public
+  Held as slugs, because that is the only name the media models carry - public
   and editor alike. The numeric ids the save wants exist solely in the tag
   dictionary, and are looked up there at the moment of saving; see
   `resolveTagIds`.
@@ -125,7 +125,7 @@ const hidden = ref(false)
   The three marks, and whether each box was pressed rather than merely shown.
 
   All three show what the files actually carry, which is what makes them worth
-  reading — and exactly why their values must not be posted on their own account.
+  reading - and exactly why their values must not be posted on their own account.
   Sending them regardless would make every save an answer to a question nobody
   asked: a typo fixed on a file left unapproved on purpose would approve it, and
   a coordinate set on a selection would re-state marks nobody touched.
@@ -140,7 +140,7 @@ const hiddenTouched = ref(false)
 /**
  * How a selection answers a yes-or-no question: `true`, `false`, or neither.
  *
- * `null` is the third state, and it is not a value — it is the absence of an
+ * `null` is the third state, and it is not a value - it is the absence of an
  * agreement. Drawing it as "no" would be a claim about files that say yes.
  */
 function markState(reader) {
@@ -166,14 +166,14 @@ const error = ref(null)
 const translated = ref(false)
 const neighborPoints = ref([])
 
-// Said out loud only if the wait actually lasts — see composables/useDelayed.
+// Said out loud only if the wait actually lasts - see composables/useDelayed.
 const showLoading = useDelayed(() => loading.value)
 
 /*
   Folded away rather than thrown away.
 
-  A press on the backdrop is how people look at the page behind a dialog — the
-  photograph they are describing is right there under it — and answering that by
+  A press on the backdrop is how people look at the page behind a dialog - the
+  photograph they are describing is right there under it - and answering that by
   discarding a card halfway through being filled in is a punishment for
   curiosity. So it folds down to a bar at the foot of the screen with everything
   still in it, and the cross keeps its meaning: done with this, whatever it cost.
@@ -238,7 +238,7 @@ function rowFor(model, locale) {
  * `asBaseline` is the difference between the two things that arrive in this
  * shape. A model fetched from the server *is* what the server holds, so it
  * becomes the mark that "changed" is measured against. A machine translation is
- * a proposal — it is on screen to be read and corrected, and it has to count as
+ * a proposal - it is on screen to be read and corrected, and it has to count as
  * changed or the save that follows would decide there was nothing to send.
  */
 function hydrateAll(model, { asBaseline = true } = {}) {
@@ -302,7 +302,7 @@ function ownDate() {
  *
  * Each point says whether it was taken *before* the file being placed. That is
  * what lets the picker frame the gap the photograph fell into rather than the
- * whole day — see `bestView` there.
+ * whole day - see `bestView` there.
  */
 async function loadNeighborPoints() {
   neighborPoints.value = []
@@ -320,7 +320,7 @@ async function loadNeighborPoints() {
     neighborPoints.value = items
       .filter((item) => !editing.has(item.id))
       .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
-      // Sorted, because the picker joins them into the path that was walked —
+      // Sorted, because the picker joins them into the path that was walked -
       // and a path drawn in the order a server happened to return rows is a
       // scribble rather than a route.
       .sort((a, b) => String(a.created ?? '').localeCompare(String(b.created ?? '')))
@@ -352,7 +352,7 @@ async function loadModels() {
     } else {
       const ids = list.map((item) => item.id).filter((id) => id != null)
       models.value = ids.length ? await fetchMediaEdit(ids) : []
-      // Every language from the model, the one on screen included — and the
+      // Every language from the model, the one on screen included - and the
       // marks with them, since the flat model on the page can only be as fresh
       // as the page is.
       if (!isBulk.value && models.value[0]) {
@@ -391,7 +391,7 @@ watch(
       hydrateAll(single.value)
     } else {
       // Blank until the rows arrive. For a bulk edit blank is also the final
-      // state of anything nobody fills in — it means "leave this alone".
+      // state of anything nobody fills in - it means "leave this alone".
       blankForm()
     }
 
@@ -400,7 +400,7 @@ watch(
 
       Where a selection disagrees the box shows its third state and holds `false`
       underneath, so the first press settles everything on ticked and the second
-      on unticked — which is what a browser does with an indeterminate box and
+      on unticked - which is what a browser does with an indeterminate box and
       what people expect of one.
     */
     approvedTouched.value = false
@@ -411,7 +411,7 @@ watch(
     hidden.value = hiddenState.value === true
 
     /*
-      Tags start from what the selection already carries — for one file that is
+      Tags start from what the selection already carries - for one file that is
       its own set, for many it is the union of theirs.
 
       The union is shown rather than a blank field because the alternative is
@@ -419,7 +419,7 @@ watch(
       and saving from it would be read as "and now they have none". Seeing the
       whole of what the selection holds is the only honest starting point.
 
-      Whether any of it is *written* is a separate question — see `buildChanges`.
+      Whether any of it is *written* is a separate question - see `buildChanges`.
     */
     tagsTouched.value = false
     tagSlugs.value = [...new Set(editList.value.flatMap((item) => tagSlugsOf(item)))]
@@ -452,7 +452,7 @@ function onTags(value) {
  * The dictionary is the only place holding both, which makes this the one point
  * where a tag the client does not know about can go missing. It is reported
  * rather than dropped: the save replaces the whole set, so a silently skipped
- * slug would not be a tag left alone — it would be a tag taken off the file.
+ * slug would not be a tag left alone - it would be a tag taken off the file.
  */
 function resolveTagIds() {
   const ids = []
@@ -478,12 +478,12 @@ function localeChanged(locale) {
 }
 
 /**
- * The languages that were edited — and, when translating, the ones to translate
+ * The languages that were edited - and, when translating, the ones to translate
  * from.
  *
  * Blank counts as an edit when it used to hold something: clearing a description
  * is a decision and has to reach the server. A language left exactly as it was
- * found does not, which is the whole point — a save made to set a coordinate
+ * found does not, which is the whole point - a save made to set a coordinate
  * carries a coordinate and nothing else.
  *
  * Asking for a translation is the exception, and has to be. The backend fills
@@ -531,7 +531,7 @@ function buildChanges() {
 
       Which is a real gain over the old bulk rule of "a tick means yes and an
       untick means nothing". With the boxes now showing what the files carry,
-      unticking one is a decision as legible as ticking it — so taking a mark off
+      unticking one is a decision as legible as ticking it - so taking a mark off
       forty files is finally possible, and it happens only when asked for.
     */
     if (approvedTouched.value) changes.isApproved = approved.value
@@ -541,7 +541,7 @@ function buildChanges() {
       Tags are the one field where a bulk save cannot be additive: the command
       *replaces* the set on every file it touches. Sending the union that was
       shown as the starting point would therefore hand every selected file every
-      tag any of them had — a silent merge nobody asked for.
+      tag any of them had - a silent merge nobody asked for.
 
       So the untouched case sends nothing at all, and each file keeps what it
       had. Once the editor has actually changed the list they have said what the
@@ -565,7 +565,7 @@ function buildChanges() {
  *
  * Deliberately *not* taken as the new baseline. What comes back is the machine's
  * work, and the whole reason the dialog stays open is that it has to be looked
- * at — so every language it wrote counts as changed, and pressing Save afterwards
+ * at - so every language it wrote counts as changed, and pressing Save afterwards
  * sends all of them. Recording it as the server's own state instead left only the
  * one language that had been typed by hand looking changed, and the translations
  * went nowhere.
@@ -589,8 +589,8 @@ function applyTranslated(items) {
 /**
  * Writes what came back onto the very objects the page is showing.
  *
- * The files being edited *are* the ones in the grid behind this dialog — the
- * same objects, handed down as props — so assigning to them is what puts a new
+ * The files being edited *are* the ones in the grid behind this dialog - the
+ * same objects, handed down as props - so assigning to them is what puts a new
  * title, tag or mark under the photograph the instant the dialog closes. The
  * page is then told whether this happened, and only refetches if it did not.
  *
@@ -630,7 +630,7 @@ async function save() {
     const response = await editMedia(ids, buildChanges(), { autoTranslate: autoTranslate.value })
 
     // With translation on, keep the dialog open so the machine output can be
-    // reviewed before the editor leaves — for bulk as well as single.
+    // reviewed before the editor leaves - for bulk as well as single.
     if (autoTranslate.value && applyTranslated(response?.items)) {
       ui.notify(t('editor.translationReview'), 'info')
       autoTranslate.value = false
@@ -640,7 +640,7 @@ async function save() {
     const applied = applySaved(response?.items)
     ui.notify(t('admin.saved'), 'success')
     // What takes a file out of the pending queue, and the answer carries no such
-    // field — only this dialog knows whether the box was pressed, and to what.
+    // field - only this dialog knows whether the box was pressed, and to what.
     emit('saved', { ids, applied, approved: approvedTouched.value && approved.value })
     emit('close')
   } catch (caught) {
@@ -682,8 +682,8 @@ async function save() {
         with no per-field bookkeeping to forget.
 
         The similar-files panel is deliberately outside it. Nothing in there is
-        part of saving this card — it hands tags to *other* files through their
-        own request — so there is no reason for it to wait on this one.
+        part of saving this card - it hands tags to *other* files through their
+        own request - so there is no reason for it to wait on this one.
       -->
       <fieldset
         :disabled="loading"
@@ -780,7 +780,7 @@ async function save() {
 
       <!--
         Filing one photograph is rarely filing one photograph. The panel loads on
-        its own and only for a single file — "similar to these forty" is not a
+        its own and only for a single file - "similar to these forty" is not a
         question with an answer.
       -->
       <SimilarMediaPanel v-if="open && single" :media="single" :tag-slugs="tagSlugs" />

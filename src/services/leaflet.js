@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css'
 /**
  * Shared Leaflet setup so every map on the site looks and behaves the same.
  *
- * Tiles default to CARTO Voyager — far cleaner than raw OSM and free without a
+ * Tiles default to CARTO Voyager - far cleaner than raw OSM and free without a
  * key. Both the URL and attribution are overridable through the environment, so
  * swapping to a keyed provider with latin labels later is a config change.
  */
@@ -78,9 +78,9 @@ export const neighborIcon = pinIconOf(NEIGHBOR_COLOR, 26)
   The two reference points that actually matter when placing a photograph: the
   last one taken before it and the first one after.
 
-  Everything else on that map is context. These two are the answer — whatever is
+  Everything else on that map is context. These two are the answer - whatever is
   being placed happened between them, usually within a few hundred metres of the
-  line joining them — so they are told apart from the rest by colour and by being
+  line joining them - so they are told apart from the rest by colour and by being
   the same size as the live pin rather than smaller.
 
   Two hues rather than one, because "which of these is the earlier" is the whole
@@ -97,8 +97,8 @@ export const afterIcon = pinIconOf(AFTER_COLOR, 30)
 /**
  * Creates a base map with CARTO tiles and ctrl-to-zoom on the wheel.
  *
- * Plain wheel zoom is hostile inside a scrolling page — the map swallows the
- * scroll — so the wheel only zooms while Ctrl (or ⌘) is held, the same
+ * Plain wheel zoom is hostile inside a scrolling page - the map swallows the
+ * scroll - so the wheel only zooms while Ctrl (or ⌘) is held, the same
  * convention embedded maps use elsewhere. `onScrollHint` is called when the user
  * scrolls without the modifier, so the caller can flash a hint.
  *
