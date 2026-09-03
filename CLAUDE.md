@@ -55,6 +55,18 @@ doc yet, read the code and then write one.
   source of truth for the API. When something about the backend is unclear, ask or record
   it as a contract question.
 - **Plain JavaScript, no TypeScript.**
+- **Comments are short. Long explanations belong in `docs/`.** Code is expected to be
+  self-documenting; a comment says what a function, constant or block is for, quickly.
+
+  | In the code | In `docs/features/*.md` |
+  | --- | --- |
+  | Name, purpose, a warning, a two-line summary | Workflow and sequence of operations |
+  | A usage example, where it genuinely helps | Why the design is this way, and what broke before |
+  | A one-line note on a non-obvious line | Anything multi-paragraph |
+
+  Nobody reads a fifteen-line comment while working; they skim two lines and move on. If
+  more is needed, write it in the feature doc and, when it matters, point at it in one
+  line. Writing a long block into a source file is a defect, not thoroughness.
 - Ids are int32: test `id == null`, never truthiness.
 - Use the existing component classes (`.field-input`, `.btn-primary`, `.btn-ghost`,
   `.btn-danger`, `.fit-media`) rather than re-spelling Tailwind.
