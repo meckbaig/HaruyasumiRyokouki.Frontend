@@ -4,7 +4,7 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
-## 1.2.0 — faster filing
+## 1.2.0 - faster filing
 
 Everything here is about the screens used to put the archive in order. Filing a
 morning's photographs is hundreds of small decisions, and this release is mostly
@@ -14,14 +14,14 @@ queue that lost its place every time something left it.
 
 Deleting is the exception, and it goes the other way. It is the one irreversible
 thing on the site, so it now asks in the site's own voice, says how many files it
-is about to take, and — finally — can be asked about a whole selection rather
+is about to take, and - finally - can be asked about a whole selection rather
 than one file at a time.
 
 - Hiding a file is a button on the thumbnail itself, beside the star, instead of
   a trip through the editor
 - A selection can be deleted, from the same button on the edit card that deletes
   one file, and the confirmation says how many
-- Confirmations are the site's own dialogs rather than the browser's — themed,
+- Confirmations are the site's own dialogs rather than the browser's - themed,
   readable on a phone, and able to name what they are about
 - Coordinates copied from Google Maps can be pasted straight onto the editor
   map, which jumps to the spot
@@ -38,7 +38,7 @@ than one file at a time.
 - The editor map names the two locations nearest the pin, and zooms with the
   wheel alone when full screen
 
-## 1.1.0 — smoother editing and map
+## 1.1.0 - smoother editing and map
 
 This release makes bulk editing feel a little less like fighting the 
 interface. The editor behaves more consistently when opened from different 
@@ -64,15 +64,15 @@ when switching between full-screen and regular views
 - The Map page now explains how to select a date range, with clear From and To 
 markers appearing as the range is chosen
 
-## 1.0.0 — similarity search
+## 1.0.0 - similarity search
 
 The first version without "pre-release" on it. Nothing about the site changes
-with the number — it says only that the shape has settled and the parts are all
+with the number - it says only that the shape has settled and the parts are all
 built.
 
 What this release adds is for filing rather than for reading. The server keeps a
 fingerprint of what each photograph shows and can compare across the whole
-archive — other days, other places — which turns tagging into something done in
+archive - other days, other places - which turns tagging into something done in
 handfuls instead of one file at a time. Two screens use it: the photo editor
 shows what a file resembles, and a screen of its own works the other way round,
 taking a tag and proposing the rest of the archive that belongs with it.
@@ -85,12 +85,12 @@ comes back sorted and the person decides where it stopped being useful.
   one go (only for admins)
 - Choosing which tags to hand over narrows the list to the files that do not
   carry them yet (only for admins)
-- A screen for collecting a tag across the archive, in rounds — each round is
+- A screen for collecting a tag across the archive, in rounds - each round is
   more accurate than the last (only for admins)
 - A photo opens out of the thumbnail that was pressed rather than the first copy
-  of it on the page — visible on the front page, where the wall is hung twice
+  of it on the page - visible on the front page, where the wall is hung twice
 
-## 0.12.0 — pre-release: tags and private files
+## 0.12.0 - pre-release: tags and private files
 
 Tags are no longer words typed under each photo. A tag is now one thing with a
 name in each of the three languages, and a set of hidden synonyms that only the
@@ -119,7 +119,7 @@ to the editor, wear a mark saying so, and cannot be shared by accident.
 - Photos appear in the day editor only from pending page
 - The "loading" line no longer flashes when a window opens
 
-## 0.11.0 — pre-release: animated transitions
+## 0.11.0 - pre-release: animated transitions
 
 Navigation, the image viewer and loading content are animated instead of
 switching in a single frame. Every animation honours the system's reduce-motion
@@ -137,7 +137,7 @@ setting and is skipped outright when it is on.
 - The scrollbar is drawn as an overlay and no longer takes layout width
 - The installed app uses the name in the language selected on the site
 
-## 0.10.0 — pre-release: favorites and links to a photo
+## 0.10.0 - pre-release: favorites and links to a photo
 
 The front page opens with a wall of photos picked out by hand, drifting past and
 opening into the viewer as one album. And a photo is now something a link can
@@ -149,28 +149,28 @@ point at: shared, it arrives outlined among its neighbours, or already open.
 - "Open the day" carries the photo with it, from the viewer and from the map
 - The map opens full screen, where the wheel zooms without holding Ctrl
 - Photos open at their true size at once, over a blurred stand-in rather than
-  over black — and video stopped sliding under the viewer's bars
+  over black - and video stopped sliding under the viewer's bars
 - Map popups show a wider picture again
 - The theme menu no longer hides behind the map
 - A star on each file marks it for the front page (only for admins)
 - "Pending" page now shows dates on each media (only for admins)
 
-## 0.9.0 — pre-release: an app with a face
+## 0.9.0 - pre-release: an app with a face
 
 The site can be installed on a phone and kept on the home screen, where it opens
-without browser chrome around it. It also gained a logo — which in the Japanese
+without browser chrome around it. It also gained a logo - which in the Japanese
 version stands in for the first character of the name and reads as part of it.
 
 - Tapping the picture while it is still loading no longer closes the viewer
 - On mobile, tapping beside the picture hides the interface instead of closing
-- Nothing spins over a picture on mobile — the wait is short and the preview is
+- Nothing spins over a picture on mobile - the wait is short and the preview is
   already there
 - A larger target for the handle that opens the tag list
 - Map thumbnails are built the same way as everywhere else with blurred miniatures
 - The day and map pages stay where they were opened rather than jumping to the
   calendar on refresh
 
-## 0.8.0 — pre-release: zoom-based framing
+## 0.8.0 - pre-release: zoom-based framing
 
 The viewer stopped reserving room for its bars with padding and started framing
 the picture with the zoom itself. Hiding the interface now opens the picture out
@@ -180,7 +180,7 @@ to the whole window, and paging on keeps that setting.
 - Vertical images sit correctly on the first frame rather than settling into place
 - Download links point at the file the backend offers for download
 
-## 0.7.0 — pre-release: new image viewer
+## 0.7.0 - pre-release: new image viewer
 
 The viewer rewritten. Zoom, sideways swipes between files, a pull down to
 dismiss, and an interface that can be taken away entirely.
@@ -190,7 +190,7 @@ dismiss, and an interface that can be taken away entirely.
 - Cursor lands in the search field on mobile
 - A loading indicator while a search runs
 
-## 0.6.0 — pre-release: mobile gestures
+## 0.6.0 - pre-release: mobile gestures
 
 Touch given its own vocabulary: swipes to page through files, a double tap and
 the wheel to zoom, and gestures that no longer fight the page.
@@ -199,16 +199,16 @@ the wheel to zoom, and gestures that no longer fight the page.
 - Skeleton grid matches the layout it stands in for
 - The editor dims the page behind it
 
-## 0.5.0 — pre-release: display-aware resolution
+## 0.5.0 - pre-release: display-aware resolution
 
 Every request now says what it is being displayed on, and the backend answers
-with a rendition to match — replacing the mobile/desktop split.
+with a rendition to match - replacing the mobile/desktop split.
 
 - Fullscreen video with playback on open
 - Fullscreen images whatever their resolution
 - Days titled in words rather than as a date
 
-## 0.4.0 — pre-release: media served by the backend
+## 0.4.0 - pre-release: media served by the backend
 
 The frontend stopped building storage URLs. Every file arrives with its links
 ready-made, and with a tiny inline placeholder to show before anything loads.
@@ -216,12 +216,12 @@ ready-made, and with a tiny inline placeholder to show before anything loads.
 - Buttons to download a file and to open the day it belongs to
 - Video plays a stream rather than the original
 
-## 0.3.0 — pre-release: language-aware sharing
+## 0.3.0 - pre-release: language-aware sharing
 
 A shared link carries the language it was shared in, and link previews are built
 per language for crawlers that never run the site.
 
-## 0.2.0 — pre-release: themes and shortcuts
+## 0.2.0 - pre-release: themes and shortcuts
 
 Themes became a registry a new one can be added to, and the day page gained its
 shortcuts.
@@ -230,6 +230,6 @@ shortcuts.
 - Keyboard arrows step between days; the map can be folded away
 - Tags navigate to their search and close the viewer behind them
 
-## 0.1.0 — pre-release: first working site
+## 0.1.0 - pre-release: first working site
 
 The timeline, day albums, search, calendar and map, with the editor toolkit.

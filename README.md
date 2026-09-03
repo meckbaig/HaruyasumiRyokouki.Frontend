@@ -1,8 +1,8 @@
-# HaruyasumiRyokouki — Frontend
+# HaruyasumiRyokouki - Frontend
 
-Timeline site for a three-month trip across Japan: per-day albums, full-text
-search, calendar, map and an editor toolkit. Vue 3 + Vite + Tailwind, talking to
-the ASP.NET Core backend described in `swagger.json`.
+Timeline site for a three-month trip across Japan: per-day albums, full-text search, a
+calendar, a map and an editor toolkit. Vue 3 + Vite + Tailwind, talking to the ASP.NET Core
+backend described in `swagger.json`.
 
 ## Getting started
 
@@ -12,256 +12,137 @@ cp .env.example .env
 npm run dev            # http://localhost:5173
 ```
 
-`npm run dev` proxies `/v1` to `BACKEND_ORIGIN` (default `http://localhost:5101`),
-so run the backend alongside it. Without the backend the pages still load; API
-calls surface as an error state.
+`npm run dev` proxies `/v1` to `BACKEND_ORIGIN` (default `http://localhost:5101`), so run
+the backend alongside it. Without the backend the pages still load; API calls surface as an
+error state.
 
-Scripts: `npm run dev`, `npm run build`, `npm run preview`.
+| Script | Does |
+| --- | --- |
+| `npm run dev` | Dev server on :5173 with the API proxy. |
+| `npm run build` | Vite build, then `scripts/generate-localized-html.mjs`. |
+| `npm run preview` | Serve the built output. |
 
-`npm run build` runs Vite and then `scripts/generate-localized-html.mjs`, which
-emits `dist/index.{ru,en,ja}.html` and a `dist/.htaccess` — see
-[Localised link previews](#localised-link-previews).
+There is no linter and no test suite - verification is manual. See
+[docs/features/build-and-release.md](docs/features/build-and-release.md).
 
 ## Configuration
 
-All configuration is through `.env` (see `.env.example`):
+All configuration is through `.env` (see `.env.example`).
 
 | Variable | Purpose |
 | --- | --- |
 | `VITE_API_BASE_URL` | API base path, `/v1` in development |
-| `BACKEND_ORIGIN` | Dev proxy target (not bundled) |
+| `BACKEND_ORIGIN` | Dev proxy target (never bundled) |
+| `VITE_BASE_MAP_FROM` / `_TO` | Default map range |
 | `VITE_MAP_TILE_URL`, `VITE_MAP_ATTRIBUTION` | Map tiles; defaults to keyless CARTO Voyager |
 | `VITE_AUTHOR_NAME`, `VITE_AUTHOR_GITHUB` | Footer links |
 
-`VITE_*` values are baked into the bundle at build time; `BACKEND_ORIGIN` is read
-only by `vite.config.js` and never shipped.
+`VITE_*` values are baked into the bundle at build time.
 
-## Structure
+## What it does
 
-- `src/api` — one `request()` wrapper plus a thin module per endpoint group.
-- `src/services` — framework-free logic: media URL accessors, display
-  reporting, media-type detection, search highlighting, dates, translations,
-  sharing, document head.
-- `src/composables` — reusable stateful bits (`useHorizontalSwipe`,
-  `useTripMedia`).
-- `src/stores` — Pinia: auth, days cache, search cache, tag dictionary, editor
-  selection, UI, theme, motion.
-- `src/theme/themes.js` — the theme registry; see [Theming](#theming).
-- `src/services/release.js` — the release names behind the footer's version; see
-  [Versioning and releases](#versioning-and-releases).
-- `src/components` — grouped by area (`layout`, `media`, `calendar`, `map`,
-  `search`, `editor`, `common`).
-- `src/views` — one per route. All are lazy; `prefetchViews()` from `src/router`
-  warms the day and search chunks while the browser is idle, and `<Suspense>` in
-  `App.vue` covers whatever is still cold.
+**Days.** The trip is roughly ninety dated days, each an album of photographs and videos
+with a note written in three languages. Arrow keys and touch swipes step between
+neighbouring days; a calendar ribbon spans every month of the trip.
 
-## Notes on the API contract
+**Three languages.** Russian, English and Japanese throughout - interface, day notes, media
+titles and descriptions, and tag captions. The language rides on every request, so the
+server answers in it and says when it had to fall back to another. A shared link carries the
+sender's language, and the build emits a static page per locale so link-preview crawlers
+(which do not run JavaScript) get a card in the right one.
 
-A few expectations are documented at their call sites and worth knowing up front:
+**Three-stage media loading.** Every file ships a tiny inline miniature that paints in the
+first frame with no request at all; the preview settles over it once whole, and in the
+viewer the full-size image settles over that. Each stage is skipped when the browser
+already holds the next, so a picture already seen never goes soft on the way back to it.
+The server chooses which rendition to send from a header describing the screen, so sizing
+policy lives on the backend. Every file also offers a download.
 
-- **Language** travels as `Accept-Language: ru|en|ja` on every request; the
-  response's `languageCode` drives the "showing the original" notice.
-- **Display** travels as `X-Display: dpr=<ratio>; min-side=<css-px>` on every
-  request (`services/display.js`). The server picks one `preview` and one
-  `fullScreen` URL per file from it, so sizing policy lives on the backend and
-  can change without a frontend release. Both numbers share a unit space:
-  multiply them for real device pixels. Responses vary by the header — a cache in
-  front of the API needs `Vary: Accept-Language, X-Display`, and a cross-origin
-  API needs it in `Access-Control-Allow-Headers`.
-- **Media URLs** come ready-made and are never built here: `imageUrls` carries
-  `{ download, preview, fullScreen }`, `videoUrls` carries
-  `{ download, stream, preview }`, and every file ships a `miniature` — a base64
-  square used as an instant placeholder (`services/mediaAssets.js`).
-- **Favourites** are the files shown on the front page. `favorite` rides on both
-  media models but is `null` for anyone not signed in, so the star on a tile is
-  editor-only; marking one is a PATCH carrying nothing but `favorite`, and the
-  new value is written back onto the cached object rather than refetched
-  (`services/favorites.js`). `GET /v1/media/favorites` returns them shuffled and
-  capped by the backend, with no day around them — each one's day comes from its
-  own `created` timestamp.
-- **Search** takes `text=` or `tag=` (a slug), never both and never neither. It
-  returns days; a day matched through media carries only the matching files, a
-  day matched through its note alone carries none. Splitting into the Media/Notes
-  tabs and highlighting are done on the client (`services/searchResults.js`,
-  `services/highlight.js`); a tag search highlights nothing and has no notes tab,
-  because no words were typed.
-- **Tags** are named by their slug everywhere outside the editor — see
-  [Tags](#tags). Both media models carry `TagPublicDto { slug, value }`; the
-  numeric id lives only in `TagDto`, and only `changes.tagIds` ever wants it.
-- **Bulk media edit** sends one PATCH for the whole selection with a translation
-  row keyed by `languageCode` (no per-row id).
-- **Private files** carry `private: true` and are visible to an editor alone
-  (`services/privacy.js`). They wear a red mark on the tile and in the viewer,
-  and the share button is taken away from both — a link to one would send the
-  recipient to a day that, as far as they are concerned, does not contain it.
-- **Downloads** rely on the media host sending `Content-Disposition: attachment`
-  — a browser ignores a link's `download` attribute across origins. With imgproxy
-  that is `return_attachment`.
+**A viewer built for a hand.** Pinch and double-tap zoom, swipe to page, pull in either
+direction to dismiss, and the picture flies out of the tile that was tapped and back into
+it. The two floating bars are measured, not assumed, so the picture is fitted around
+whatever they currently say.
 
-## Theming
+**Search.** Free text over titles, descriptions, day notes and tag captions *and* aliases -
+so "noodles" finds photographs captioned "ramen". Matches are highlighted client-side,
+diacritics folded, results split into media and notes.
 
-Themes live in `src/theme/themes.js`. Copying a block there is the whole job: the
-entry appears in the switcher, and the store writes its palette as inline
-`--color-*` properties on `<html>`, which override the `@theme` defaults so every
-Tailwind utility re-themes at once.
+**Tags.** A tag is an entity with one caption per language and any number of hidden
+aliases. Coining one is deliberately two steps: a language model proposes captions, a slug
+and aliases, and shows the existing tags that look like near-duplicates before anything
+reaches the database.
 
-The lightbox is a dark room under every theme and takes only the accent from it.
-Because a colour chosen to read on a light page is usually too dark for black,
-an entry may set the optional `accent-on-dark` token to say what it should look
-like there; without one the accent is lightened automatically.
+**Filing by resemblance.** The server fingerprints each photograph, so the editor can ask
+"what else looks like this" from inside the edit dialog, or "what else belongs with this
+tag" across the whole archive. Never thresholded - the list comes back sorted and a person
+decides where it stopped being useful.
 
-Motion follows the OS "reduce motion" setting. Editors get a footer switch to opt
-back in — the choice is stamped as `data-motion="always"` on `<html>`, which the
-reduced-motion rules in `main.css` check for. Loading spinners are exempt either
-way: a frozen spinner reads as a broken page.
+**Maps.** The whole trip over a date range, or one day's path in the order the photographs
+were taken. Placing a photograph shows the last point before it and the first point after,
+so it can be dropped into the gap by eye.
 
-## Linking to one file
+**Themes and motion.** Light, dark, black and follow-the-system, defined in one file. The
+system's reduce-motion setting is honoured by default, with an opt-back-in for editors.
 
-A day and a search result are lists, so a link to either says nothing about which
-picture was being looked at. Two query parameters do, and they are handled the
-same way on both pages (`composables/useMediaLink.js`):
+**Deep links.** A link can point at one photograph inside a day or a set of results, and
+optionally open it full screen. Unresolvable links degrade to the plain page.
 
-| Parameter | Meaning |
-|---|---|
-| `i=<media id>` | single that file out, outlined among the rest |
-| `o=1` | and open it full screen straight away |
+**Editing.** Signed in, the same pages become the editing surface: press-and-drag selection
+across tiles, a bulk editor that only writes what was actually changed, optional machine
+translation to review before saving, local drafts of day notes, and a queue of everything
+still waiting to be filed.
 
-`o` never travels alone. The page resolves `i` against what it actually holds —
-against a day's files, or against a search's *matched* files, not the remainders
-a reader can unfold — and anything it cannot resolve is dropped from the address
-bar, leaving the page to open as if nothing had been asked for.
+## Where things live
 
-Writing runs the other way: opening, paging or closing the viewer replaces the
-pair, so the share button always copies a link to the picture on screen. Closing
-keeps `i` and drops `o` — the reader is back at the list, looking at the file they
-just left. The viewer's "open day" button carries `i` alone for the same reason.
+| Directory | Contents |
+| --- | --- |
+| `src/api/` | One `request()` wrapper plus a thin module per endpoint group |
+| `src/services/` | Framework-free logic - most of the non-obvious code |
+| `src/composables/` | Reusable stateful bits |
+| `src/stores/` | Pinia: auth, days, search, tags, editor, ui, theme, motion |
+| `src/components/` | Grouped by area: `layout`, `media`, `calendar`, `map`, `search`, `editor`, `common` |
+| `src/views/` | One per route, all lazy |
+| `src/theme/themes.js` | The theme registry |
+| `src/i18n/locales/` | All UI copy |
 
-The front page is deliberately outside this: its wall is shuffled and capped by
-the backend, so an `i` pointing into it would mean nothing on the next visit.
+### Finding a feature
 
-## Tags
+| Feature | Start here | Documentation |
+| --- | --- | --- |
+| Overall layering, request pipeline, model shapes | `src/api/client.js` | [architecture.md](docs/architecture.md) |
+| API contract, endpoints, media URLs | `src/api/` | [api-layer.md](docs/features/api-layer.md) |
+| Sign-in, editor gating | `src/stores/auth.js` | [auth-and-editor-access.md](docs/features/auth-and-editor-access.md) |
+| Day pages, timeline, calendar, dates | `src/views/DayView.vue` | [days-and-calendar.md](docs/features/days-and-calendar.md) |
+| Front page, favourites, drifting wall | `src/views/HomeView.vue` | [home-and-favorites.md](docs/features/home-and-favorites.md) |
+| Thumbnail grid, tiles, selection gesture | `src/components/media/MediaGrid.vue` | [media-grid-and-selection.md](docs/features/media-grid-and-selection.md) |
+| Full-screen viewer, gestures, hero flight | `src/components/media/MediaLightbox.vue` | [media-viewer.md](docs/features/media-viewer.md) |
+| Search, highlighting, tag suggestions | `src/views/SearchView.vue` | [search.md](docs/features/search.md) |
+| Tags, dictionary, coining | `src/services/tags.js` | [tags.md](docs/features/tags.md) |
+| Similarity, tag collecting | `src/services/similarity.js` | [similarity.md](docs/features/similarity.md) |
+| Maps, pins, coordinate picker | `src/services/leaflet.js` | [maps.md](docs/features/maps.md) |
+| Media editing, bulk saves, translation | `src/components/editor/MediaEditDialog.vue` | [media-editor.md](docs/features/media-editor.md) |
+| Day notes, drafts, pending queue | `src/components/editor/DayEditForm.vue` | [day-editor-and-pending.md](docs/features/day-editor-and-pending.md) |
+| Links, sharing, localised previews | `src/composables/useMediaLink.js` | [sharing-and-links.md](docs/features/sharing-and-links.md) |
+| Locales, themes, motion, CSS conventions | `src/theme/themes.js` | [i18n-and-theming.md](docs/features/i18n-and-theming.md) |
+| Overlays, dialogs, toasts, scrollbar | `src/services/overlayStack.js` | [ui-shell.md](docs/features/ui-shell.md) |
+| Build, releases, deploy | `vite.config.js` | [build-and-release.md](docs/features/build-and-release.md) |
 
-A tag is an entity with an id. Its words hang off it: one **caption** per
-language, which is what a reader sees, and any number of **aliases**, which are
-searched and never rendered. Somebody looking for "noodles" finds photographs
-captioned "ramen" and never learns that "noodles" was written down anywhere.
+## Documentation
 
-Links are built on the slug (`/search?tag=ramen`), never on the caption: a
-caption gets rewritten, and it differs per locale, so a link carrying it would
-break on the first rename and would send a Japanese reader to a search for a
-Russian word. `/search` therefore takes `text=` or `tag=`, never both; a tag
-search highlights nothing and has no notes tab, because no words were typed.
+Technical detail lives in [docs/](docs/), one file per feature, written for both people and
+coding agents. Each feature doc names its files up front and ends with an **Invariants**
+section - rules that look like bugs and are not.
 
-The slug is the tag's public name and the only one the media models carry. The
-numeric id exists in `TagDto` alone and is wanted at exactly one moment — a save
-sends `changes.tagIds` — so `MediaEditDialog` holds slugs and resolves them
-through the dictionary as it builds the request. A slug it cannot resolve aborts
-the save with a message rather than being skipped: the save *replaces* the set,
-so a quietly dropped slug would not be a tag left alone but a tag taken off.
+- [docs/architecture.md](docs/architecture.md) - read before changing anything.
+- [docs/issues.md](docs/issues.md) - known problems, duplication and drift, ranked.
+- [CLAUDE.md](CLAUDE.md) - the entry point for coding agents.
 
-The dictionary (`GET /v1/tags`) is fetched once per editor session into
-`stores/tags.js` and updated in place from what a save returns. It is behind the
-login, so anything a visitor sees has to name its tags from the response they
-already have — the search store reads a tag's caption out of the results it
-fetched rather than looking it up. The suggestion endpoint the search bar uses is
-the one public tag call.
+## Deploying
 
-**Coining a tag is two steps**, and that is deliberate.
-`POST /v1/tags/completion` saves nothing: it proposes three captions, a slug and
-some aliases, and returns the existing tags that look like near-duplicates. The
-proposal comes from a language model and has to be read before it reaches the
-database — Japanese is where it slips most, aliases second. The near-duplicate
-block is the guard against coining "torii" beside an existing "torii gate", and
-carries each candidate's usage count, which is usually what settles it.
+`npm run build` writes `dist/`, including `index.{ru,en,ja}.html`, per-locale manifests and
+an `.htaccess`. Copy the **whole** directory, dotfile included, to Apache with `mod_rewrite`
+and `AllowOverride` enabled.
 
-### Filing by resemblance
-
-The server keeps a fingerprint of each photograph's content and can compare
-across the whole archive. Two screens use it, and both exist because tagging one
-photograph is rarely tagging one photograph — the same subject was shot five
-times in a row, and again from the other side of the square a week later.
-
-- The **media editor** shows what a file resembles (`GET /media/{id}/similar`)
-  and can hand that file's tags to the ones ticked.
-- **`/admin/tags/collect`** does the reverse: given what already carries a tag,
-  it proposes the rest of the archive (`GET /tags/{id}/suggest`). Under three
-  photographs the server declines to guess and says so through `seedCount`,
-  which is an expected state and not an error. Applying re-asks, because every
-  photograph just marked moves the centre the next answer is measured from.
-
-Both apply through `POST /tags/{id}/media`, which **adds** a tag and leaves the
-others alone — the opposite of the media PATCH below, and the reason it exists.
-One tag per request, so several tags are several requests.
-
-The score is never a threshold. How alike is alike enough depends on how narrow
-the subject is, so the server always returns a full sorted list and the person
-decides where it stopped being useful; `services/similarity.js` turns the cosine
-into a percentage and a colour band so the drop can be seen rather than read.
-
-**A save replaces a file's tags rather than adding to them.** For one file that
-is what is meant. For a selection it is a trap, so `MediaEditDialog` starts the
-field from the union of what the selection carries — a blank field would read as
-"these have no tags" — but sends nothing until the list is actually changed.
-
-## Localised link previews
-
-Crawlers that build link previews (Telegram, WhatsApp, VK, Slack) do not run
-JavaScript, so the card's language comes from static markup. The build writes one
-`index.<locale>.html` per locale, and the generated `.htaccess` picks between
-them by `?lang=` first and `Accept-Language` second. Shared links carry `?lang=`
-(added in `services/share.js`); on arrival the app applies that language, saves
-it only if the visitor has none of their own, and strips the parameter from the
-address bar.
-
-Deploying means copying the whole `dist/` — including the dotfile — and serving
-it from Apache with `mod_rewrite` and `AllowOverride` enabled. On another server
-the same rules transfer; only their syntax changes.
-
-## Versioning and releases
-
-The number lives in `package.json` and reaches the bundle as a build-time
-constant, so `npm version` is the whole act of releasing: it bumps the number,
-commits and tags. `src/services/release.js` turns that number into what the
-footer says, and `CHANGELOG.md` is the long form of the same list.
-
-Only feature releases carry a name, and the name is looked up by major and minor
-alone — a fix belongs to the release it follows, so patches inherit it and need
-no entry anywhere. Major zero means the site is still finding its shape; the
-`pre-release` label is derived from it rather than written down, and a later
-generation can name itself in the `STAGES` table.
-
-Hovering the version shows when the bundle was built, in the reader's own zone —
-a version alone cannot say whether what is deployed is what was last built.
-
-**A fix.** Nothing but `npm version patch`, then build and deploy.
-
-**A feature.** Order matters, so that the tag lands on a commit that already has
-everything:
-
-1. `npm version minor --no-git-tag-version`
-1. Add the name to `NAMES` in `src/services/release.js`, keyed `major.minor`.
-1. Add a section at the top of `CHANGELOG.md`.
-1. `git commit -m "Release 1.1.0 - release name"`
-1. `git tag v1.1.0`
-1. Build and deploy.
-
-**A rework.** The same, plus a line in `STAGES` if the new generation should say
-what it is, and `npm version major`.
-
-`npm version` insists on a clean working tree and makes the commit and tag
-itself; `--no-git-tag-version` bumps without one.
-
-## Verification
-
-There are no automated tests. Checks are manual, and the flows worth walking
-after touching the viewer or the grid are the awkward ones: pinch and double-tap
-zoom, swiping between files and pulling down to dismiss, long-press to enter
-selection and then swiping across tiles to extend it, and the same on a real
-phone rather than in a device emulator — the two behave differently precisely
-where these gestures live.
-
-For tags, the flows that cross a boundary are the ones worth walking: coining one
-from inside the media editor (it has to land on the file *and* in the dictionary),
-a bulk edit saved without touching the tag field (every file must keep its own),
-and a `?tag=` link opened **signed out**, where the heading has to name the tag
-from the results because there is no dictionary to ask.
+Releasing is `npm version` plus a name in `src/services/release.js` and a `CHANGELOG.md`
+section - the full sequence is in
+[build-and-release.md](docs/features/build-and-release.md).
