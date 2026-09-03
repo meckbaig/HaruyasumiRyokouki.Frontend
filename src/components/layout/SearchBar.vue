@@ -6,7 +6,7 @@ import { fetchTagSuggestions } from '@/api/tags'
 import { useSearchStore } from '@/stores/search'
 import { useTagsStore } from '@/stores/tags'
 import { useUiStore } from '@/stores/ui'
-import { tagLabel } from '@/services/tags'
+import { captionForSlug } from '@/services/tags'
 
 const props = defineProps({
   /** Larger treatment for the landing page. */
@@ -74,14 +74,12 @@ const routeTagSlug = computed(() =>
 */
 const chipDismissed = ref(false)
 const activeTagSlug = computed(() => (chipDismissed.value ? '' : routeTagSlug.value))
-const activeTagName = computed(() => {
-  if (!activeTagSlug.value) return ''
-  return (
-    search.tagName ||
-    tagLabel(tags.getBySlug(activeTagSlug.value), ui.locale) ||
-    activeTagSlug.value
-  )
-})
+const activeTagName = computed(() =>
+  captionForSlug(activeTagSlug.value, ui.locale, {
+    known: tags.getBySlug(activeTagSlug.value),
+    fetched: search.tagName,
+  }),
+)
 
 /** The free-search row, always last and always offered. */
 const freeText = computed(() => text.value.trim().replace(/^#+\s*/, ''))

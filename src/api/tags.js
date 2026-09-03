@@ -2,9 +2,7 @@ import { request } from './client'
 
 /**
  * GET /v1/tags/suggestion?text=&take= -> `TagSuggestionDto[]`,
- * i.e. `{ slug, value, usageCount }`. There is no numeric id here: the slug is
- * the only name a tag is known by outside the editor, and it is what a search
- * link carries (`/search?tag=ramen`).
+ * i.e. `{ slug, value, usageCount }`. No numeric id: links carry the slug.
  *
  * Public, and the one tag call a visitor ever makes. Matches captions and
  * aliases across every language at once, and answers with the caption in the

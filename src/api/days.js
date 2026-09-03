@@ -32,11 +32,8 @@ export async function fetchDayEdit(date, signal) {
  * PUT /v1/days/{date}. The body carries a DayEditDto whose `translations` hold
  * the per-language note; `isReady` is what removes the day from the pending list.
  *
- * `autoTranslate: true` runs in two halves, and only the first is persisted: the
- * backend saves the notes it was sent, then translates into the languages that
- * were left empty and returns those **without storing them**. Keeping the
- * translation is a second save, made by the editor once they have read it - which
- * is why the form stays open on this path.
+ * `autoTranslate: true` saves what was sent, then returns translations of the
+ * empty languages **without storing them** - keeping them is a second save.
  *
  * @returns {Promise<object|null>} `{ day: DayEditDto }` when translating, else null.
  */

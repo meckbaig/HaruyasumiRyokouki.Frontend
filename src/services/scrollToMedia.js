@@ -1,4 +1,5 @@
 import { nextTick } from 'vue'
+import { tileFor } from './mediaTiles'
 
 /**
  * Brings the file a link singled out into view.
@@ -23,6 +24,5 @@ export async function scrollToMedia(id) {
   await nextTick()
   await nextTick()
 
-  const element = document.querySelector(`[data-media-id="${CSS.escape(String(id))}"]`)
-  element?.scrollIntoView({ block: 'center' })
+  tileFor(id)?.scrollIntoView({ block: 'center' })
 }

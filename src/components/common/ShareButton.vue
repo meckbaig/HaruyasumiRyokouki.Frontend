@@ -1,23 +1,16 @@
 <script setup>
-import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { copyCurrentUrl } from '@/services/share'
+import { useCopyFeedback } from '@/composables/useCopyFeedback'
 
 const { t } = useI18n()
 
 // Feedback shows right above the button rather than as a page-corner toast, so
 // it is obvious which action it belongs to.
-const feedback = ref(null)
-let hideTimer = null
+const { feedback, run } = useCopyFeedback()
 
-async function share() {
-  const copied = await copyCurrentUrl()
-  feedback.value = {
-    ok: copied,
-    text: copied ? t('common.shareCopied') : t('common.shareFailed'),
-  }
-  clearTimeout(hideTimer)
-  hideTimer = setTimeout(() => (feedback.value = null), 2000)
+function share() {
+  return run(copyCurrentUrl)
 }
 </script>
 

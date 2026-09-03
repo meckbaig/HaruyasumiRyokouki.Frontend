@@ -18,8 +18,10 @@ import { useUiStore } from '@/stores/ui'
 import { isMobileLayout } from '@/services/display'
 import { withMediaLink, pageIdentity } from '@/composables/useMediaLink'
 import { copyMediaUrl } from '@/services/share'
+import { useCopyFeedback } from '@/composables/useCopyFeedback'
 import { pushOverlay, popOverlay, isTopmost, hasOverlay } from '@/services/overlayStack'
 import { takeOpenedFrom } from '@/services/openedFrom'
+import { boxOf, isOnScreen, tilesFor, tileFor } from '@/services/mediaTiles'
 import TagChip from './TagChip.vue'
 
 const props = defineProps({
@@ -132,17 +134,15 @@ const shareable = computed(
     (canResolveLink.value || Boolean(dayDate.value)),
 )
 
-const shareFeedback = ref(null)
-let shareTimer = null
+const { feedback: shareFeedback, run: runShare } = useCopyFeedback()
 
-async function share() {
-  const copied = await copyMediaUrl(current.value.id, {
-    open: true,
-    path: canResolveLink.value ? null : `/day/${dayDate.value}`,
-  })
-  shareFeedback.value = copied ? t('common.shareCopied') : t('common.shareFailed')
-  clearTimeout(shareTimer)
-  shareTimer = setTimeout(() => (shareFeedback.value = null), 2000)
+function share() {
+  return runShare(() =>
+    copyMediaUrl(current.value.id, {
+      open: true,
+      path: canResolveLink.value ? null : `/day/${dayDate.value}`,
+    }),
+  )
 }
 
 const fullLoaded = ref(false)
@@ -329,8 +329,9 @@ async function onFullLoaded(event) {
   rememberAspect(image)
   if (await revealWhenDecoded(image)) {
     fullLoaded.value = true
-    // Remembered so this file slides past sharp the next time it is a neighbour.
-    inHand.add(image.getAttribute('src'))
+    // Keyed exactly as `settleLayers` and `haveFullSize` key it, or a file would
+    // be remembered under a name nothing looks it up by.
+    if (fullScreen.value) inHand.add(fullScreen.value)
     stopSpinner()
   }
 }
@@ -881,37 +882,16 @@ let heroOrigin = null
  */
 let originTile = null
 
-function boxOf(element) {
-  const rect = element?.getBoundingClientRect?.()
-  if (!rect?.width || !rect?.height) return null
-  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
-}
-
-function onScreen(box) {
-  return (
-    box.top + box.height > 0 &&
-    box.top < window.innerHeight &&
-    box.left + box.width > 0 &&
-    box.left < window.innerWidth
-  )
-}
-
-/** Everything on the page standing for this file. */
-function tilesFor(item) {
-  if (item?.id == null) return []
-  return [...document.querySelectorAll(`[data-media-id="${CSS.escape(String(item.id))}"]`)]
-}
-
 /** The box a file occupies on the page underneath, if it is on screen at all. */
 function tileBox(item, { offscreen = false } = {}) {
   let hidden = null
 
-  for (const tile of tilesFor(item)) {
+  for (const tile of tilesFor(item?.id)) {
     const box = boxOf(tile)
     if (!box) continue
     // Every match, not the first: a file hung twice is as likely as not to have
     // its first copy scrolled off the side.
-    if (onScreen(box)) return box
+    if (isOnScreen(box)) return box
     hidden ??= box
   }
 
@@ -1264,21 +1244,22 @@ function knownAspect() {
   return aspect.value ?? previewAspect()
 }
 
+/** Whether a bar's contents run past the height it is allowed. */
+function overflows(element, expanded) {
+  return Boolean(element) && (expanded || element.scrollHeight > element.clientHeight + 1)
+}
+
 /**
- * Decides the overflow now rather than at the next render.
+ * Records the tag row's overflow, and writes its margin class by hand.
  *
- * The expander's margin is part of the footer's height, so a measurement taken
- * before the overflow is known is a measurement of a bar that has not finished
- * deciding how tall it is. Setting the class by hand as well as through the
- * binding closes that gap: the binding still lands on the next render, and
- * agrees with what was just written.
+ * That class is part of the footer's height, and the binding only lands on the
+ * next render - too late for a measurement taken in this pass.
  */
 function settleTagOverflow() {
   const tags = tagList.value
   if (!tags) return
-  const overflows = tagsExpanded.value || tags.scrollHeight > tags.clientHeight + 1
-  tagsOverflow.value = overflows
-  tags.classList.toggle('mt-3.5', overflows)
+  tagsOverflow.value = overflows(tags, tagsExpanded.value)
+  tags.classList.toggle('mt-3.5', tagsOverflow.value)
 }
 
 /**
@@ -1537,13 +1518,8 @@ function measureChrome() {
     easeBarHeight(footer.value)
   }
 
-  const tags = tagList.value
-  tagsOverflow.value =
-    Boolean(tags) && (tagsExpanded.value || tags.scrollHeight > tags.clientHeight + 1)
-
-  const text = description.value
-  descriptionOverflow.value =
-    Boolean(text) && (descriptionExpanded.value || text.scrollHeight > text.clientHeight + 1)
+  tagsOverflow.value = overflows(tagList.value, tagsExpanded.value)
+  descriptionOverflow.value = overflows(description.value, descriptionExpanded.value)
 }
 
 function observeChrome() {
@@ -1763,12 +1739,7 @@ watch(open, async (isOpen) => {
       a file can be on the page several times over, and the search cannot tell
       which of them was pressed.
     */
-    const from =
-      takeOpenedFrom() ??
-      tilesFor(current.value).find((tile) => {
-        const box = boxOf(tile)
-        return box && onScreen(box)
-      })
+    const from = takeOpenedFrom() ?? tileFor(current.value?.id, { visible: true })
     originTile = from ? { el: from, id: current.value?.id } : null
     heroOrigin = from ? boxOf(from) : null
     chromeReady.value = false
@@ -2270,7 +2241,7 @@ onBeforeUnmount(() => {
                   role="status"
                   class="lightbox-bar absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-md px-2.5 py-1 text-xs"
                 >
-                  {{ shareFeedback }}
+                  {{ shareFeedback.text }}
                 </span>
               </Transition>
 

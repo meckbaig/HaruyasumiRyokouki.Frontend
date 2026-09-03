@@ -5,6 +5,7 @@ import TagEditDialog from '@/components/editor/TagEditDialog.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useTagsStore } from '@/stores/tags'
+import { SUPPORTED_LOCALES } from '@/i18n'
 import { useUiStore } from '@/stores/ui'
 import { tagLabel, tagMatches, compareTags } from '@/services/tags'
 import { cascadeDelay } from '@/services/cascade'
@@ -56,7 +57,7 @@ function missingCaptions(tag) {
   const written = new Set(
     (tag.translations ?? []).filter((row) => row?.text?.trim()).map((row) => row.languageCode),
   )
-  return ['ru', 'en', 'ja'].filter((locale) => !written.has(locale))
+  return SUPPORTED_LOCALES.filter((locale) => !written.has(locale))
 }
 </script>
 

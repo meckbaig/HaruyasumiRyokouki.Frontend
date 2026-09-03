@@ -9,7 +9,8 @@ and the press-and-drag selection gesture shared by four different walls.
 | --- | --- |
 | `src/components/media/MediaGrid.vue` | The wall: chunking, cascade, selection wiring. |
 | `src/components/media/MediaTile.vue` | One tile: image, badges, star, hide, pencil, outline. |
-| `src/components/media/MediaThumb.vue` | Reusable two-stage thumbnail (used by the *other* walls - see `docs/issues.md` D0). |
+| `src/components/media/MediaThumb.vue` | The two-stage thumbnail. Every wall renders one. |
+| `src/services/mediaTiles.js` | Finding the element(s) that stand for a file. |
 | `src/composables/useTilePaint.js` | The paint gesture, shared. |
 | `src/stores/editor.js` | Selection state, `lastSave` / `lastDelete`. |
 | `src/components/editor/SelectionToolbar.vue` | App-level floating toolbar. |
@@ -32,6 +33,11 @@ should treat it as pre-cropped.
 Handing one `<img>` `preview || miniature` looks equivalent and is not: it means an empty
 frame for as long as the network takes, then the picture appearing out of nothing. Two
 elements, cross-faded, is the scheme.
+
+**It lives in exactly one component.** `MediaThumb` owns the pair of images, the decode,
+the failure fallback and the square box; `MediaTile` renders one and stacks its badges,
+marks and outline over it, as do the editor walls. A new wall of thumbnails renders
+`MediaThumb` - it does not re-implement this.
 
 Three details that are load-bearing:
 
@@ -175,7 +181,8 @@ exactly those.
 ## Invariants
 
 1. Any new wall of thumbnails must call `markOpenedFrom` before opening the viewer.
-2. Tiles must carry `data-tile-index` (paint) and `data-media-id` (links, hero flight).
+2. Tiles must carry `data-tile-index` (paint) and `data-media-id` (links, hero flight),
+   and are looked up only through `services/mediaTiles.js`.
 3. `autoReveal` is false wherever the grid is not the whole page.
 4. A shrunken list keeps its `visibleCount`.
 5. Reveal comparisons use `getAttribute('src')`, never `currentSrc`.
@@ -187,4 +194,4 @@ exactly those.
 
 - The viewer these tiles open: [media-viewer.md](media-viewer.md).
 - Bulk editing the selection: [media-editor.md](media-editor.md).
-- Known duplication with `MediaThumb`: [../issues.md](../issues.md) D0.
+- Where a tile is found from: `src/services/mediaTiles.js`.

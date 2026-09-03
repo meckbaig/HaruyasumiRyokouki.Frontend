@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { miniatureSrc, previewSrc, mediaDate } from '@/services/mediaAssets'
+import MediaThumb from './MediaThumb.vue'
+import { mediaDate } from '@/services/mediaAssets'
 import { formatShortDate, formatShortTime } from '@/services/dates'
 import { isVideo } from '@/services/mediaType'
 import { markOpenedFrom } from '@/services/openedFrom'
@@ -79,39 +80,6 @@ const stampTime = computed(() =>
 )
 const selected = computed(() => editor.isSelected(props.media.id))
 const label = computed(() => props.media.title || props.media.fileName || t('media.untitled'))
-
-// The miniature is inline base64, so it paints with no request at all; the real
-// preview fades in over it. Previews keep their original aspect ratio and are
-// cropped to a square by `object-cover`.
-const miniature = computed(() => miniatureSrc(props.media))
-const src = computed(() => previewSrc(props.media))
-const loaded = ref(false)
-const failed = ref(false)
-
-watch(src, () => {
-  loaded.value = false
-  failed.value = false
-})
-
-/**
- * `load` only means the bytes arrived - the browser still has to decode them,
- * and it does that while painting, which is what makes a fresh preview appear
- * in bands over the miniature. Awaiting `decode()` does that work first, so the
- * swap is a single clean frame. From cache it resolves immediately, which is
- * why a revisit already looked smooth.
- */
-async function onLoaded(event) {
-  const image = event.target
-  try {
-    await image.decode()
-  } catch {
-    // Decoding can reject if the source changed mid-flight; reveal regardless.
-  }
-  // The tile may have been recycled to another file while decoding. Compare the
-  // bound attribute rather than `currentSrc`, which the browser resolves to an
-  // absolute URL and would never match a relative one.
-  if (image.isConnected && image.getAttribute('src') === src.value) loaded.value = true
-}
 
 const outlineClass = computed(() => {
   // A link singling this file out gets the same outline as a selection: both
@@ -276,55 +244,7 @@ function activate() {
     >
       <!-- Fixed square keeps the grid from reflowing while previews arrive. -->
       <div class="relative aspect-square">
-        <!--
-          The preview sits underneath and stays fully transparent until it has
-          loaded: a half-loaded <img> renders its own alt text and an empty box,
-          and both used to show through the blurred miniature above it.
-        -->
-        <img
-          v-if="src && !failed"
-          :src="src"
-          :alt="label"
-          loading="lazy"
-          decoding="async"
-          draggable="false"
-          class="pointer-events-none h-full w-full object-cover"
-          :class="loaded ? 'opacity-100' : 'opacity-0'"
-          @load="onLoaded"
-          @error="failed = true"
-        />
-        <!--
-          Inline base64, so it is there immediately, and blurred because it is
-          tiny. Blur bleeds inwards and leaves the edges semi-transparent, so the
-          image is scaled well past the blur radius to keep the corners covered.
-          It fades out only once the preview underneath is fully opaque, so one
-          layer is always solid and the swap never flashes.
-        -->
-        <img
-          v-if="miniature"
-          :src="miniature"
-          alt=""
-          aria-hidden="true"
-          draggable="false"
-          class="pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover blur-[10px] transition-opacity duration-300"
-          :class="loaded ? 'opacity-0' : 'opacity-100'"
-        />
-        <div
-          v-if="!miniature && (!src || failed)"
-          class="absolute inset-0 flex items-center justify-center text-ink-faint"
-        >
-          <svg
-            class="h-8 w-8"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.4"
-            aria-hidden="true"
-          >
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <path d="m4 16 5-5 4 4 2-2 5 5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </div>
+        <MediaThumb :media="media" :alt="label" class="absolute inset-0" />
 
         <!-- Bottom right, clear of the video badge on the left. A page that
              asked only for the time asked for it on approach, and gets the same

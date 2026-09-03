@@ -21,7 +21,7 @@ import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
 import { hasOverlay } from '@/services/overlayStack'
 import { cascadeDelay } from '@/services/cascade'
-import { tagLabel } from '@/services/tags'
+import { captionForSlug } from '@/services/tags'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -65,14 +65,18 @@ const counts = computed(() => ({
  * fallback for the one case the response cannot cover - a tag that matched
  * nothing at all.
  */
-const tagName = computed(() => {
-  if (!byTag.value) return ''
-  return search.tagName || tagLabel(tags.getBySlug(tagSlug.value), ui.locale)
-})
+const tagName = computed(() =>
+  byTag.value
+    ? captionForSlug(tagSlug.value, ui.locale, {
+        known: tags.getBySlug(tagSlug.value),
+        fetched: search.tagName,
+      })
+    : '',
+)
 
 const heading = computed(() =>
   byTag.value
-    ? t('search.headingTag', { tag: tagName.value || tagSlug.value })
+    ? t('search.headingTag', { tag: tagName.value })
     : t('search.heading', { query: query.value }),
 )
 

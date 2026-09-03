@@ -10,30 +10,24 @@ const props = defineProps({
 /*
   Two stages, and never one.
 
-  Every file ships a `miniature`: a tiny base64 image that costs no request at
-  all and is therefore on screen in the first frame. It arrives in the file's own
-  proportions, and the square below is this component's crop, not the data's. The real preview settles
-  over it once it is whole - and only once it is whole, because a half-arrived
-  `<img>` draws its own alt text and an empty box, and both used to show through.
-
-  Handing a single `<img>` `preview || miniature` looks like the same thing and
-  is not: it means an empty frame for as long as the network takes, and then the
-  picture appearing out of nothing. This is the scheme the grid tiles have always
-  used, kept in one place now that four different walls of thumbnails want it.
+  The `miniature` costs no request and is on screen in the first frame; the real
+  preview settles over it once it is whole. A single <img> given
+  `preview || miniature` means an empty frame for as long as the network takes.
+  See docs/features/media-grid-and-selection.md.
 */
 const miniature = computed(() => miniatureSrc(props.media))
 const src = computed(() => previewSrc(props.media))
 const loaded = ref(false)
+const failed = ref(false)
 
 watch(src, () => {
   loaded.value = false
+  failed.value = false
 })
 
 /**
- * `load` only means the bytes arrived - the browser still has to decode them,
- * and it does that while painting, which is what makes a fresh preview appear in
- * bands over the miniature. Awaiting `decode()` does that work first, so the
- * swap is a single clean frame. From cache it resolves at once.
+ * `load` only means the bytes arrived; decoding happens during paint, which is
+ * what makes a fresh preview appear in bands. `decode()` does it first.
  */
 async function onLoaded(event) {
   const image = event.target
@@ -51,7 +45,7 @@ async function onLoaded(event) {
 <template>
   <div class="relative aspect-square overflow-hidden bg-edge/40">
     <img
-      v-if="src"
+      v-if="src && !failed"
       :src="src"
       :alt="alt"
       loading="lazy"
@@ -60,9 +54,10 @@ async function onLoaded(event) {
       class="pointer-events-none h-full w-full object-cover"
       :class="loaded ? 'opacity-100' : 'opacity-0'"
       @load="onLoaded"
+      @error="failed = true"
     />
-    <!-- Scaled well past the blur radius: blur bleeds inwards and leaves the
-         edges semi-transparent, which would let the frame show through. -->
+    <!-- Scaled past the blur radius: blur bleeds inwards and leaves the edges
+         semi-transparent, which would let the frame show through. -->
     <img
       v-if="miniature"
       :src="miniature"
@@ -72,5 +67,22 @@ async function onLoaded(event) {
       class="pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover blur-[10px] transition-opacity duration-300"
       :class="loaded ? 'opacity-0' : 'opacity-100'"
     />
+    <!-- Nothing to show at all: no miniature, and no preview that loads. -->
+    <div
+      v-if="!miniature && (!src || failed)"
+      class="absolute inset-0 flex items-center justify-center text-ink-faint"
+    >
+      <svg
+        class="h-8 w-8"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.4"
+        aria-hidden="true"
+      >
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="m4 16 5-5 4 4 2-2 5 5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </div>
   </div>
 </template>

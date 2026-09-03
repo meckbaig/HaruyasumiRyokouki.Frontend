@@ -14,21 +14,15 @@ export async function fetchMediaEdit(ids, signal) {
     requiresAuth: true,
     signal,
   })
-  // The response schema is undocumented; tolerate a bare array or an { items } wrapper.
-  return Array.isArray(data) ? data : (data?.items ?? [])
+  return data?.items ?? []
 }
 
 /**
  * GET /v1/media/locations?from=&to= -> MediaFileLocationDto[].
  *
  * Only media that carry coordinates. `MediaFileLocationDto` is the flat model
- * minus its text: `{ id, created, latitude, longitude, fileName, aspectRatio,
- * title, languageCode, miniature, imageUrls, videoUrls }` - so a map popup can
- * draw a real thumbnail from it without fetching the day.
- *
- * One request draws the whole map for a range; the route line is the points
- * ordered by `created`. Both `from` and `to` are required (inclusive ISO dates).
- * Public.
+ * minus its text, thumbnails included, so a popup needs no extra fetch.
+ * Both `from` and `to` are required (inclusive ISO dates). Public.
  */
 export async function fetchMediaLocations(from, to, signal) {
   const data = await request('/media/locations', { query: { from, to }, signal })
@@ -42,21 +36,16 @@ export async function fetchMediaLocations(from, to, signal) {
  * bulk edit each media file has its own translation row, so the backend is
  * expected to match on `languageCode`.
  *
- * `autoTranslate: true` runs in two halves, and only the first is persisted: the
- * backend saves the fields it was sent, then translates into the languages that
- * were left empty and returns those **without storing them**. Keeping the
- * translation is a second save, made by the editor once they have read it - which
- * is why the dialog stays open on this path instead of closing.
+ * `autoTranslate: true` saves what was sent, then returns translations of the
+ * empty languages **without storing them** - keeping them is a second save.
  *
  * @param {string[]} ids
  * @param {{latitude?: number, longitude?: number, isApproved?: boolean,
  *          private?: boolean, favorite?: boolean, tagIds?: number[],
  *          translations?: Array<{id?: number, languageCode: string,
  *          title?: string, description?: string}>}} changes
- *   Whatever is left out is left alone by the backend, which is what lets the
- *   star and the privacy toggle be a PATCH carrying a single key. `tagIds`
- *   **replaces** the file's tags rather than adding to them - to add one, use
- *   `POST /v1/tags/{id}/media` (see api/tags.js).
+ *   Omitted fields are left alone. `tagIds` **replaces** the tag set; to add a
+ *   tag use `POST /v1/tags/{id}/media`.
  * @param {{autoTranslate?: boolean}} [options]
  * @returns {Promise<object|null>} `{ items: MediaFileEditDto[] }` when translating, else null.
  */

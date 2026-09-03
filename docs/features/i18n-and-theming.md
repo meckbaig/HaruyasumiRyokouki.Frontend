@@ -125,8 +125,11 @@ blocks - `app.title`, `app.subtitle`, `seo.description` are read by
 
 Adding a locale means touching: `SUPPORTED_LOCALES`, a JSON file, `OG_LOCALE` in
 `services/head.js`, `LOCALES` and `OG_LOCALE` in the build script, `LABELS` in
-`LanguageTabs.vue`, the `.htaccess` alternation - and the hardcoded triple in
-`AdminTagsView.vue` (see `docs/issues.md` D1c).
+`LanguageTabs.vue`, and the `.htaccess` alternation.
+
+The last three keep their own lists on purpose: the build script cannot import from
+`src/i18n`, `head.js` maps to OpenGraph tags, and `LanguageTabs` needs a display label
+per locale. Everywhere else imports `SUPPORTED_LOCALES`.
 
 ## Invariants
 

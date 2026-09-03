@@ -41,7 +41,12 @@ link breaks on the first rename and sends a Japanese reader to a search for a Ru
 
 ## Reading a tag
 
-`tagLabel(tag, locale)` handles both shapes and falls back rather than failing:
+`captionForSlug(slug, locale, { known, fetched })` is what a *view* calls when all it has
+is a slug: the caption read out of a response wins, then the dictionary entry, then the
+slug itself. All three places that name a tag from a slug go through it, so a heading and
+a chip on the same screen cannot disagree.
+
+`tagLabel(tag, locale)` is the lower level, and handles both shapes:
 `value` → the exact language row → the first row → the slug. A tag mid-edit may have no
 caption in the reader's language, and a chip with nothing on it is worse than a chip in the
 wrong language. The slug is not a caption but is at least a name.

@@ -14,6 +14,7 @@ of its complexity is timing, not logic. Read this document before editing it.
 | `src/components/media/MediaLightbox.vue` | Everything below. |
 | `src/services/mediaAssets.js` | URL accessors: `miniatureSrc`, `previewSrc`, `fullScreenSrc`, `streamSrc`, `downloadSrc`, `mediaAspect`, `mediaDate`. |
 | `src/services/openedFrom.js` | Hands the viewer the exact element that was pressed. |
+| `src/services/mediaTiles.js` | `tilesFor` / `tileFor` / `boxOf` / `isOnScreen`. |
 | `src/services/overlayStack.js` | Keyboard ownership and scroll-lock arbitration. |
 | `src/composables/useMediaLink.js` | `pageIdentity` - used to close on real navigation. |
 | `src/assets/main.css` | `.fit-media`, `lightbox-*` transitions, `[data-lightbox-flying]`. |

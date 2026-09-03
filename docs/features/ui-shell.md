@@ -86,9 +86,10 @@ which is the safe answer.
 `ui.notify(message, tone)` with `tone` of `info` / `success` / `error`, auto-dismissed after
 4s, rendered by `ToastHost` in `role="status"` `aria-live="polite"`.
 
-Note that two components implement their own inline "copied" feedback instead, deliberately
-- it must sit beside the button, not in a page corner. See `docs/issues.md` D1 for the
-duplication that resulted.
+Share buttons deliberately do **not** use toasts: the answer must sit beside the button
+that was pressed, not in a page corner. `src/composables/useCopyFeedback.js` holds that,
+and both share buttons call it. The footer's "share the site" link is the exception and
+does use a toast - it is a line of text in a footer, with no button to sit beside.
 
 ## The drawn scrollbar
 

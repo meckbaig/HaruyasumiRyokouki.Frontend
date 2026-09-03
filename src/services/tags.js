@@ -95,6 +95,18 @@ export function compareTags(a, b, locale) {
   return tagLabel(a, locale).localeCompare(tagLabel(b, locale))
 }
 
+/**
+ * What to call a tag known only by its slug.
+ *
+ * `known` is the dictionary entry when there is one; a visitor has no dictionary,
+ * so `fetched` is the caption read out of a response. The slug is the last
+ * resort - not a caption, but a name.
+ */
+export function captionForSlug(slug, locale, { known = null, fetched = '' } = {}) {
+  if (!slug) return ''
+  return fetched || tagLabel(known, locale) || slug
+}
+
 /** Slugs of the tags on a media file, in either shape. */
 export function tagSlugsOf(media) {
   return rows(media?.tags)

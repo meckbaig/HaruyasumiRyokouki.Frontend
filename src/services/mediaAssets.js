@@ -9,26 +9,20 @@
  *   imageUrls: { download, preview, fullScreen }
  *   videoUrls: { download, stream, preview }
  *
- * `miniature` is a tiny base64 image shipped inline with every file, used as a
- * placeholder until a real preview arrives. It keeps the file's own proportions;
- * cropping it to whatever shape a view wants is done in CSS, here on the client.
+ * `miniature` is a tiny inline base64 placeholder in the file's own proportions;
+ * views crop it in CSS.
  */
 import { isVideo } from './mediaType'
 
-/*
-  The API returns raw base64 with no data-URI prefix, and does not say what the
-  bytes are. `octet-stream` is deliberate rather than a placeholder: the server
-  may hold miniatures in whatever format it likes, and browsers sniff the magic
-  bytes of a data URI regardless of the type declared. Naming a concrete type
-  here would be a guess, and having the API send one would cost a field on every
-  file in every response to say something the browser works out for itself.
-*/
+/**
+ * The API sends raw base64 and no type. `octet-stream` is deliberate: the format
+ * varies and browsers sniff it. See docs/features/api-layer.md.
+ */
 const MINIATURE_PREFIX = 'data:image/octet-stream;base64,'
 
 /**
- * Inline base64 placeholder, shown before any network image is available.
- * Carries the file's own proportions, so it stands in equally for a square grid
- * tile and for the viewer's full-height frame; each crops it as it needs.
+ * Inline base64 placeholder in the file's own proportions. Not pre-cropped - the
+ * caller crops it.
  */
 export function miniatureSrc(media) {
   return media?.miniature ? `${MINIATURE_PREFIX}${media.miniature}` : ''
