@@ -118,6 +118,28 @@ are ignored and `aria-busy` says so.
 `isPrivate` tests `=== true`, not truthiness: `private` is null for anyone not signed in,
 and null means "not being told", not "no".
 
+### A tap is read from the touch, not from the click
+
+`MediaTile` answers a tap on **`touchend`**, not on `click`. A browser invents the click,
+and only if it decides the touch belonged to the page: after a quick swipe it suppresses
+the whole invented sequence, so a tile tapped straight after flicking a picture away
+answered nothing at all.
+
+That leaves the invented click to deal with, because it is aimed at **the point the finger
+was at**, and the viewer is open over that point by the time it arrives. Opening a file at
+the foot of the screen therefore followed a tag, or the download link, into a place the
+reader never asked to go.
+
+Two defences, both keyed on `GHOST_CLICK_MS` in `src/services/ghostClick.js`:
+
+1. `onTouchEnd` calls `preventDefault()`, which stops the click from being invented at all.
+2. `MediaLightbox` swallows anything that reaches it within that window of opening, for
+   whatever forgets the first.
+
+`onClick` compares timestamps rather than reading a flag. A flag waiting to be cleared by
+the invented click sits there for ever once `preventDefault` stops that click being made,
+and swallows the next real one from a mouse.
+
 ### Opening the viewer
 
 The tile calls `markOpenedFrom(element)` (`src/services/openedFrom.js`) before emitting
@@ -189,6 +211,7 @@ exactly those.
 6. `isPrivate` tests `=== true`; ids test `== null`.
 7. Star/hide write onto the shared object rather than refetching, and only after success.
 8. `suppressClick` is cleared at the start of each gesture, not only after use.
+9. Anything that answers a tap on `touchend` must also suppress the click it invents.
 
 ## Related
 

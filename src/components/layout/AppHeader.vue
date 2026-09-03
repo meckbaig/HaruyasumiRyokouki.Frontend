@@ -58,7 +58,12 @@ function signOut() {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 border-b border-edge bg-paper/85 backdrop-blur">
+  <!-- `data-page-chrome`: what a picture flying out of a tile has to appear from
+       under, rather than over. See services/pageChrome. -->
+  <header
+    data-page-chrome="top"
+    class="sticky top-0 z-30 border-b border-edge bg-paper/85 backdrop-blur"
+  >
     <div class="mx-auto flex max-w-6xl items-center gap-4 px-3 py-1">
       <!--
         The name drops out only between `sm` and `md`: that is where the search

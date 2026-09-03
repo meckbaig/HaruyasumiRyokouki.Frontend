@@ -1,0 +1,244 @@
+<script setup>
+import { computed, ref, shallowRef, nextTick, onBeforeUnmount } from 'vue'
+import { motionReduced } from '@/services/motion'
+
+/*
+  The picture flying between a grid tile and the open viewer.
+
+  Nothing animates but transforms, so the image is rasterised once whatever its
+  resolution. Why there are two elements, and why two of the three tracks are
+  sampled rather than written as two keyframes, is in
+  docs/features/media-viewer.md.
+*/
+
+/** Marks the flight on <html>; main.css uses it to hold the room's own fade. */
+const FLYING_ATTR = 'data-lightbox-flying'
+
+const DURATION = 260
+/** The curve the flight has always used. */
+const CURVE = { x1: 0.2, y1: 0.8, x2: 0.2, y2: 1 }
+const EASING = `cubic-bezier(${CURVE.x1}, ${CURVE.y1}, ${CURVE.x2}, ${CURVE.y2})`
+/** Steps for the sampled tracks; see `buildTracks`. */
+const SAMPLES = 48
+
+const frame = ref(null)
+const outer = ref(null)
+const inner = ref(null)
+/** `{ base, tracks, clipPath, src }` while a flight is up, null otherwise. */
+const flight = shallowRef(null)
+
+let running = null
+
+/** True while a flight is on screen; the viewer hides its own strip under it. */
+const active = computed(() => flight.value !== null)
+
+function area(box) {
+  return box.width * box.height
+}
+
+/** One coordinate of a cubic bezier whose ends are 0 and 1, at parameter `s`. */
+function bezierAt(a, b, s) {
+  const u = 1 - s
+  return 3 * u * u * s * a + 3 * u * s * s * b + s * s * s
+}
+
+/** The time the curve is at once it has covered `p` of the distance. */
+function timeAtProgress(p) {
+  let lo = 0
+  let hi = 1
+  // Both coordinates are monotone here, so bisection needs no guarding.
+  for (let i = 0; i < 30; i += 1) {
+    const mid = (lo + hi) / 2
+    if (bezierAt(CURVE.y1, CURVE.y2, mid) < p) lo = mid
+    else hi = mid
+  }
+  return bezierAt(CURVE.x1, CURVE.x2, (lo + hi) / 2)
+}
+
+/** How `box` sits inside `base`: scale on each axis, and the shift of centres. */
+function placement(base, box) {
+  return {
+    sx: box.width / base.width,
+    sy: box.height / base.height,
+    dx: box.left + box.width / 2 - (base.left + base.width / 2),
+    dy: box.top + box.height / 2 - (base.top + base.height / 2),
+  }
+}
+
+function transformOf(place) {
+  return `translate(${place.dx}px, ${place.dy}px) scale(${place.sx}, ${place.sy})`
+}
+
+/**
+ * The three tracks a flight runs on.
+ *
+ * `window` is the outer box travelling between the two rectangles: two keyframes
+ * on the real curve, which reproduces the box animation this replaced exactly.
+ *
+ * `counter` undoes the outer's uneven scale on the image, and `radius` undoes it
+ * on the corner. Neither can be two keyframes, because both are quotients of the
+ * outer scale and interpolating a quotient's ends is not interpolating the
+ * quotient: left that way the picture stretches like jelly and the corner swells
+ * to twice the tile's radius halfway across. Both are sampled instead, each
+ * sample derived from the outer scale that instant actually has.
+ *
+ * Sampled in even steps of distance rather than of time, because this curve
+ * front-loads hard - the first tenth of the flight covers 40% of the path - and
+ * samples spread evenly in time would describe that stretch with two of them.
+ */
+function buildTracks(base, from, to, fromRadius, toRadius) {
+  const a = placement(base, from)
+  const b = placement(base, to)
+
+  const counter = []
+  const radius = []
+
+  for (let step = 0; step <= SAMPLES; step += 1) {
+    const p = step / SAMPLES
+    const at = (start, end) => start + (end - start) * p
+    // Exact at the ends, whatever the bisection rounds to in between.
+    const offset = step === 0 ? 0 : step === SAMPLES ? 1 : timeAtProgress(p)
+
+    const sx = at(a.sx, b.sx)
+    const sy = at(a.sy, b.sy)
+    // The `cover` scale of the box at this instant, even on both axes.
+    const k = Math.max(sx, sy)
+    const r = at(fromRadius, toRadius)
+
+    counter.push({ offset, transform: `scale(${k / sx}, ${k / sy})` })
+    radius.push({ offset, borderRadius: `${r / sx}px / ${r / sy}px` })
+  }
+
+  return {
+    window: [{ transform: transformOf(a) }, { transform: transformOf(b) }],
+    counter,
+    radius,
+  }
+}
+
+/**
+ * The clip that keeps a flight under the page's own header.
+ *
+ * Fixed for the whole flight, never released: the picture grows upwards and ends
+ * against the top of the window whatever the tile it came from, so a clip that
+ * opened partway simply let it climb over the header instead. It costs nothing
+ * at the end - the viewer's own top bar stands where the header did, and the
+ * picture is fitted below it.
+ */
+function clipFor(insets) {
+  if (!insets?.top) return null
+  return `inset(${insets.top}px 0px 0px 0px)`
+}
+
+function stop() {
+  running?.forEach((animation) => animation.cancel())
+  running = null
+  flight.value = null
+  document.documentElement.removeAttribute(FLYING_ATTR)
+}
+
+/**
+ * Flies `src` from one box to the other. Boxes are viewport rectangles as
+ * `getBoundingClientRect` gives them; radii are plain pixels; `insets` is the
+ * page chrome the picture has to stay under.
+ */
+async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null }) {
+  if (!src || !from || !to || motionReduced()) return
+  stop()
+
+  // Laid out in the larger box and scaled down, so the raster is always made at
+  // the resolution the picture ends up needing.
+  const base = area(from) >= area(to) ? from : to
+  if (!base.width || !base.height) return
+
+  const tracks = buildTracks(base, from, to, fromRadius, toRadius)
+  // Rendered already holding the first sample, so the frame before the animation
+  // begins is not the untransformed base box.
+  flight.value = { base, tracks, clipPath: clipFor(insets), src }
+  // Set before the await: on the way out the room begins leaving in this same
+  // tick, and the rule that holds its fade is keyed on this attribute.
+  document.documentElement.setAttribute(FLYING_ATTR, '')
+
+  await nextTick()
+  if (!flight.value || !outer.value || !inner.value) {
+    stop()
+    return
+  }
+
+  const eased = { duration: DURATION, easing: EASING, fill: 'forwards' }
+  // `linear`: the curve is already baked into where the samples sit.
+  const sampled = { duration: DURATION, easing: 'linear', fill: 'forwards' }
+
+  const travel = outer.value.animate(tracks.window, eased)
+  running = [
+    travel,
+    outer.value.animate(tracks.radius, sampled),
+    inner.value.animate(tracks.counter, sampled),
+  ]
+  travel.onfinish = stop
+}
+
+/**
+ * Swaps in a sharper file mid-flight - see the invariant in the feature doc.
+ * Decoded off-DOM first, so the swap costs one clean frame instead of a hitch.
+ */
+async function setSource(next) {
+  if (!next || !flight.value || next === flight.value.src) return
+
+  const probe = new Image()
+  probe.src = next
+  if (typeof probe.decode === 'function') {
+    try {
+      await probe.decode()
+    } catch {
+      // Undecodable or superseded; the picture already on screen stays.
+      return
+    }
+  }
+
+  if (flight.value) flight.value = { ...flight.value, src: next }
+}
+
+onBeforeUnmount(stop)
+
+defineExpose({ active, fly, setSource, cancel: stop })
+</script>
+
+<template>
+  <Teleport to="body">
+    <!--
+      The frame is exactly the viewport, so it changes none of the coordinates
+      below; all it ever does is hold the clip that keeps the picture under the
+      page's own header.
+    -->
+    <div
+      v-if="flight"
+      ref="frame"
+      class="pointer-events-none fixed inset-0 z-[2500]"
+      :style="flight.clipPath ? { clipPath: flight.clipPath } : undefined"
+    >
+      <div
+        ref="outer"
+        class="pointer-events-none fixed overflow-hidden will-change-transform"
+        :style="{
+          left: `${flight.base.left}px`,
+          top: `${flight.base.top}px`,
+          width: `${flight.base.width}px`,
+          height: `${flight.base.height}px`,
+          transform: flight.tracks.window[0].transform,
+          borderRadius: flight.tracks.radius[0].borderRadius,
+        }"
+      >
+        <img
+          ref="inner"
+          :src="flight.src"
+          alt=""
+          aria-hidden="true"
+          draggable="false"
+          class="h-full w-full object-contain will-change-transform"
+          :style="{ transform: flight.tracks.counter[0].transform }"
+        />
+      </div>
+    </div>
+  </Teleport>
+</template>

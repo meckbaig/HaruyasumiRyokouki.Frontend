@@ -6,6 +6,7 @@ import { mediaDate } from '@/services/mediaAssets'
 import { formatShortDate, formatShortTime } from '@/services/dates'
 import { isVideo } from '@/services/mediaType'
 import { markOpenedFrom } from '@/services/openedFrom'
+import { GHOST_CLICK_MS } from '@/services/ghostClick'
 import { isPrivate, togglePrivate } from '@/services/privacy'
 import { toggleFavorite } from '@/services/favorites'
 import { useEditorStore } from '@/stores/editor'
@@ -171,12 +172,12 @@ function onContextMenu(event) {
 const TAP_SLOP = 10
 
 let tap = null
-let tapAnswered = false
+/** When a tap was answered, so the click it may invent is recognised as its own. */
+let answeredAt = 0
 
 function onTouchStart(event) {
   const touch = event.changedTouches[0]
   tap = touch ? { x: touch.clientX, y: touch.clientY, selecting: editor.selectionMode } : null
-  tapAnswered = false
 }
 
 function onTouchEnd(event) {
@@ -191,7 +192,15 @@ function onTouchEnd(event) {
   // grid has already answered it by selecting this very tile.
   if (!start.selecting && editor.selectionMode) return
 
-  tapAnswered = true
+  /*
+    Answered here, so the click the browser may invent from this tap must not
+    land. It is aimed at wherever the finger was, and by the time it arrives the
+    viewer is open over that spot - so a tap on a tile at the foot of the screen
+    followed a tag, or the download link, into a place the reader never asked to
+    go.
+  */
+  if (event.cancelable) event.preventDefault()
+  answeredAt = performance.now()
   activate()
 }
 
@@ -200,10 +209,10 @@ function onTouchCancel() {
 }
 
 function onClick() {
-  if (tapAnswered) {
-    tapAnswered = false
-    return
-  }
+  // Timed rather than flagged: `preventDefault` above usually stops the invented
+  // click from being made at all, and a flag waiting to be cleared by it would
+  // sit there and swallow a real one from a mouse.
+  if (performance.now() - answeredAt < GHOST_CLICK_MS) return
   activate()
 }
 
@@ -244,7 +253,7 @@ function activate() {
     >
       <!-- Fixed square keeps the grid from reflowing while previews arrive. -->
       <div class="relative aspect-square">
-        <MediaThumb :media="media" :alt="label" class="absolute inset-0" />
+        <MediaThumb :media="media" :alt="label" />
 
         <!-- Bottom right, clear of the video badge on the left. A page that
              asked only for the time asked for it on approach, and gets the same

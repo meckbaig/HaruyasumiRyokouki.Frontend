@@ -11,7 +11,10 @@ of its complexity is timing, not logic. Read this document before editing it.
 
 | File | Role |
 | --- | --- |
-| `src/components/media/MediaLightbox.vue` | Everything below. |
+| `src/components/media/MediaLightbox.vue` | Everything below except the flight. |
+| `src/components/media/HeroFlight.vue` | The flight between a tile and the picture. |
+| `src/services/motion.js` | `motionReduced()`, shared by both. |
+| `src/services/pageChrome.js` | Where the page's own floating chrome leaves off. |
 | `src/services/mediaAssets.js` | URL accessors: `miniatureSrc`, `previewSrc`, `fullScreenSrc`, `streamSrc`, `downloadSrc`, `mediaAspect`, `mediaDate`. |
 | `src/services/openedFrom.js` | Hands the viewer the exact element that was pressed. |
 | `src/services/mediaTiles.js` | `tilesFor` / `tileFor` / `boxOf` / `isOnScreen`. |
@@ -144,12 +147,124 @@ file underneath never swapped.
 
 ## Hero flight
 
-One `<img>`, teleported to `body`, animated between the tile's box and the picture's box
-via the Web Animations API.
+Owned entirely by `HeroFlight.vue`. The viewer says what to fly and between which two
+boxes; everything below is the component's business.
+
+```js
+flight.value?.fly({ src, from, to, fromRadius, toRadius, insets })
+flight.value?.setSource(sharperUrl)   // mid-flight upgrade
+flight.value?.cancel()
+flight.value?.active                  // reactive; the viewer hides its strip
+```
+
+Boxes are viewport rectangles, radii are pixels, `insets` is the page chrome to stay under.
+
+### Why two elements
+
+Animating `width`/`height` changes the layout box, so every frame runs style, layout,
+paint and raster - and because the decoded-bitmap cache is keyed by target size, a
+continuously changing size means the image is rescaled and re-uploaded on every frame. At
+2160x2880 that is what made the flight stutter, and why WebP was worse than JPEG: a slower
+decoder multiplied by the frame count. Whether the file was cached made no difference,
+because the HTTP cache sits upstream of all of it.
+
+So nothing animates but `transform`, which the compositor handles: the pair is laid out
+once and rasterised once.
+
+One transform cannot both reshape the window from square to the file's ratio and leave the
+image undistorted, hence a pair:
+
+| Element | Role | At the tile end |
+| --- | --- | --- |
+| outer `div` | the window, `overflow: hidden` | `translate(dx, dy) scale(sx, sy)` |
+| inner `img` | the whole picture | `scale(k/sx, k/sy)` |
+
+with `sx = tileW/baseW`, `sy = tileH/baseH`, `k = max(sx, sy)`. The image's net scale is
+`(k, k)` - even, undistorted - while the window is the tile's rectangle. That is exactly
+what `object-fit: cover` shows on a square tile, so the crop opens out as it always did.
+
+**The pair is laid out in the larger of the two boxes** (`base`), so the raster is always
+made at the resolution the picture ends up needing and only ever scaled down. Both
+directions benefit: closing used to rasterise a full-size picture at tile size.
+
+### Two of the three tracks are sampled
+
+This is the part that is easy to get wrong, and was got wrong once.
+
+`k/sx` and the pre-scaled radius are **quotients of the outer scale**, and interpolating a
+quotient's endpoints is not the same as interpolating the quotient. Written as two
+keyframes each, they are correct only at the ends:
+
+| Progress | outer | inner | net image scale |
+| --- | --- | --- | --- |
+| 0 | (0.222, 0.167) | (1, 1.333) | (0.222, 0.222) |
+| 0.5 | (0.611, 0.583) | (1, 1.167) | **(0.611, 0.681)** |
+| 1 | (1, 1) | (1, 1) | (1, 1) |
+
+An 11% stretch halfway across, which reads as jelly; the corner meanwhile swells to twice
+the tile's radius. The box animation this replaced had neither problem, because
+`object-fit: cover` and `border-radius` were recomputed from the box the browser had
+already interpolated.
+
+So `buildTracks` samples those two, deriving each sample from the outer scale that instant
+actually has. The window keeps two keyframes on the real curve, so its path is exact.
+
+**Sampled in even steps of distance, not of time.** The curve front-loads hard - the first
+tenth of the flight covers 40% of the path - so evenly spaced times would describe that
+stretch with two samples. `timeAtProgress` bisects the curve to place them. At
+`SAMPLES = 48` the residual is 0.3% of distortion on a 3:1 panorama, under 0.1% on an
+ordinary frame, and 0.04px of radius.
+
+### Staying under the page's own header
+
+The pair sits in a frame that is exactly the viewport - so it changes no coordinates -
+carrying a `clip-path: inset(top 0 0 0)`.
+
+**The clip is fixed for the whole flight and never released.** Two earlier attempts were
+wrong in the same way. Clipping only when the *tile* touches the header misses the point:
+the picture grows upwards and ends against the top of the window whatever tile it came
+from. Releasing the clip partway simply lets it climb over the header, at a moment that
+moves with the distance, which reads as the overlap being random.
+
+It costs nothing at the end: the viewer's own top bar stands where the header did, and the
+picture is fitted below it, so the last frame of the flight and the still picture that
+replaces it are cut in the same place.
+
+The header marks itself `data-page-chrome="top"` and `services/pageChrome.js` measures it,
+so the flight knows nothing about the app's layout.
+
+### Timing
+
+`cubic-bezier(0.2, 0.8, 0.2, 1)` over a fixed 260ms. Both are constants at the top of the
+component.
+
+**The duration is fixed on purpose.** Scaling it with the distance was tried and reverted:
+on a large display the flight then ran long enough to feel like it would not end. Changing
+the curve is a matter of editing `CURVE`, but the sampling residual is tuned to this
+curve's shape, so measure it again after.
+
+The inner image is `object-contain`, matching the viewer's own picture element, so the
+handover at the end of the flight is exact.
+
+### Ordering that matters
+
+- The start transform is written inline when the elements render, so the frame before
+  `animate()` runs is not the untransformed base box.
+- `data-lightbox-flying` is set **before** the first `await`. On the way out the room
+  begins leaving in the same tick, and the rule in `main.css` that holds its fade is keyed
+  on that attribute.
+
+### The rest
 
 - The source is `heroSource(item)`: the full-size image when it is already in hand or
   cached, otherwise the preview. A stand-in flown to full size arrives visibly soft.
-  A watcher on `fullLoaded` swaps the source mid-flight when the real file lands.
+- **The source is swapped mid-flight, on purpose.** A watcher on `fullLoaded` replaces it
+  the moment the real file lands, so the last frames of the expansion are already at full
+  resolution. Without it, a 400px preview finishes its journey filling a 4K display, and
+  the softness is glaring at exactly the moment the picture is largest and still. Do not
+  remove this to save a decode. `setSource` decodes off-DOM first, so the swap costs one
+  clean frame; because the element's layout box never changes, it no longer disturbs the
+  animation at all.
 - The crop resolves itself: a tile shows a square `object-fit: cover` crop, and the
   destination box has the file's own proportions, where cover and contain coincide. So
   the crop opens out with nothing animating it.
@@ -166,6 +281,7 @@ via the Web Animations API.
   is no destination and the plain fade does the work.
 - `[data-lightbox-flying]` is stamped on `<html>` (not the dialog, which is unmounting)
   to suppress the room's own leave animation while a flight is running.
+- Reduced motion cancels the flight entirely; the plain fade does the work.
 
 ## Chrome (the two bars)
 
@@ -207,8 +323,14 @@ Do not "fix" these:
    page was moving.
 7. `suppressClick` is cleared on `pointerdown`, not only after use - a gesture ending off
    the frame fires no click, and a lingering flag ate the next real tap.
+8. Clicks reaching the dialog within `GHOST_CLICK_MS` of opening are swallowed. The tile
+   answers a tap on `touchend`, so the click a browser invents from it lands here, on
+   whatever now sits where the finger was. See
+   [media-grid-and-selection.md](media-grid-and-selection.md).
 8. Dismissal in `useMediaLink` listens on `pointerdown`, not `click`. A click is the tail
    of a gesture that may have started on the previous page.
+9. The hero's mid-flight source swap stays. It is what keeps the end of the expansion
+   sharp on a large display.
 
 ## Related
 

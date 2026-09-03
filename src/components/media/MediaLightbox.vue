@@ -21,6 +21,10 @@ import { copyMediaUrl } from '@/services/share'
 import { useCopyFeedback } from '@/composables/useCopyFeedback'
 import { pushOverlay, popOverlay, isTopmost, hasOverlay } from '@/services/overlayStack'
 import { takeOpenedFrom } from '@/services/openedFrom'
+import { motionReduced } from '@/services/motion'
+import { GHOST_CLICK_MS } from '@/services/ghostClick'
+import { chromeInsets } from '@/services/pageChrome'
+import HeroFlight from './HeroFlight.vue'
 import { boxOf, isOnScreen, tilesFor, tileFor } from '@/services/mediaTiles'
 import TagChip from './TagChip.vue'
 
@@ -835,6 +839,26 @@ function onPointerCancel(event) {
   }
 }
 
+/*
+  Nothing in here answers a click made before the viewer was open.
+
+  A tap is answered on `touchend`, so the click a browser invents from it arrives
+  once this is already on screen, aimed at wherever the finger was. Opening a
+  file at the foot of the screen therefore landed that click on the tag row or
+  the download link underneath. The opener suppresses it at the source - see
+  MediaTile - and this is the guard for anywhere that forgets to.
+
+  The window is far shorter than anyone can open the viewer and deliberately
+  press something in it.
+*/
+let openedAt = 0
+
+function onDialogClickCapture(event) {
+  if (performance.now() - openedAt >= GHOST_CLICK_MS) return
+  event.stopPropagation()
+  event.preventDefault()
+}
+
 function onFrameClickCapture(event) {
   if (!suppressClick) return
   event.stopPropagation()
@@ -861,12 +885,9 @@ function onFrameClickCapture(event) {
 */
 
 /** What a grid tile wears; `rounded-md`, and gone by the time it lands. */
-const TILE_RADIUS = '0.375rem'
-const HERO_MS = 260
+const TILE_RADIUS = 6
 
-const heroEl = ref(null)
-const hero = ref(null)
-let heroAnimation = null
+const flight = ref(null)
 /** A tile box captured as the viewer opens, waiting for somewhere to fly to. */
 let heroOrigin = null
 /**
@@ -967,47 +988,8 @@ function heroSource(item) {
   asked to - which is what makes swapping the source safely invisible.
 */
 watch(fullLoaded, (loaded) => {
-  if (!loaded || !hero.value) return
-  const full = fullScreenSrc(current.value)
-  if (full) hero.value = { ...hero.value, src: full }
+  if (loaded) flight.value?.setSource(fullScreenSrc(current.value))
 })
-
-function flyHero({ src, from, to, fromRadius, toRadius }) {
-  if (!src || !from || !to || motionReduced()) return
-
-  heroAnimation?.cancel()
-  hero.value = { src, ...from, radius: fromRadius }
-  // Said on the document, where the viewer's own leaving subtree cannot be
-  // reached any more. See the rule it drives in main.css.
-  document.documentElement.setAttribute('data-lightbox-flying', '')
-
-  nextTick(() => {
-    const element = heroEl.value
-    if (!element) return
-
-    heroAnimation = element.animate(
-      [
-        { ...boxKeyframe(from), borderRadius: fromRadius },
-        { ...boxKeyframe(to), borderRadius: toRadius },
-      ],
-      { duration: HERO_MS, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' },
-    )
-    heroAnimation.onfinish = () => {
-      hero.value = null
-      heroAnimation = null
-      document.documentElement.removeAttribute('data-lightbox-flying')
-    }
-  })
-}
-
-function boxKeyframe(box) {
-  return {
-    left: `${box.left}px`,
-    top: `${box.top}px`,
-    width: `${box.width}px`,
-    height: `${box.height}px`,
-  }
-}
 
 /**
  * @param {{ fly?: boolean }} options `fly` is false when the reader has already
@@ -1017,12 +999,13 @@ function close({ fly = true } = {}) {
   // Captured before the file is let go of: `current` is about to be null, and
   // with it every proportion the picture's box is worked out from.
   if (fly) {
-    flyHero({
+    flight.value?.fly({
       src: heroSource(current.value),
       from: pictureBox(),
       to: tileBoxBack(current.value),
-      fromRadius: '0px',
+      fromRadius: 0,
       toRadius: TILE_RADIUS,
+      insets: chromeInsets(),
     })
   }
 
@@ -1159,12 +1142,13 @@ watch(
     if (heroOrigin) {
       const from = heroOrigin
       heroOrigin = null
-      flyHero({
+      flight.value?.fly({
         src: heroSource(current.value),
         from,
         to: pictureBox(),
         fromRadius: TILE_RADIUS,
-        toRadius: '0px',
+        toRadius: 0,
+        insets: chromeInsets(),
       })
     }
 
@@ -1217,12 +1201,6 @@ const descriptionExpanded = ref(false)
 const descriptionOverflow = ref(false)
 
 let chromeObserver = null
-
-/** True while the system asks for less motion and the reader has not opted back in. */
-function motionReduced() {
-  if (document.documentElement.dataset.motion === 'always') return false
-  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
-}
 
 /** Proportions of the file, read off the preview the grid already downloaded. */
 function previewAspect() {
@@ -1742,6 +1720,7 @@ watch(open, async (isOpen) => {
     const from = takeOpenedFrom() ?? tileFor(current.value?.id, { visible: true })
     originTile = from ? { el: from, id: current.value?.id } : null
     heroOrigin = from ? boxOf(from) : null
+    openedAt = performance.now()
     chromeReady.value = false
     lastFocused = document.activeElement
     document.addEventListener('keydown', onKeydown)
@@ -1780,8 +1759,7 @@ watch(open, async (isOpen) => {
 
 onBeforeUnmount(() => {
   popOverlay(overlayToken)
-  heroAnimation?.cancel()
-  document.documentElement.removeAttribute('data-lightbox-flying')
+  flight.value?.cancel()
   document.removeEventListener('keydown', onKeydown)
   unlockScroll({ now: true })
   stopSpinner()
@@ -1813,6 +1791,7 @@ onBeforeUnmount(() => {
         aria-modal="true"
         :aria-label="label"
         tabindex="-1"
+        @click.capture="onDialogClickCapture"
       >
         <!--
           Every file lives in the filmstrip, video included. It used to sit in a
@@ -1841,7 +1820,10 @@ onBeforeUnmount(() => {
         -->
           <div
             class="lightbox-strip absolute inset-0"
-            :class="[animating ? 'transition-transform duration-200' : '', hero ? 'opacity-0' : '']"
+            :class="[
+              animating ? 'transition-transform duration-200' : '',
+              flight?.active ? 'opacity-0' : '',
+            ]"
             :style="stripStyle"
           >
             <div
@@ -2333,26 +2315,11 @@ onBeforeUnmount(() => {
       </div>
     </Transition>
 
-    <!--
-      The flight between the tile and the picture. Outside the viewer's own
-      `v-if` on purpose: on the way out it has to outlive the room it is leaving,
-      and it is drawn above it either way.
-    -->
-    <img
-      v-if="hero"
-      ref="heroEl"
-      :src="hero.src"
-      alt=""
-      aria-hidden="true"
-      draggable="false"
-      class="pointer-events-none fixed z-[2500] object-cover"
-      :style="{
-        left: `${hero.left}px`,
-        top: `${hero.top}px`,
-        width: `${hero.width}px`,
-        height: `${hero.height}px`,
-        borderRadius: hero.radius,
-      }"
-    />
   </Teleport>
+
+  <!--
+    The flight between the tile and the picture. Outside the viewer's own `v-if`
+    on purpose: on the way out it has to outlive the room it is leaving.
+  -->
+  <HeroFlight ref="flight" />
 </template>
