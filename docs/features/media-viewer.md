@@ -60,6 +60,12 @@ So each layer is asked about *before* the first render:
 the bytes arrived; without decoding first, the reveal happens during paint and the image
 appears in bands.
 
+**Every image in the strip is keyed by its file.** An `<img>` handed a new `src` goes on
+painting the one it already holds until the new one loads, so a page turned before that
+showed the file just left as the file coming next - visible whenever paging outran the
+network, and corrected only once the animation ended. Keyed, a turn builds a new element,
+which can show nothing but never the wrong thing.
+
 `inHand` is a `Set` of full-size URLs this session has actually held. It exists so a file
 already looked at slides past *sharp* as a filmstrip neighbour. It is a record rather than
 a probe because probing an uncached URL issues a request - acceptable for the file being
@@ -103,6 +109,8 @@ One pointer surface handles all of them, because their meanings overlap.
 | Double tap | Zoom to `TAP_ZOOM` (2.5) at that point, or back out. |
 | Wheel | Zoom, with the transition held on ~180ms after each notch so discrete steps read as continuous. |
 | `←` / `→` / `Esc` | Page, page, close. |
+| Anything on a video **player** | Left to the player. |
+| The space **around** a player | Exactly what the space beside a picture does: a mouse closes, a finger toggles the chrome, and drags page and dismiss. |
 
 Details that look arbitrary and are not:
 
@@ -123,6 +131,15 @@ Details that look arbitrary and are not:
   double tap.
 - **A dismissal does not fly back to the tile.** The reader already threw the picture
   somewhere; a second departure runs two animations at once.
+- **A video takes gestures beside it and none on it.** `onPlayer()` hands any press on the
+  element itself straight to the controls - a scrubber is a drag and would otherwise read as
+  a page turn. Around it the picture's rules apply unchanged; the only difference is that
+  there is no pinch and no double-tap magnify, so a tap toggles the chrome at once instead
+  of waiting to find out whether a second one is coming.
+- The space around a player is a **surface of its own**, laid under a strip made
+  pointer-transparent, with the player alone taking presses back. It cannot simply be the
+  frame: `touch-action` narrows down the ancestor chain and can never be widened again, so a
+  `touch-none` frame would take the player's scrubbing with it.
 
 ## Paging
 
@@ -135,8 +152,10 @@ same movement.
   chrome swallow the next arrow press.
 - `queuedTurn` remembers **one** pending turn. A held-down arrow otherwise keeps turning
   after the key comes up.
-- The queued turn is dispatched on `nextTick`, so the browser sees the strip at rest
-  before the next slide starts from there.
+- The queued turn is dispatched on the **next frame**, not the next tick. A tick only means
+  Vue has written the reset into the DOM; style is computed once per frame, so a slide begun
+  in the same one is measured from where the strip stood before the reset and travels from
+  the wrong place.
 - A zoomed picture cannot be slid, so `page()` there just calls `step()`.
 
 `withAnimation(change, done, duration)` runs a change with a transition and then writes
@@ -254,6 +273,14 @@ handover at the end of the flight is exact.
   begins leaving in the same tick, and the rule in `main.css` that holds its fade is keyed
   on that attribute.
 
+### Video
+
+| Rule | Why |
+| --- | --- |
+| `play()` only when `element.isConnected` | A file paged past before its metadata arrived is detached, and starting it there leaves a player with no controls left to stop it: returning to the file builds a new element, so the sound goes on with nothing attached to it. Its proportions are no business of the file now open either. |
+| Presses on the player are the player's | See the gesture notes above. |
+| No pinch, no double-tap magnify | There is nothing to magnify, so a tap answers at once. |
+
 ### The rest
 
 - The source is `heroSource(item)`: the full-size image when it is already in hand or
@@ -331,6 +358,9 @@ Do not "fix" these:
    of a gesture that may have started on the previous page.
 9. The hero's mid-flight source swap stays. It is what keeps the end of the expansion
    sharp on a large display.
+10. Strip images are keyed by file, or a turn shows the file just left.
+11. A queued turn waits a frame, not a tick.
+12. A video is never played from a `loadedmetadata` that arrives after it was paged past.
 
 ## Related
 

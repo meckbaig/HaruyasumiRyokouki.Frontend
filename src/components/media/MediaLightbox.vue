@@ -216,6 +216,13 @@ function rememberAspect(image) {
 /** Videos report their dimensions on metadata rather than as natural size. */
 function onVideoMeta(event) {
   const element = event.target
+  // Paged past before it was ready: playing it now leaves a detached element
+  // with nothing left to stop it.
+  if (!element.isConnected) {
+    element.pause?.()
+    return
+  }
+
   if (element.videoWidth && element.videoHeight) {
     aspect.value = element.videoWidth / element.videoHeight
   }
@@ -645,16 +652,22 @@ function updatePinch() {
   clampOffset()
 }
 
-function onPointerDown(event) {
-  if (video.value) return
+/** Whether a press landed on the player, whose own drags and taps come first. */
+function onPlayer(target) {
+  return video.value && Boolean(target?.closest?.('video'))
+}
 
-  // A gesture that ended off the frame fires no click, so a flag set then would
-  // linger and eat the next real tap.
+function onPointerDown(event) {
+  // Cleared before the press may be handed to the player, whose own click a
+  // lingering flag would eat.
   suppressClick = false
+  if (onPlayer(event.target)) return
+
   frame.value?.setPointerCapture?.(event.pointerId)
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
 
-  if (pointers.size === 2) beginPinch()
+  // Nothing to magnify in a video, so two fingers stay a drag.
+  if (pointers.size === 2 && !video.value) beginPinch()
   else if (pointers.size === 1) beginDrag(event.clientX, event.clientY, event.pointerType)
 }
 
@@ -806,6 +819,12 @@ function onPointerUp(event) {
     means a double tap quietly toggles the bars as well. Waiting is the honest
     answer - the wait just has to be short enough not to be felt.
   */
+  // Nothing to magnify on a video, so no second tap to wait for.
+  if (video.value) {
+    toggleUi()
+    return
+  }
+
   const now = Date.now()
   if (now - lastTapAt < TAP_WINDOW && Math.abs(event.clientX - lastTapX) < TAP_SLOP) {
     // The second of the pair: call off the toggle the first one queued, or the
@@ -840,16 +859,8 @@ function onPointerCancel(event) {
 }
 
 /*
-  Nothing in here answers a click made before the viewer was open.
-
-  A tap is answered on `touchend`, so the click a browser invents from it arrives
-  once this is already on screen, aimed at wherever the finger was. Opening a
-  file at the foot of the screen therefore landed that click on the tag row or
-  the download link underneath. The opener suppresses it at the source - see
-  MediaTile - and this is the guard for anywhere that forgets to.
-
-  The window is far shorter than anyone can open the viewer and deliberately
-  press something in it.
+  Nothing in here answers a click made before the viewer was open: it belongs to
+  the tap that opened it. See docs/features/media-grid-and-selection.md.
 */
 let openedAt = 0
 
@@ -1037,6 +1048,8 @@ function step(delta) {
  * for - there the finger is panning.
  */
 let queuedTurn = 0
+/** The frame a queued turn is waiting on, so closing can call it off. */
+let queuedFrame = 0
 /**
  * True while a turn's slide is running.
  *
@@ -1063,11 +1076,10 @@ function slideOneFrame(delta) {
       if (!queuedTurn) return
       const waiting = queuedTurn
       queuedTurn = 0
-      // Next tick, so the strip is rendered back at rest - untransformed, and
-      // without its transition - before the following slide starts from there.
-      // Started in the same breath, the browser would never see the resting
-      // position and the second slide would have nowhere to travel from.
-      nextTick(() => page(waiting))
+      // A frame, not a tick: the next slide must start from a rest the browser
+      // has drawn. See docs/features/media-viewer.md.
+      cancelAnimationFrame(queuedFrame)
+      queuedFrame = requestAnimationFrame(() => page(waiting))
     },
   )
 }
@@ -1615,6 +1627,8 @@ function resetGestures() {
   heroOrigin = null
   originTile = null
   queuedTurn = 0
+  cancelAnimationFrame(queuedFrame)
+  queuedFrame = 0
   turning = false
   pendingSettle = null
   clearTimeout(restTimer)
@@ -1812,17 +1826,26 @@ onBeforeUnmount(() => {
           @pointercancel="onPointerCancel"
           @click.capture="onFrameClickCapture"
         >
+          <!-- The gesture surface for the space around a player. Under the strip
+               rather than on the frame, or the player would inherit `touch-none`
+               and lose its scrubbing. -->
+          <div v-if="video" class="absolute inset-0 touch-none" aria-hidden="true" />
+
           <!--
           A filmstrip: the neighbouring files sit one frame away on either side,
           so dragging sideways reveals the next picture as the current one leaves
           rather than swapping them once the gesture ends. They are drawn from the
           previews the grid already cached, so they cost nothing to keep there.
+
+          Keyed by the file: an `img` given a new `src` goes on painting the old
+          one until the new one loads.
         -->
           <div
             class="lightbox-strip absolute inset-0"
             :class="[
               animating ? 'transition-transform duration-200' : '',
               flight?.active ? 'opacity-0' : '',
+              video ? 'pointer-events-none' : '',
             ]"
             :style="stripStyle"
           >
@@ -1835,6 +1858,7 @@ onBeforeUnmount(() => {
                 :style="neighbourFit(prevItem)"
               >
                 <img
+                  :key="prevItem.id ?? prevItem.fileName"
                   :src="stripSrc(prevItem)"
                   alt=""
                   aria-hidden="true"
@@ -1872,7 +1896,7 @@ onBeforeUnmount(() => {
                   controls
                   playsinline
                   preload="metadata"
-                  class="max-h-full max-w-full object-contain"
+                  class="pointer-events-auto max-h-full max-w-full object-contain"
                   :class="fitClass"
                   :style="fitBoxStyle"
                   @loadedmetadata="onVideoMeta"
@@ -1955,6 +1979,7 @@ onBeforeUnmount(() => {
                   aria-hidden="true"
                 >
                   <img
+                    :key="`ground-${current.id ?? current.fileName}`"
                     :src="miniature"
                     alt=""
                     draggable="false"
@@ -1973,6 +1998,7 @@ onBeforeUnmount(() => {
                 :style="neighbourFit(nextItem)"
               >
                 <img
+                  :key="nextItem.id ?? nextItem.fileName"
                   :src="stripSrc(nextItem)"
                   alt=""
                   aria-hidden="true"
@@ -2047,7 +2073,9 @@ onBeforeUnmount(() => {
                 </svg>
                 {{ t('media.hidden') }}
               </p>
-              <p class="truncate text-sm font-medium">{{ label }}</p>
+              <!-- Two lines rather than an ellipsis: a name rarely fits one on a
+                   phone. -->
+              <p class="line-clamp-2 text-sm font-medium">{{ label }}</p>
               <!--
               Tapping a clipped description opens it, and again puts it back.
 
