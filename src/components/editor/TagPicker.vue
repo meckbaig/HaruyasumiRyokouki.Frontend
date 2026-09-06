@@ -41,8 +41,6 @@ const creating = ref(false)
   existence is deliberately, through the form below. The whole dictionary is in
   memory, so filtering is a plain array scan. See docs/features/tags.md.
 */
-onMounted(() => tags.load().catch(() => {}))
-
 const selected = computed(() =>
   props.modelValue.map((slug) => tags.getBySlug(slug)).filter(Boolean),
 )
@@ -58,13 +56,29 @@ const unknownCount = computed(() =>
 
 const matches = computed(() => {
   if (!text.value.trim()) return []
-  return tags.search(text.value, ui.locale, { exclude: props.modelValue }).slice(0, 8)
+  const results = tags.search(text.value, ui.locale, { exclude: props.modelValue }).slice(0, 8)
+  return results
+})
+
+const autoSelected = computed(() => {
+  if (!text.value.trim()) return -1
+  if (matches.value.length > 0) return 0
+  // No matches - offer creation as the first option
+  return canCreate.value ? 0 : -1
 })
 
 /** Coining is offered whenever something is typed, not only when nothing matched:
     "temple" matching "temple grounds" does not mean "temple" exists. */
 const canCreate = computed(() => Boolean(text.value.trim()))
 const rowCount = computed(() => matches.value.length + (canCreate.value ? 1 : 0))
+
+onMounted(() => tags.load().catch(() => {}))
+
+function onOpen() {
+  if (text.value.trim()) {
+    cursor.value = autoSelected.value
+  }
+}
 
 function add(tag) {
   if (!tag?.slug || props.modelValue.includes(tag.slug)) return
@@ -178,8 +192,8 @@ function onBackspace() {
           :data-autofocus="autofocus ? '' : undefined"
           :placeholder="selected.length ? '' : t('tags.pickPlaceholder')"
           class="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
-          @input="open = true"
-          @focus="open = true"
+          @input="open = true; onOpen()"
+          @focus="open = true; onOpen()"
           @blur="open = false"
           @keydown.down.prevent="move(1)"
           @keydown.up.prevent="move(-1)"
@@ -203,7 +217,9 @@ function onBackspace() {
             role="option"
             :aria-selected="cursor === index"
             class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition"
-            :class="cursor === index ? 'bg-edge/60 text-ink' : 'text-ink-soft hover:bg-edge/40'"
+            :class="[
+              (cursor === index || (index === 0 && autoSelected.value === 0)) ? 'bg-edge/60 text-ink' : 'text-ink-soft hover:bg-edge/40',
+            ]"
             @click="add(tag)"
             @mousemove="cursor = index"
           >
@@ -219,7 +235,7 @@ function onBackspace() {
             class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition"
             :class="[
               matches.length ? 'mt-1 border-t border-edge pt-2' : '',
-              cursor === matches.length ? 'bg-edge/60 text-ink' : 'text-ink-soft hover:bg-edge/40',
+              (cursor === matches.length || (matches.length === 1 && autoSelected.value === 0)) ? 'bg-edge/60 text-ink' : 'text-ink-soft hover:bg-edge/40',
             ]"
             @click="startCreating"
             @mousemove="cursor = matches.length"
