@@ -234,10 +234,14 @@ function renderNeighborsOn(picker) {
   }
 
   // Last, and in the accent: these are the files in hand, not the scenery.
+  // `zIndexOffset` keeps them above the anchors, which otherwise paint over the
+  // selection a few metres south of it - the same clash the draggable pin avoids.
   for (const point of props.ownPoints.filter(valid)) {
-    L.marker([point.lat, point.lng], { icon: pinIcon, interactive: false }).addTo(
-      picker.neighborLayer,
-    )
+    L.marker([point.lat, point.lng], {
+      icon: pinIcon,
+      interactive: false,
+      zIndexOffset: 700,
+    }).addTo(picker.neighborLayer)
   }
 }
 
