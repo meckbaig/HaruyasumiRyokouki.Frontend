@@ -30,6 +30,7 @@ const question = computed(() => ui.question)
         {{ question?.cancelLabel ?? t('common.cancel') }}
       </button>
       <button
+        data-autofocus
         type="button"
         :class="question?.tone === 'danger' ? 'btn-danger' : 'btn-primary'"
         @click="ui.settle(true)"
