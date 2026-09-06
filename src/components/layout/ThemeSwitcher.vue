@@ -7,11 +7,9 @@ import { themes, themeById, themeLabel } from '@/theme/themes'
 const { t, locale } = useI18n()
 const theme = useThemeStore()
 
-// A dropdown rather than a cycling button: with a "system" option the old
-// single button showed what looked like the same theme twice, so the current
-// choice was never clear. The menu names every option and ticks the active one.
-// Icons and labels come straight from the theme registry, so a new theme shows
-// up here with no edit to this component.
+// A dropdown, not a cycling button - with "system" in the list a single button
+// showed the same theme twice. Icons and labels come from the theme registry.
+// See docs/features/i18n-and-theming.md.
 const open = ref(false)
 const root = ref(null)
 

@@ -1,10 +1,7 @@
 /**
- * Date helpers.
- *
- * The API speaks ISO calendar dates (`2025-04-12`) with no time zone attached.
- * Parsing those with `new Date('2025-04-12')` would place them at UTC midnight
- * and shift the day for anyone west of Greenwich, so every conversion here goes
- * through explicit year/month/day parts and stays in local time.
+ * Date helpers. The API speaks ISO calendar dates with no time zone, so every
+ * conversion goes through explicit year/month/day parts and stays in local time -
+ * `new Date('2025-04-12')` is UTC midnight and shifts the day west of Greenwich.
  */
 
 /** `2025-04-12` -> Date at local midnight. */
@@ -53,7 +50,6 @@ export function formatLongDate(iso, locale) {
   }).format(date)
 }
 
-/** Weekday name for the date heading. */
 /** Compact date for a badge on a picture: "12 Apr". */
 export function formatShortDate(iso, locale) {
   const date = parseIsoDate(iso)
@@ -61,13 +57,7 @@ export function formatShortDate(iso, locale) {
   return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(date)
 }
 
-/**
- * Day and clock time together: "12 Apr, 14:35".
- *
- * Both halves, because the reference points on the location picker are drawn
- * from a three-day window - a bare time there could belong to any of them, and
- * "was this before or after lunch on which day" is the question being asked.
- */
+/** Day and clock time: "12 Apr, 14:35". Both halves - the picker spans three days. */
 export function formatShortDateTime(iso, locale) {
   const at = iso ? new Date(iso) : null
   if (!at || Number.isNaN(at.getTime())) return ''
@@ -96,12 +86,7 @@ export function formatMonthTitle(date, locale) {
   return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date)
 }
 
-/**
- * Short weekday labels for a calendar header, Monday first.
- *
- * Built from a known week (2024-01-01 was a Monday) so the labels always come
- * from `Intl` and never from a hardcoded list per locale.
- */
+/** Short weekday labels, Monday first. See docs/features/days-and-calendar.md. */
 export function weekdayLabels(locale) {
   const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' })
   const monday = new Date(2024, 0, 1)
@@ -109,8 +94,8 @@ export function weekdayLabels(locale) {
 }
 
 /**
- * Builds a 6×7 grid of dates covering `monthDate`, padded with the surrounding
- * days so every row is full. Monday is the first column.
+ * A 6x7 grid covering `monthDate`, padded from the surrounding months so every
+ * row is full. Monday is the first column.
  *
  * @returns {Array<{date: Date, iso: string, inMonth: boolean}>}
  */

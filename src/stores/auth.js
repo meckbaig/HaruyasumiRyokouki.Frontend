@@ -7,12 +7,9 @@ import { useTagsStore } from './tags'
 const STORAGE_KEY = 'haruyasumi.auth'
 
 /**
- * Editor session.
- *
- * There is no token endpoint - the API uses HTTP Basic - so "staying signed in"
- * means keeping the encoded credentials around. With "remember me" they go to
- * localStorage and survive a restart; without it they live only in memory and
- * disappear when the tab is closed.
+ * Editor session. The API uses HTTP Basic and has no token endpoint, so staying
+ * signed in means keeping the encoded credentials. "Remember me" puts them in
+ * localStorage; otherwise they live in memory alone.
  */
 export const useAuthStore = defineStore('auth', () => {
   const login = ref('')
@@ -68,8 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
     apply('', null)
     remember.value = false
     localStorage.removeItem(STORAGE_KEY)
-    // The tag dictionary is editor-only data held in memory; leaving it behind
-    // would show the next person a vocabulary they are not signed in to see.
+    // Editor-only data; the next person is not signed in to see this vocabulary.
     useTagsStore().clear()
   }
 

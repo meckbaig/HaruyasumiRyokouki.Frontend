@@ -37,17 +37,9 @@ const cursor = ref(-1)
 const creating = ref(false)
 
 /*
-  Chosen from a dictionary, never spelled out.
-
-  Tags used to be words typed into a box, one list per language, and every
-  spelling mistake and every near-synonym coined a new one. Now a tag is an
-  entity with an id: it is picked, and the only way a new one comes into
-  existence is deliberately, through the form below.
-
-  The whole dictionary is in memory, so the filtering is a plain array scan on
-  every keystroke - no debounce, no request to outrun. It matches captions and
-  aliases in all three languages at once, so an editor typing "temple" in a
-  Russian interface still finds the tag they know by its English name.
+  Chosen from a dictionary, never spelled out - the only way a new tag comes into
+  existence is deliberately, through the form below. The whole dictionary is in
+  memory, so filtering is a plain array scan. See docs/features/tags.md.
 */
 onMounted(() => tags.load().catch(() => {}))
 

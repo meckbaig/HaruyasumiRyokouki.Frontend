@@ -3,14 +3,9 @@ import { ref, computed } from 'vue'
 import { fetchDays, fetchDay } from '@/api/days'
 
 /**
- * Cache for the day list and for individual days.
- *
- * The trip is roughly ninety days, so the list is fetched once and kept. Day
- * details are cached per date because the search page pulls them again when the
- * visitor expands "show the rest of this day".
- *
- * Caches are keyed only by date, so anything that changes the language must call
- * `invalidate()` - the stored notes and titles are locale-specific.
+ * Cache for the day list and for individual days, **keyed by date alone** - the
+ * stored notes and titles are locale-specific, so anything changing the language
+ * must call `invalidate()`. See docs/architecture.md.
  */
 export const useDaysStore = defineStore('days', () => {
   const list = ref([])
@@ -46,12 +41,7 @@ export const useDaysStore = defineStore('days', () => {
     }
   }
 
-  /**
-   * Requests already on their way, so two callers asking for the same day get
-   * one fetch between them. That is what lets the router start a day loading
-   * the moment a navigation begins while the page still asks for it on mount -
-   * see `prefetchRoute` in the router.
-   */
+  /** In-flight requests, so the router's prefetch and the view's mount share one fetch. */
   const inFlight = new Map()
 
   /**

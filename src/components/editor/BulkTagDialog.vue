@@ -21,16 +21,9 @@ const tags = useTagsStore()
 const ui = useUiStore()
 
 /*
-  Adding tags to a selection, as opposed to editing it.
-
-  The bulk editor next to this one *replaces* - it is the right tool for saying
-  what a set of files should be, and the wrong one for saying "these are all of
-  the festival too". `POST /tags/{id}/media` adds and leaves everything else
-  alone, which is what filing by subject needs: the files being touched have
-  other tags, and those are none of this operation's business.
-
-  So the two buttons are genuinely two operations rather than one with a switch,
-  and this one is deliberately the narrower of them.
+  Adding tags to a selection, as opposed to editing it. `POST /tags/{id}/media`
+  **adds**; the bulk editor beside it **replaces**. Do not merge them.
+  See docs/features/tags.md.
 */
 const slugs = ref([])
 const applying = ref(false)

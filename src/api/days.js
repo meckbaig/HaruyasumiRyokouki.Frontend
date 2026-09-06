@@ -16,12 +16,8 @@ export async function fetchDay(date, signal) {
 }
 
 /**
- * GET /v1/days/{date}/edit -> the full DayEditDto with every language's note and
- * each translation's row id.
- *
- * The public GET flattens the day to one language, so the editor fetches this
- * richer model to fill all the language tabs and to update existing rows in
- * place. Editor-only. Returns GetEditDayResponse `{ day: DayEditDto }`.
+ * GET /v1/days/{date}/edit -> `{ day: DayEditDto }`, every language's note with
+ * its own row id. The public GET flattens to one language. Editor-only.
  */
 export async function fetchDayEdit(date, signal) {
   const data = await request(`/days/${date}/edit`, { requiresAuth: true, signal })
@@ -29,11 +25,9 @@ export async function fetchDayEdit(date, signal) {
 }
 
 /**
- * PUT /v1/days/{date}. The body carries a DayEditDto whose `translations` hold
- * the per-language note; `isReady` is what removes the day from the pending list.
- *
- * `autoTranslate: true` saves what was sent, then returns translations of the
- * empty languages **without storing them** - keeping them is a second save.
+ * PUT /v1/days/{date}. `isReady` is what removes the day from the pending list;
+ * `autoTranslate` returns translations **without storing them**.
+ * See docs/features/day-editor-and-pending.md.
  *
  * @returns {Promise<object|null>} `{ day: DayEditDto }` when translating, else null.
  */

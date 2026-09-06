@@ -118,6 +118,35 @@ are ignored and `aria-busy` says so.
 `isPrivate` tests `=== true`, not truthiness: `private` is null for anyone not signed in,
 and null means "not being told", not "no".
 
+### Badges and the tile's controls
+
+Badges share the **bottom-left corner in one row** rather than each claiming a corner: a
+file can be both a video and a hidden one, and two absolutely-placed badges sat on top of
+each other the one time it mattered. The hidden mark comes first and carries a **word**,
+not just a symbol - it is the only badge that is a warning rather than a description, and
+an editor scanning a day should not have to work out what a crossed-out eye means.
+
+The **hide button** therefore appears on approach like the pencil, unlike the star: the
+badge in the corner already reports the state, and a button repeating it would state the
+same fact twice. Its colour still reports the state it would undo.
+
+`onTouchend` calls `preventDefault()` once it has answered a tap, so the click the browser
+may invent does not land as well. That click is aimed at wherever the finger was, and by
+then the viewer is open over that spot - which sent a tap at the foot of the screen after a
+tag or the download link.
+
+### The context menu
+
+`MediaContextMenu` **replaces** the browser's own rather than merely suppressing it - it was
+already suppressed, since a long press here means "select". It offers one action, a link to
+the picture where it sits, and one action is still worth a menu: the alternative is a
+permanent button on every tile, and the grid is meant to be photographs. It is placed at
+the click and nudged back inside the window; anything at all closes it.
+
+A private file's menu still **opens and says why**. The native menu has been suppressed on
+these tiles since long before this, so a right-click producing nothing would read as a
+broken page rather than as an answer.
+
 ### A tap is read from the touch, not from the click
 
 `MediaTile` answers a tap on **`touchend`**, not on `click`. A browser invents the click,

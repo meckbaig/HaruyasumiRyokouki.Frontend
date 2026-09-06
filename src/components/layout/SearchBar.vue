@@ -27,18 +27,9 @@ const text = ref(String(route.query.text ?? ''))
 const field = ref(null)
 
 /*
-  Tag suggestions.
-
-  This is what makes the vocabulary usable by someone who has never seen it. No
-  operators, no syntax, no prefix to learn: the visitor types, and the tags that
-  answer to what they typed drop down underneath - matched on their aliases as
-  well as their captions, so "noodles" offers "ramen" though the word "noodles"
-  appears on nothing. Picking one searches by its id; pressing Enter searches for
-  the words themselves. Both are always available, and neither has to be
-  discovered.
-
-  Debounced rather than fired per keystroke, because this one *is* a request:
-  the dictionary behind it is the editor's, and a visitor has no copy of it.
+  Tag suggestions: no operators and no syntax to learn. **Debounced**, unlike the
+  picker's - this one is a request, since a visitor has no dictionary.
+  See docs/features/search.md.
 */
 const DEBOUNCE_MS = 200
 const TAKE = 8
@@ -52,26 +43,15 @@ let debounceTimer = null
 let controller = null
 
 /**
- * The tag this page is filtering by, drawn as a chip inside the field.
- *
- * Only on the search page. `?tag=` also names the tag being collected on the
- * admin screen, and the bar in the header was reading that as a search it was
- * showing the results of - a chip for something it had not found and could not
- * take the reader back to.
+ * The tag this page filters by, as a chip in the field. **Search page only** -
+ * `?tag=` also names the tag being collected on the admin screen.
  */
 const routeTagSlug = computed(() =>
   route.name === 'search' ? String(route.query.tag ?? '').trim() : '',
 )
 
-/*
-  Taking the chip off is about the field, not about the page.
-
-  It used to navigate - and the only honest place to navigate to, with nothing
-  typed and nothing to search for, was home. Which threw away the results the
-  reader was looking at in order to answer a gesture that only meant "I want to
-  type something else". So the chip goes, the caret lands in the field, and what
-  is on screen stays there until something replaces it.
-*/
+/* Taking the chip off is about the field, not the page: the chip goes, the caret
+   lands in the field, and the results stay. See docs/features/search.md. */
 const chipDismissed = ref(false)
 const activeTagSlug = computed(() => (chipDismissed.value ? '' : routeTagSlug.value))
 const activeTagName = computed(() =>
@@ -174,12 +154,8 @@ function goToTag(tag) {
 }
 
 /**
- * Free search over the words as typed, with a leading `#` taken off.
- *
- * Somebody who has seen a chip written `#ramen` will sooner or later type the
- * hash themselves, expecting it to mean something. It does not - tags are picked
- * from the list, never spelled - and searching for a hash that appears in no
- * note would answer nothing at all. Dropping it searches for what they meant.
+ * Free search over the words as typed, with a leading `#` taken off - it appears
+ * in no note, so keeping it would answer nothing. See docs/features/search.md.
  */
 function submit() {
   const wanted = freeText.value

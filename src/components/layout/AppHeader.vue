@@ -23,13 +23,9 @@ const showSearch = computed(() => route.name !== 'home')
 const LOGO_GLYPH = '春'
 
 /**
- * The Japanese title opens with the very character the logo draws - 春休み旅行記
- * against a mark reading 春 - so the mark is read as the first character and the
- * word carries on from it. The rest of the title is what goes beside it.
- *
- * Decided by looking at the title rather than at the locale, so a rewritten
- * Japanese name that no longer begins with the glyph simply stops being trimmed
- * instead of losing a character it needed. The other locales never match.
+ * Whether the title carries on from the logo glyph. **Decided by looking at the
+ * title, never at the locale**, so a rewritten name simply stops being trimmed.
+ * See docs/features/i18n-and-theming.md.
  */
 const titleContinuesLogo = computed(() => t('app.title').startsWith(LOGO_GLYPH))
 const headerTitle = computed(() =>
@@ -65,15 +61,9 @@ function signOut() {
     class="sticky top-0 z-30 border-b border-edge bg-paper/85 backdrop-blur"
   >
     <div class="mx-auto flex max-w-6xl items-center gap-4 px-3 py-1">
-      <!--
-        The name drops out only between `sm` and `md`: that is where the search
-        field moves into the bar but the bar is not yet wide enough to carry
-        both. Below `sm` the search is a button again and the name fits, above
-        `md` there is room for everything.
-
-        `aria-label` carries the full title regardless - of the breakpoint, and
-        of the character the logo has taken over.
-      -->
+      <!-- The name drops out only between `sm` and `md`, where the search field is
+           in the bar but the bar is not yet wide enough. `aria-label` carries the
+           full title regardless. -->
       <RouterLink
         :to="{ name: 'home' }"
         class="my-2 flex shrink-0 items-center text-sm font-semibold tracking-tight text-ink"

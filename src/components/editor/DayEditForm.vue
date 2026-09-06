@@ -17,14 +17,8 @@ const props = defineProps({
   /** DayDto (read model) or DayEditDto (pending list) - both are accepted. */
   day: { type: Object, required: true },
   date: { type: String, required: true },
-  /**
-   * The strip of the day's photos above the note.
-   *
-   * It is here so the day can be written while looking at it, which the pending
-   * queue needs - nothing else on that screen shows what the day held. On the day
-   * page the same grid is already a few centimetres below the form, and a second
-   * copy of it says nothing the first did not.
-   */
+  /** The day's photos above the note, so it can be written while looking at it.
+   *  Off on the day page, where the grid is already below.  */
   showThumbs: { type: Boolean, default: true },
 })
 
@@ -102,16 +96,9 @@ function currentNotes() {
 const dirty = computed(() => !sameNotes(currentNotes(), baseline, SUPPORTED_LOCALES))
 
 /*
-  The draft, kept on this machine.
-
-  Written every ten seconds and only while the form says something the server
-  does not - so a day opened and closed untouched leaves nothing behind, and one
-  edited and abandoned is waiting when the editor comes back to it. Reverting the
-  text by hand takes the draft with it: at that point there is nothing to
-  recover.
-
-  Also written on the way out, both kinds: navigating to another day unmounts
-  this form, and closing the tab does not unmount anything at all.
+  The draft, kept on this machine. Written on a timer, on unmount **and** on
+  `beforeunload` - navigating unmounts the form, closing the tab unmounts nothing.
+  See docs/features/day-editor-and-pending.md.
 */
 const DRAFT_EVERY_MS = 10_000
 let draftTimer = null
@@ -277,14 +264,9 @@ async function save() {
 </script>
 
 <template>
-  <!--
-    The fields arrive one under another rather than as a block, and go the same
-    way - the stagger is `.cascade-item`, the fold around them is `.reveal` on
-    whoever mounts this form. The delays are written by hand rather than counted
-    off the loop, so a notice that only sometimes appears cannot shift the
-    others' place in the order; the two that do appear mid-editing carry none at
-    all, since a message about what just happened must not be held back.
-  -->
+  <!-- Staggered by `.cascade-item`. **Delays are written by hand**, not counted
+       off the loop, so a notice that only sometimes appears cannot shift the
+       others; the two that appear mid-editing carry none. -->
   <form class="space-y-4" @submit.prevent="save">
     <div v-if="thumbs.length" class="cascade-item" :style="cascadeDelay(0)">
       <span class="field-label">{{ t('editor.dayThumbs') }}</span>

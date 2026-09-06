@@ -16,16 +16,9 @@ const editOpen = ref(false)
 const tagOpen = ref(false)
 
 /*
-  Deleting the whole selection, asked for from the edit dialog's own delete
-  button - the same button, and the same place, as deleting one file.
-
-  Asked for through the site's own dialog rather than `window.confirm`, because
-  this is the one irreversible action here and the question has to be able to say
-  how many files it is about to take.
-
-  One request per file - the API deletes by id - run in sequence so a failure
-  halfway leaves a clear account of what did go, and so the pages hear about
-  exactly those.
+  Deleting the whole selection, asked for from the edit dialog's own delete button.
+  One request per file, **in sequence**, so a failure halfway leaves a clear
+  account of what went. See docs/features/media-grid-and-selection.md.
 */
 async function removeSelection(list) {
   const ids = (list ?? editor.items).map((media) => media?.id).filter((id) => id != null)
@@ -100,15 +93,9 @@ function onTagged() {
           {{ t('common.selected', { count: editor.count }) }}
         </span>
 
-        <!--
-          Two operations, not one with a switch. Editing *replaces* what the
-          selection carries; tagging adds to it and leaves the rest alone. Which
-          is meant is a decision, and it is made here rather than inside a form.
-
-          Deleting is not a third: it lives on the edit card, where deleting one
-          file has always lived, so the bar is not the place that offers to
-          destroy a selection in one press.
-        -->
+        <!-- Two operations, not one with a switch: editing **replaces**, tagging
+             **adds**. Deleting is not a third - it lives on the edit card.
+             See docs/features/tags.md. -->
         <button type="button" class="btn-ghost !px-3 !py-1.5" @click="tagOpen = true">
           {{ t('bulkTag.action') }}
         </button>

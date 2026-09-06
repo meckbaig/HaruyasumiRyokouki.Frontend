@@ -2,11 +2,8 @@ import { ref, shallowRef } from 'vue'
 import { fetchMediaLocations } from '@/api/media'
 
 /**
- * Loads the located media for a date range in a single request.
- *
- * Backed by `GET /v1/media/locations`, which returns only media that have
- * coordinates - no more walking the trip day by day. Each item is a
- * MediaFileLocationDto: `{ id, created, latitude, longitude, fileName, title }`.
+ * Loads the located media for a date range in one `GET /v1/media/locations`.
+ * Items are `MediaFileLocationDto`. See docs/features/maps.md.
  */
 export function useTripMedia() {
   const media = shallowRef([])
@@ -49,10 +46,7 @@ export function useTripMedia() {
   return { media, loading, load }
 }
 
-/**
- * The route line: every located media in chronological order by capture time.
- * Points are connected in the order the photos were taken.
- */
+/** The route line: located media in the order the photographs were taken. */
 export function routeFromMedia(media) {
   return [...media]
     .filter((item) => item?.created)

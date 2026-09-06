@@ -5,15 +5,9 @@ import ModalDialog from './ModalDialog.vue'
 import { useUiStore } from '@/stores/ui'
 
 /*
-  The site's own answer to `window.confirm`.
-
-  Mounted once at app level and driven from the store, because the thing being
-  confirmed is usually about to be done by a component that is itself inside a
-  dialog - and a question that has to be asked from anywhere cannot be a prop
-  threaded down from a page.
-
-  Refusing is the default in every direction: the backdrop, Escape and the cross
-  all settle it as "no", and only the one button says yes.
+  The site's own answer to `window.confirm`, mounted once at app level and driven
+  from the store. **Refusing is the default in every direction**; only the one
+  button says yes. See docs/features/ui-shell.md.
 */
 const { t } = useI18n()
 const ui = useUiStore()

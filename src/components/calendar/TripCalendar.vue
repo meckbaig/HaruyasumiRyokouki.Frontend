@@ -34,12 +34,9 @@ const index = computed(() => {
 const sortedDates = computed(() => props.days.map((day) => day.date).sort())
 
 /**
- * Every month the trip spans, first to last, as a continuous ribbon. The whole
- * range is always rendered; `anchor` only decides where the ribbon is scrolled,
- * so picking a day never rebuilds the set of months - it slides into view,
- * clamped by the scroll bounds (February stays at the left edge, May at the
- * right, March and April centre). On a phone each column fills the width, so
- * exactly one month shows and the rest are a swipe (or an arrow) away.
+ * Every month the trip spans, as one ribbon. **Always rendered whole** - `anchor`
+ * only decides where it is scrolled, so picking a day never rebuilds the set.
+ * See docs/features/days-and-calendar.md.
  */
 const months = computed(() => {
   const dates = sortedDates.value
@@ -76,13 +73,8 @@ function scrollToAnchor() {
   const target = container.querySelector(`[data-month="${anchorMonth}"]`)
   if (!target) return
 
-  /*
-    The ribbon is scrolled by hand rather than by `scrollIntoView`. That asks the
-    browser to bring an element into view and it obliges with every scrollable
-    ancestor, the page included - so on a fresh day or map page, where the
-    calendar sits below the fold, arranging the ribbon dragged the reader down to
-    it and away from the content they came for.
-  */
+  // Scrolled by hand, **never `scrollIntoView`** - that obliges every scrollable
+  // ancestor, the page included, and drags the reader down to the calendar.
   container.scrollLeft = target.offsetLeft - (container.clientWidth - target.clientWidth) / 2
   updateArrows()
 }

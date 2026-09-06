@@ -12,22 +12,9 @@ const props = defineProps({
 })
 
 /*
-  The page's scrollbar, drawn over the page rather than beside it.
-
-  A desktop browser's own bar takes a lane out of the layout, and a lane that
-  appears and disappears moves the whole page sideways with it - which is what
-  made the picture jump as the viewer opened and locked the page behind it.
-  Reserving the lane for good fixed that but left an empty strip on every page
-  that does not scroll. Drawing the bar on top settles both: it costs no width,
-  so there is nothing to reserve and nothing to move.
-
-  It is only ever drawn for a pointer that can hover. A touchscreen already has
-  an overlay bar of its own that costs nothing, and a thumb has no use for a
-  four-pixel target - the CSS hides this one there entirely.
-
-  The native bar is hidden in main.css. Should this component fail to run, the
-  page still scrolls by every other means; what is lost is the drawn bar, not
-  the scrolling.
+  The page's scrollbar, drawn over the page rather than beside it, so it takes no
+  layout lane. Only for a pointer that can hover. If this fails to run the page
+  still scrolls by every other means. See docs/features/ui-shell.md.
 */
 const MIN_THUMB = 36
 /** Below this there is nothing worth showing a bar for. */
@@ -81,14 +68,8 @@ function measure() {
     (scrollOffset() / range) * travel
 }
 
-/*
-  Dragging.
-
-  The pointer is captured so the gesture survives leaving the four pixels the
-  thumb occupies - without that, a hand that strays sideways while scrolling
-  drops the bar mid-stroke. What is remembered is where inside the thumb the
-  press landed, so the thumb does not jump under the cursor as it starts.
-*/
+/* Dragging. The pointer is captured so a hand straying sideways does not drop
+   the bar; the grab offset is what keeps the thumb from jumping. */
 let grab = null
 
 function onPointerDown(event) {

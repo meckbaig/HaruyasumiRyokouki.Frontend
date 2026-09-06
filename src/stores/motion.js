@@ -4,12 +4,8 @@ import { ref } from 'vue'
 const STORAGE_KEY = 'haruyasumi.motion'
 
 /**
- * Whether the site honours the operating system's "reduce motion" setting.
- *
- * "auto" respects it, which is the right default for everyone. "always" opts
- * back into animation for a visitor who turned motion off system-wide but wants
- * it here anyway - the choice is written to <html>, where the reduced-motion
- * rules in main.css check for it.
+ * Whether the site honours the OS "reduce motion" setting. "always" opts back
+ * in and is stamped on <html>, where the rules in main.css check for it.
  */
 export const MOTION_OPTIONS = ['auto', 'always']
 

@@ -7,13 +7,8 @@ import { tagLabel } from '@/services/tags'
 const EMPTY = { tokens: [], mediaDays: [], noteDays: [] }
 
 /**
- * The caption of the tag a set of results was fetched by, read out of the
- * results themselves.
- *
- * The dictionary is behind the login and a visitor following a shared tag link
- * has none - but every file that came back carries the tag that fetched it,
- * already in the reader's language. So the name is in the answer by definition,
- * and only a tag that matched nothing leaves it blank.
+ * The caption of the tag a set of results was fetched by, read out of the results
+ * themselves - a visitor has no dictionary. See docs/features/search.md.
  */
 function captionFromResults(split, slug, locale) {
   for (const group of split.mediaDays) {
@@ -26,13 +21,8 @@ function captionFromResults(split, slug, locale) {
 }
 
 /**
- * Search state and a small result cache.
- *
- * The cache matters because shared links are opened repeatedly and going back
- * from a day to the results should not refetch. It is keyed by locale as well
- * as by the query - the same words return different notes per language - and by
- * which of the two searches was asked for, since `text=ramen` and the tag
- * `ramen` are different questions with different answers.
+ * Search state and a small result cache, keyed by locale **and** by which of the
+ * two searches was asked for. See docs/features/search.md.
  */
 export const useSearchStore = defineStore('search', () => {
   const query = ref('')
@@ -86,8 +76,7 @@ export const useSearchStore = defineStore('search', () => {
     error.value = null
     try {
       const items = await searchApi({ text: trimmed, tag }, controller.signal)
-      // A tag search highlights nothing - the words being looked for are the
-      // ones nobody typed. Passing no query is what leaves the tokens empty.
+      // A tag search highlights nothing: nobody typed the words being looked for.
       const split = splitSearchResults(items, tag ? '' : trimmed)
       cache.set(key, split)
       results.value = split

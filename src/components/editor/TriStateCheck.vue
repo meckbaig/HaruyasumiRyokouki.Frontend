@@ -4,12 +4,8 @@ import { ref, watchEffect } from 'vue'
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   /**
-   * The selection disagrees with itself: some carry the mark and some do not.
-   *
-   * A third state, and it has to be one - showing a mixed selection as unticked
-   * says "none of these", which is a lie the editor would then act on. It is not
-   * a value, though: the box holds `modelValue` either way, and the first press
-   * settles the whole selection on ticked, the way a browser resolves it.
+   * The selection disagrees with itself. **Not a value** - the box holds
+   * `modelValue` either way. See docs/features/media-editor.md.
    */
   mixed: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },

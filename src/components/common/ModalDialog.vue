@@ -17,16 +17,9 @@ const props = defineProps({
 })
 
 /*
-  Two ways out, and they are not the same intention.
-
-  The cross is "I am done with this" - a decision, and whatever it costs is
-  accepted. A press on the backdrop or a tap of Escape is "get out of my way",
-  which people do to see what is behind a dialog and expect to be able to undo by
-  reopening it. Treating both as the same event is how a form full of typing gets
-  thrown away by a misplaced click.
-
-  What `dismiss` should do is the host's to decide; a dialog with nothing to lose
-  points it at the same handler as `close`.
+  Two ways out, two intentions: `close` is the cross, `dismiss` is the backdrop or
+  Escape. **Keep them distinct** - merging them throws a form full of typing away
+  on a misplaced click. See docs/features/ui-shell.md.
 */
 const emit = defineEmits(['close', 'dismiss'])
 

@@ -67,14 +67,8 @@ const locatedMedia = computed(() =>
     (item) => Number.isFinite(item?.latitude) && Number.isFinite(item?.longitude),
   ),
 )
-/*
-  The path through the day, in the order the photographs were taken.
-
-  A scatter of pins says where the day happened; the line says how it went - up
-  the hill, along the river, back to the station - which on the scale of one day
-  is most of what a map of it has to say. Same line as the trip map draws across
-  months, and built by the same function.
-*/
+/* The path through the day, in capture order - the same line the trip map draws
+   across months, from the same function. See docs/features/maps.md. */
 const dayRoute = computed(() => routeFromMedia(locatedMedia.value))
 
 /**
@@ -126,23 +120,9 @@ function openDay(date) {
 }
 
 /*
-  A link pointing at one file of this day.
-
-  Reading it and writing it are two halves of the same contract. Reading happens
-  as soon as the day's files are known: the file is either here - outlined, and
-  opened if the link asked for that - or it is not, and the parameters are
-  dropped rather than left in the address bar promising something the page cannot
-  show.
-
-  Read every time the file being pointed at changes, not once per day. The day's
-  own map links back into the day it is already on, which changes nothing but the
-  parameter - and a reading that had already happened left that link outlining
-  nothing and scrolling nowhere.
-
-  Writing happens whenever the viewer opens or pages, so the address bar always
-  names the picture on screen and the share button copies a link to it. Closing
-  takes both away again, along with the outline: the reader is done with that
-  picture, and the page they are left on is the plain one.
+  A link pointing at one file of this day. **Read every time the file pointed at
+  changes**, not once per day - the day's own map links back into the day it is
+  already on. See docs/features/sharing-and-links.md.
 */
 // Any overlay, not just this page's viewer: one opened from an edit dialog
 // still covers the outline, and a press over it is not the reader dismissing it.
@@ -186,14 +166,9 @@ watch(lightboxIndex, (index) => {
 })
 
 /**
- * Left/right arrows step to the previous/next day. Ignored while typing, while
- * editing the note, and while anything is open over the page.
- *
- * "Anything", not "this page's viewer": a viewer can be opened from inside the
- * note editor's strip or from the "similar" panel of an edit dialog, and those
- * are other instances entirely - the page had no idea they existed and went on
- * turning days under them. The overlay stack is what every overlay announces
- * itself to, so it is the one thing that knows.
+ * Left/right arrows step between days. Ignored while typing and while **anything**
+ * is open over the page - `hasOverlay()`, not this page's own viewer, which is
+ * not the only one that can be up. See docs/features/ui-shell.md.
  */
 function onKeydown(event) {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
@@ -214,11 +189,8 @@ onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
 /**
- * Touch equivalent of the arrow keys. Suspended while the lightbox is open - it
- * runs its own swipe over the file list - and while files are being selected,
- * where the same sideways stroke extends the selection and must not also throw
- * the reader onto another day. Never fires inside the calendar or the map, both
- * of which pan horizontally themselves.
+ * Touch equivalent of the arrow keys. Suspended under an overlay and during a
+ * selection, where the same stroke paints. See docs/features/days-and-calendar.md.
  */
 const swipe = useHorizontalSwipe({
   isEnabled: () => !hasOverlay() && !editor.selectionMode,
@@ -238,13 +210,9 @@ function onMediaSaved({ applied } = {}) {
 }
 
 /**
- * Deleting is offered wherever a file can be edited, not only in the queue.
- *
- * The mistakes worth removing - a blurred frame, a duplicate of the one beside
- * it - are the ones seen while reading the day, and sending someone back to the
- * pending screen to act on what they are looking at is asking them to find it
- * twice. The confirmation and the request belong to the page rather than to the
- * dialog, because what to do with the hole left behind differs by page.
+ * Deleting is offered wherever a file can be edited. **The confirmation and the
+ * request belong to the page**, not the dialog - what to do with the hole left
+ * behind differs by page. See docs/features/media-editor.md.
  */
 async function removeMedia(list) {
   // The dialog hands over everything it was editing; these pages only ever open
@@ -393,17 +361,9 @@ function onNoteSaved() {
         </Transition>
       </section>
 
-      <!--
-        Two folds, one inside the other. The outer one is the day itself
-        arriving: until it has been fetched nobody knows whether it holds any
-        located files, and a whole map section appearing under the grid the
-        instant it does is the jolt this smooths over. The inner one is the
-        reader asking for the map, or putting it away.
-
-        They never play together. The outer has no `appear`, so a day already in
-        the cache draws its map with no animation at all; a day that arrives
-        later unfolds the section with the map already inside it.
-      -->
+      <!-- Two folds, one inside the other: the day arriving, and the reader
+           asking for the map. They never play together - the outer has no
+           `appear`, so a cached day draws its map with no animation. -->
       <Transition name="reveal">
         <div v-if="locatedMedia.length" class="reveal">
           <section class="mb-12">

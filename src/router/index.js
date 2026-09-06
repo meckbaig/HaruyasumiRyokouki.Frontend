@@ -70,15 +70,10 @@ export const router = createRouter({
   },
 })
 
-/*
-  Which way the page transition should travel, read by App.vue.
-
-  Almost every move is "somewhere else on the site", and the pages simply rise
-  past each other. Stepping between days is the exception: those are neighbours
-  on a line, and a step that slid the wrong way would say the reader had gone
-  back when they had gone on. Arrows and swipes both come through here, so
-  neither needs to know about it.
-*/
+/**
+ * Which way the page transition travels, read by App.vue. `forward`/`back` only
+ * between two day routes, which are neighbours on a line; everything else `up`.
+ */
 export const navDirection = ref('up')
 
 function directionBetween(to, from) {
@@ -87,19 +82,11 @@ function directionBetween(to, from) {
   return to.params.date > from.params.date ? 'forward' : 'back'
 }
 
-/*
-  Starts a page's data on its way as the navigation begins.
-
-  The transition between pages runs the departure first and mounts the arriving
-  page only once it has finished, so a page that asks for its data on mount asks
-  a sixth of a second late - and the reader watches an empty frame for exactly as
-  long as the animation was meant to be covering. Asking here instead puts the
-  request and the animation side by side.
-
-  Fire and forget: the page asks for the same day itself, and the store hands
-  both of them the one request. A failure here is not this hook's to report - the
-  page will ask, and will show its own error state.
-*/
+/**
+ * Starts a page's data on its way as the navigation begins, so the request and
+ * the page transition overlap. Fire and forget - the page asks for the same day
+ * itself and the store hands both one request, error state included.
+ */
 function prefetchRoute(to) {
   if (to.name === 'day' && typeof to.params.date === 'string') {
     useDaysStore()
@@ -122,11 +109,7 @@ router.beforeEach((to) => {
   return { name: 'login', query: { redirect: to.fullPath } }
 })
 
-/**
- * Per-route title key, so a shared link reads sensibly in a browser tab and in
- * link previews. Kept out of views to avoid repeating it in each one; the day
- * page refines its own title once the date is known. `home` uses the tagline.
- */
+/** Per-route title key. `home` is null and falls back to the tagline. */
 const TITLE_KEYS = {
   home: null,
   search: 'nav.home',
@@ -141,8 +124,7 @@ const TITLE_KEYS = {
 /** Builds the localised head for a route and applies it. */
 export function updateHead(route) {
   if (route.name === 'day' && route.params.date) {
-    // Spelled out ("April 13, 2026"), not the raw ISO date: the title is what a
-    // visitor reads in the tab and what a shared link shows as its heading.
+    // Spelled out, not the raw ISO date: this is a tab title and a link heading.
     applyHead({ title: formatLongDate(route.params.date, i18n.global.locale.value) })
   } else {
     const key = TITLE_KEYS[route.name]
@@ -153,14 +135,8 @@ export function updateHead(route) {
 router.afterEach((to) => updateHead(to))
 
 /**
- * Warms the chunks a visitor is most likely to open next.
- *
- * Every view is loaded on demand, which keeps the first paint small but makes
- * the first navigation to each one wait on a download. Fetching the two that
- * every path leads to - a day and a search - while the browser is otherwise idle
- * turns that wait into nothing at all; anything still cold falls back to the
- * loading indicator. Failures are ignored on purpose: this is an optimisation,
- * and the router will simply load the chunk again when it is really needed.
+ * Warms the two chunks every path leads to, while the browser is idle. Failures
+ * are ignored: the router loads the chunk again when it is really needed.
  */
 export function prefetchViews() {
   const warm = () => {
@@ -173,9 +149,8 @@ export function prefetchViews() {
 }
 
 /**
- * Wires the HTTP client's 401 handling into the router. Only calls marked
- * `requiresAuth` reach this, so an anonymous visitor browsing public pages is
- * never yanked to the login screen.
+ * Wires the HTTP client's 401 handling into the router. **Only `requiresAuth`
+ * calls reach this**, so a visitor on a public page is never yanked to /login.
  */
 export function installAuthRedirect() {
   setUnauthorizedHandler(() => {

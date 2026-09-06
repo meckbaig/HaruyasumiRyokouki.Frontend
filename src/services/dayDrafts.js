@@ -1,15 +1,7 @@
 /**
- * Unsaved day notes, kept on the machine that typed them.
- *
- * A day's note is the one thing on this site written at length, and it is
- * written in a form that lives inside a page - so a stray back gesture, a
- * swipe to the next day or a closed tab took it with them. The server hears
- * nothing until Save is pressed and has no business hearing a half-written
- * paragraph, so the copy stays here.
- *
- * Only where something differs from what the server holds. A draft identical to
- * the saved note is not a draft, it is litter - and with a three-month trip
- * there are enough days to make that matter.
+ * Unsaved day notes, kept in localStorage on the machine that typed them, and
+ * only where they differ from the saved note. See
+ * docs/features/day-editor-and-pending.md.
  */
 const PREFIX = 'haruyasumi.dayDraft.'
 
@@ -27,7 +19,7 @@ export function readDraft(date) {
     const stored = JSON.parse(localStorage.getItem(keyFor(date)) ?? 'null')
     return stored?.notes ? stored : null
   } catch {
-    // A draft that cannot be parsed is a draft that is gone; nothing to report.
+    // A draft that cannot be parsed is a draft that is gone.
     return null
   }
 }
@@ -40,8 +32,7 @@ export function writeDraft(date, notes) {
       JSON.stringify({ notes, savedAt: new Date().toISOString() }),
     )
   } catch {
-    // A full or disabled store costs the draft and nothing else. The form still
-    // works; it just stops holding a spare copy.
+    // A full or disabled store costs the draft and nothing else.
   }
 }
 
@@ -50,7 +41,7 @@ export function clearDraft(date) {
   try {
     localStorage.removeItem(keyFor(date))
   } catch {
-    // Nothing to do - and nothing depends on it having worked.
+    // Nothing depends on it having worked.
   }
 }
 

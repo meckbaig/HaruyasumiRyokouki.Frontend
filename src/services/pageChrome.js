@@ -1,8 +1,6 @@
 /**
- * Where the page's own floating chrome leaves off.
- *
- * For anything drawn over the page that should still appear to come out from
- * under it. Elements opt in by marking themselves `data-page-chrome="top"`.
+ * Where the page's floating chrome leaves off, for anything drawn over the page
+ * that should still come out from under it. Opt in with `data-page-chrome`.
  */
 export function chromeInsets() {
   const top = document.querySelector('[data-page-chrome="top"]')

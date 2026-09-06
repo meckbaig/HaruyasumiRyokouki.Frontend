@@ -1,33 +1,8 @@
 /*
-  Theme registry - the single source of truth for themes.
-
-  To add a theme, copy one block below and change the values. It then appears
-  automatically in the switcher dropdown and becomes selectable; no other file
-  needs to change.
-
-  Each entry:
-    id      unique key, also persisted to localStorage and stamped on <html>.
-    icon    glyph shown in the switcher.
-    labels  display name per locale (falls back to `en`, then `id`).
-    scheme  'light' | 'dark' - drives native controls/scrollbars (color-scheme).
-    colors  design-token overrides. Keys match the `--color-*` tokens declared
-            in main.css `@theme`; the theme store writes them as inline custom
-            properties on <html>, which override the stylesheet defaults.
-
-  One optional token is worth calling out: `accent-on-dark`. The lightbox is a
-  dark room whatever the theme, and it colours its text, icons, tag outlines and
-  the tint under its blurred bars from the theme. `accent` itself is chosen to
-  read on the page background, which for a light theme means something dark and
-  usually warm - lifting that onto black gives a muddy orange rather than the
-  colour anyone expects. Set `accent-on-dark` to say what the theme should look
-  like there; leave it out and the lightbox derives one by lightening `accent`.
-
-  `system` is special: it has no palette and follows the OS light/dark setting,
-  resolving to the `light` or `dark` entry at runtime.
-
-  Note: main.css `@theme` still lists the light palette - Tailwind needs it to
-  generate the `bg-paper`/`text-ink`/... utilities and it is the pre-JS default.
-  Keep the `light` entry below in sync with it.
+  Theme registry - the whole of it. Adding a theme is copying one block below.
+  Entry: id, icon, labels per locale, scheme ('light'|'dark'), and `colors`,
+  whose keys match the `--color-*` tokens in main.css `@theme`.
+  **Keep the `light` entry in sync with that block.** See docs/features/i18n-and-theming.md.
 */
 
 /** Used when a stored preference is unknown or resolution has no match. */

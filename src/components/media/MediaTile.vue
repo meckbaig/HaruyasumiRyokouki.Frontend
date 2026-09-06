@@ -29,23 +29,11 @@ const props = defineProps({
    * by - everywhere else the day is the page they are already on.
    */
   showDate: { type: Boolean, default: false },
-  /**
-   * Stamps the time the file was taken, offered on approach rather than always.
-   *
-   * On a day and in search results the date is already established - by the page
-   * in one case and by the heading over each group in the other - so the useful
-   * half is the clock, and it is useful often enough to want and rarely enough
-   * not to want printed across every photograph on the wall.
-   */
+  /** Stamps the clock **on approach**, where the page already establishes the
+   *  date. See docs/features/media-grid-and-selection.md. */
   showTime: { type: Boolean, default: false },
-  /**
-   * Whether the pencil and the star are on show where there is no cursor.
-   *
-   * On the queue of unfiled media they must be: the whole page is work, and on a
-   * phone an invisible control is one only its author can find. On a day or a
-   * set of results they must not - those walls are photographs first, and a
-   * pencil stamped onto every one of them turns reading into administration.
-   */
+  /** Pencil and star on show without a cursor. Required on the queue, wrong on a
+   *  day. See docs/features/media-grid-and-selection.md. */
   touchControls: { type: Boolean, default: false },
 })
 
@@ -62,17 +50,8 @@ const reveal = computed(() =>
 )
 const video = computed(() => isVideo(props.media))
 const hidden = computed(() => isPrivate(props.media))
-/*
-  The stamp in the corner, in two halves.
-
-  The date is what a page asks for when its files come from all over the trip -
-  the pending queue - and it stays on show. The time is a detail wanted only when
-  a hand is already on that tile, so it joins the date on approach instead of
-  standing there being read all day.
-
-  One badge rather than two: they would land in the same corner, and the pair
-  reads as a single stamp anyway.
-*/
+/* The stamp in the corner, in two halves: the date stays, the time joins it on
+   approach. **One badge, not two** - they land in the same corner. */
 const stampDate = computed(() =>
   props.showDate ? formatShortDate(mediaDate(props.media), ui.locale) : '',
 )
@@ -94,14 +73,8 @@ const outlineClass = computed(() => {
   return 'ring-1 ring-edge'
 })
 
-/*
-  The front-page mark.
-
-  Sits opposite the pencil and appears the same way, with one difference: a file
-  already marked keeps its star on show. The mark is the answer to "what have I
-  picked out?", and a mark that only appears under the cursor cannot be scanned
-  - nor reached at all on a phone, where nothing hovers.
-*/
+/* The front-page mark. A marked file keeps its star on show, unlike the pencil -
+   the mark is the answer to "what have I picked out?". */
 const favorite = computed(() => props.media.favorite === true)
 const marking = ref(false)
 const hiding = ref(false)
@@ -124,14 +97,8 @@ async function mark() {
   }
 }
 
-/**
- * The other mark that belongs on the tile itself.
- *
- * Hiding a file was only reachable through the editor, which meant opening a
- * form to answer a yes-or-no question about a photograph already on screen. It
- * behaves exactly like the star: a hidden file keeps its control on show, since
- * that control is also the answer to "which of these is hidden".
- */
+/** Hiding, on the tile rather than behind the edit form.
+ *  See docs/features/media-grid-and-selection.md. */
 async function hide() {
   if (hiding.value) return
   hiding.value = true
@@ -144,30 +111,17 @@ async function hide() {
   }
 }
 
-/**
- * The browser's own menu is replaced rather than merely suppressed - it was
- * already being suppressed, because a long press on a phone means "select" here
- * and the native menu got in the way of it. What takes its place is offered from
- * the page that owns the grid, which is the one that knows what a link to this
- * file would have to say.
- */
+/** The browser's menu is **replaced**, not merely suppressed - it already was,
+ *  since a long press here means "select". See docs/features/media-grid-and-selection.md. */
 function onContextMenu(event) {
   emit('context', { media: props.media, x: event.clientX, y: event.clientY })
 }
 
 /*
-  A tap is read here rather than waited for.
-
-  `click` is not an event a touchscreen produces - a browser invents one out of
-  a touch, and only if it decides that touch belonged to the page. After a quick
-  swipe it decides otherwise: the whole invented sequence is suppressed, mouse
-  events and all, and a tile tapped straight after a picture was flicked away
-  answered nothing at all. Nothing was cancelling it and nothing was covering the
-  page; the click was simply never made.
-
-  So the tap is recognised from the touch itself - pressed and released in the
-  same place - and a browser that does invent a click afterwards finds it already
-  answered. A mouse still comes through `click` as it always did.
+  A tap is read from the touch, not waited for as a click - a browser invents the
+  click only if it decides the touch belonged to the page, and after a quick
+  swipe it decides otherwise. A mouse still comes through `click`.
+  See docs/features/media-grid-and-selection.md.
 */
 const TAP_SLOP = 10
 
@@ -192,13 +146,8 @@ function onTouchEnd(event) {
   // grid has already answered it by selecting this very tile.
   if (!start.selecting && editor.selectionMode) return
 
-  /*
-    Answered here, so the click the browser may invent from this tap must not
-    land. It is aimed at wherever the finger was, and by the time it arrives the
-    viewer is open over that spot - so a tap on a tile at the foot of the screen
-    followed a tag, or the download link, into a place the reader never asked to
-    go.
-  */
+  // Answered here, so the invented click must not land as well: it is aimed at
+  // where the finger was, and the viewer is open over that spot by then.
   if (event.cancelable) event.preventDefault()
   answeredAt = performance.now()
   activate()
@@ -272,17 +221,9 @@ function activate() {
           </span>
         </span>
 
-        <!--
-          Badges share the bottom-left corner in one row rather than each
-          claiming a corner of their own: a file can be both a video and a
-          hidden one, and two absolutely-placed badges would have sat on top of
-          each other the one time it mattered.
-
-          The hidden mark comes first and carries its word, not just a symbol.
-          It is the only badge here that is a warning rather than a description,
-          and an editor scanning a day has to be able to read it without
-          stopping to work out what a crossed-out eye is doing on a photograph.
-        -->
+        <!-- One row in one corner: a file can be both a video and hidden. The
+             hidden mark comes first and carries a word.
+             See docs/features/media-grid-and-selection.md. -->
         <span
           v-if="video || hidden"
           class="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1"
@@ -367,15 +308,9 @@ function activate() {
       </svg>
     </button>
 
-    <!--
-      Beside the star, but *not* on the same terms.
-
-      The star has to stay on show when it is set, because nothing else on the
-      tile says a file is a favourite. Hiding already has its own badge in the
-      bottom-left corner, so a button repeating that would be the same fact
-      twice - and unlike the star it is a control, not a state, so it appears on
-      approach like the pencil. Its colour still reports the state it would undo.
-    -->
+    <!-- Beside the star but **not** on the same terms: the badge already reports
+         the state, so this appears on approach like the pencil.
+         See docs/features/media-grid-and-selection.md. -->
     <button
       v-if="editable && !editor.selectionMode"
       type="button"

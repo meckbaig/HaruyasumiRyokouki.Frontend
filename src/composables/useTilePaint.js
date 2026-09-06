@@ -1,18 +1,10 @@
 import { onBeforeUnmount } from 'vue'
 
 /**
- * Press-and-drag selection across a wall of tiles ("painting").
- *
- * The gesture belongs to the container rather than to a tile, because it spans
- * several: a pointer pressed on one and dragged across others must keep marking
- * the ones it passes. On a mouse a small drag starts it; on a touchscreen a long
- * press does, so an ordinary swipe still scrolls the page. Each move recomputes
- * the selection from the snapshot taken at press time plus the origin→current
- * range, so dragging back shrinks it again.
- *
- * Every caller keeps its own idea of what "selected" means - a Pinia store of
- * media objects in one place, a plain Set of ids in another - so this knows only
- * ids and hands the whole resulting list back through `apply`.
+ * Press-and-drag selection across a wall of tiles ("painting"). The gesture
+ * belongs to the container, because it spans several tiles. Knows only ids and
+ * hands the whole new selection back through `apply`.
+ * See docs/features/media-grid-and-selection.md.
  *
  * @param {object} options
  * @param {import('vue').Ref<HTMLElement|null>} options.container the wall
@@ -22,9 +14,7 @@ import { onBeforeUnmount } from 'vue'
  * @param {(ids: Array) => void} options.apply receives the whole new selection
  * @param {() => boolean} [options.enabled]
  * @param {() => boolean} [options.armed] whether a sideways drag alone starts a
- *   stroke, without a long press first. True once a selection is already open:
- *   the finger is in that mode, and the long press is the way *into* it rather
- *   than a toll on every stroke afterwards.
+ *   stroke. True once a selection is already open.
  */
 export function useTilePaint({
   container,
@@ -99,8 +89,8 @@ export function useTilePaint({
   }
 
   function startGesture(target, x, y) {
-    // A drag that ended on a different tile fires no click, so a suppress flag
-    // set then would linger and eat the next real tap. Clear it as each starts.
+    // A drag ending on another tile fires no click, so a stale flag would eat
+    // the next real tap. Cleared as each gesture starts.
     suppressClick = false
 
     const originIndex = tileIndexAt(target)
@@ -117,8 +107,7 @@ export function useTilePaint({
       longPressTimer: null,
     }
 
-    // A held press with no movement still enters selection - the touch way in,
-    // and a mouse shortcut for marking a single tile.
+    // A held press with no movement still enters selection - the touch way in.
     gesture.longPressTimer = setTimeout(beginPaint, LONG_PRESS_MS)
     return true
   }
@@ -133,18 +122,11 @@ export function useTilePaint({
     document.addEventListener('pointercancel', onPointerUp)
   }
 
-  /*
-    Touch takes its own path rather than sharing the pointer one.
-
-    A browser hands out pointer events only until it decides the gesture belongs
-    to it - the moment it starts scrolling the page it cancels the stream and
-    sends nothing more. A press held still on a phone is exactly the case it
-    guesses wrong, which is why the long press worked with a mouse and inside a
-    devtools emulator, where nothing competes for the gesture, and never on a
-    real device. Touch events keep arriving throughout, and `preventDefault` on a
-    touchmove genuinely stops the page from scrolling once painting has begun -
-    something a pointermove cannot do.
-  */
+  /**
+   * Touch takes its own path: the browser cancels the pointer stream once it
+   * claims the gesture, and only a touchmove can `preventDefault` the scroll.
+   * See docs/features/media-grid-and-selection.md.
+   */
   function onTouchStart(event) {
     if (!enabled() || event.touches.length !== 1) return
     const touch = event.touches[0]
@@ -165,9 +147,8 @@ export function useTilePaint({
       const dy = touch.clientY - gesture.startY
       if (Math.hypot(dx, dy) <= TOUCH_THRESHOLD) return
 
-      // Sideways means marking, downwards means scrolling - and the page is
-      // handed straight back for the second, or a wall of tiles would be a
-      // region of the page that cannot be scrolled past.
+      // Sideways marks, downwards hands the page back - or a wall of tiles
+      // would be a region that cannot be scrolled past.
       if (armed() && Math.abs(dx) > Math.abs(dy)) beginPaint()
       else {
         endGesture()

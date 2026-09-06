@@ -24,20 +24,10 @@ const totalMedia = computed(() =>
 )
 
 /*
-  The wall of picked-out files, and the viewer it opens into.
-
-  They page as one album even though they come from all over the trip: the viewer
-  walks whatever list it is handed, and this one is the wall. Each file's day
-  comes from its own timestamp, which is what the viewer's "open day" button
-  follows.
-
-  A failed request leaves the wall out rather than putting an error on the front
-  page - nothing here is the reason a visitor came, and the calendar below is
-  still the way in.
-
-  Deliberately not linkable: the backend shuffles this list and caps it, so the
-  same `?i=` that works on a day would point into a set that no longer exists on
-  the next visit.
+  The wall of picked-out files, and the viewer it opens into. A failed request
+  leaves the wall out rather than putting an error on the front page.
+  **Deliberately not linkable** - the backend reshuffles this list every visit.
+  See docs/features/home-and-favorites.md.
 */
 const favorites = ref([])
 const showcaseIndex = ref(null)
@@ -86,16 +76,8 @@ function openFavorite(media) {
       </p>
     </section>
 
-    <!--
-      The wall arrives after its request, and what jarred was not the pictures
-      appearing but the calendar being shoved down the page to make room for
-      them. So the room is what is animated: a grid row grown from nothing to its
-      content's height, with the contents fading in as it opens.
-
-      `0fr`→`1fr` rather than a height, because the height is whatever the
-      pictures turn out to need and cannot be written down in advance. The child
-      clips, or the wall would spill out of a row not yet tall enough to hold it.
-    -->
+    <!-- The room is what is animated, not the pictures: a grid row `0fr` -> `1fr`.
+         See docs/features/home-and-favorites.md. -->
     <div
       class="grid transition-[grid-template-rows] duration-500 ease-out"
       :class="favorites.length ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"

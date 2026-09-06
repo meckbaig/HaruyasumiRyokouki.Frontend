@@ -1,18 +1,12 @@
 /**
- * Helpers for the two shapes the API uses for translated content.
- *
- * Read models (`MediaFileDto`, `DayDto`) are already flattened to one language
- * by the server based on `Accept-Language`. Edit models (`MediaFileEditDto`,
- * `DayEditDto`) instead carry a `translations` array with every language, so
- * the editor has to pick the right row itself.
+ * Helpers for the two shapes the API uses for translated content: read models
+ * arrive flattened to one language, edit models carry every row.
+ * See docs/architecture.md.
  */
 
 /**
- * Empty translation, so callers never have to null-check the result.
- *
- * No tags in here: a tag is an entity of its own now, hanging off the file
- * rather than off one of its translations, and it carries its own captions for
- * every language. See `services/tags.js`.
+ * Empty translation, so callers never have to null-check. No tags: a tag hangs
+ * off the file rather than off one of its translations. See `services/tags.js`.
  */
 const EMPTY = { languageCode: null, title: '', description: '', note: '' }
 

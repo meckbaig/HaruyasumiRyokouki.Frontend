@@ -21,11 +21,9 @@
 }
 
 /*
-  The @theme block above holds the light palette only. Every other theme is
-  defined in src/theme/themes.js and applied at runtime: the theme store writes
-  its palette as inline `--color-*` custom properties on <html>, which override
-  these defaults, so all Tailwind `var(--color-*)` utilities re-theme at once.
-  Add or edit themes there, not here.
+  The @theme block above is the light palette and the pre-JS default. Every other
+  theme lives in src/theme/themes.js and is written as inline `--color-*` on
+  <html> at runtime. Add or edit themes there, not here.
 */
 
 @layer base {
@@ -34,14 +32,8 @@
     /* Pre-JS default; the theme store sets color-scheme inline per theme. */
     color-scheme: light;
 
-    /*
-      No scrollbar of the browser's own; AppScrollbar draws one over the page
-      instead. A native bar on a desktop takes a lane of its own out of the
-      layout, and a lane that comes and goes moves the whole page sideways -
-      which is what made the picture jump as the viewer opened and locked the
-      page behind it. One drawn on top takes no width, so there is nothing to
-      reserve and nothing to move.
-    */
+    /* No native bar; AppScrollbar draws one over the page, which takes no
+       layout lane. See docs/features/ui-shell.md. */
     scrollbar-width: none;
   }
 
@@ -130,16 +122,9 @@
   }
 
   /*
-    A control offered on approach - the pencil on a tile, the star, the two
-    corners of a candidate thumbnail. The photographs are the content and the
-    controls are not, so they stay out of the way until a cursor comes near.
-
-    Except that on a touchscreen nothing ever comes near. There is no hover to
-    approach with, so the controls were simply invisible - reachable, since the
-    taps still landed, but only by someone who already knew they were there.
-    `hover: none` is the honest test for that: not a screen width, which says
-    nothing about the input, but the input itself. Where there is no pointer to
-    reveal them with, they are on show from the start.
+    A control offered on approach, and on show from the start where nothing can
+    approach. Tested with `hover: none`, **never a screen width** - a width says
+    nothing about the input. See docs/features/i18n-and-theming.md.
   */
   .hover-reveal {
     opacity: 0;
@@ -166,15 +151,8 @@
     }
   }
 
-  /*
-    Buttons keep their label on one line.
-
-    Left to wrap, a two-word label breaks in the middle on a narrow screen and
-    the button grows a second storey - beside a one-word neighbour that did not,
-    which is what made a row of them look broken rather than merely cramped. A
-    row that will not fit should wrap between its buttons, not inside them, and
-    every row here is already `flex-wrap`.
-  */
+  /* Buttons keep their label on one line: a row wraps between its buttons, never
+     inside one. See docs/features/i18n-and-theming.md. */
   .btn-primary {
     display: inline-flex;
     align-items: center;
@@ -305,42 +283,16 @@
   }
 
   /*
-    Lightbox media sizing.
-
-    `object-contain` alone cannot do this: on a shrink-wrapped element it never
-    scales a small file up, and on a full-size element the box swallows the
-    empty space around the picture, which has to stay part of the backdrop so a
-    click there still closes the viewer.
-
-    Container query units give the exact fit rectangle instead. The frame
-    declares its size as the query basis, and the media takes the largest width
-    that fits both axes for its aspect ratio - so a file smaller than the window
-    is enlarged like any other, and the element still ends exactly where the
-    picture ends. `--ar` is the file's aspect ratio, set once it is known.
-  */
-  /*
-    Lightbox palette.
-
-    The viewer is a dark room under every theme - photographs need one, and a
-    pale surround competes with them. Only the accent travels across: it is the
-    theme's own colour, lifted towards white so that a hue chosen for a light
-    page still carries on black. The default theme's brick red and the purple
-    one are both far too dark to use unaltered here, so the mix is not optional.
-
-    The plain `var(--color-accent)` line before it is the fallback for browsers
-    without `color-mix` - they simply keep the unlifted colour.
+    Lightbox palette. A dark room under every theme; only the accent travels
+    across, lifted towards white. The plain `var(--color-accent)` line before
+    each mix is the no-`color-mix` fallback.
+    See docs/features/i18n-and-theming.md.
   */
   .lightbox {
     color-scheme: dark;
 
-    /*
-      Nothing in here is meant to be selected. Every gesture the viewer offers -
-      panning a magnified picture, dragging the strip sideways, pulling down to
-      dismiss, double-tapping to magnify - is a press and a drag, which is also
-      how a selection begins, so the browser starts one underneath and fights
-      the gesture. Mobile Firefox is the plainest case: a double tap selects
-      instead of zooming.
-    */
+    /* Every gesture here is a press and a drag, which is also how a selection
+       begins. Mobile Firefox double-taps into a selection otherwise. */
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
@@ -363,17 +315,10 @@
   }
 
   /*
-    Relative colour syntax, where it exists. It buys two things the plain values
-    above cannot:
-
-    - the derived accent keeps the theme's hue *and* chroma and only raises
-      lightness, where mixing towards white also washes the colour out;
-    - the bars pick up the accent's own hue at a fraction of its saturation, so a
-      pink theme blurs through faintly rose and a purple one faintly violet.
-      Scaling the chroma rather than setting it is what keeps neutral themes
-      neutral - a white accent has none to scale.
-
-    Older browsers keep the flat values and simply lose the tint.
+    Relative colour syntax where it exists: it keeps the theme's chroma instead of
+    washing it out, and tints the bars by **scaling** the accent's chroma, so a
+    neutral theme stays neutral. Older browsers lose the tint and nothing else.
+    See docs/features/i18n-and-theming.md.
   */
   @supports (color: oklch(from white 0.5 0.1 0)) {
     .lightbox {
@@ -400,14 +345,9 @@
   }
 
   /*
-    Room for whatever the phone keeps for itself.
-
-    The viewer is the one screen drawn edge to edge, so it is the one screen
-    where the home indicator sits *on* something - the row of tags along the
-    bottom, which is exactly what people said was covered. `max()` keeps the
-    padding the bars already had wherever there is no inset to respect, and the
-    sides are in here too: landscape on a notched phone is where a viewer is most
-    used and where the notch eats into the width instead of the height.
+    Room for whatever the phone keeps for itself. Sides included - landscape on a
+    notched phone is where a viewer is most used. `max()` keeps the padding the
+    bars already had where there is no inset. See docs/features/i18n-and-theming.md.
   */
   .lightbox-bar-top {
     padding-top: max(0.5rem, env(safe-area-inset-top));
@@ -465,19 +405,9 @@
   }
 
   /*
-    One slot of the lightbox filmstrip. The vertical padding is the room the
-    floating bars need: at natural size the picture sits between them, exactly
-    as it did when they were part of the layout. Zooming scales out of that box,
-    so a magnified picture still reaches the edges of the screen.
-  */
-  /*
-    A cell is the whole window, with no padding of its own - so scale 1 means
-    "as large as the window allows", and that is the far end of the zoom.
-
-    Clearing the bars is the transform's job instead: the viewer scales the
-    picture down and shifts it into the band between them. Keeping the layout box
-    fixed is the whole point, since padding changed the box and dragged the zoom
-    along with every change of it.
+    A cell is the whole window, **with no padding of its own** - scale 1 means as
+    large as the window allows, and clearing the bars is the transform's job.
+    See docs/features/i18n-and-theming.md.
   */
   .lightbox-cell {
     container-type: size;
@@ -525,6 +455,12 @@
     );
   }
 
+  /*
+    Media sizing, in container query units rather than `object-contain`: it sizes
+    **to the picture**, enlarging as well as shrinking, so the space beside it
+    stays part of the backdrop. `--ar` is the file's aspect ratio.
+    See docs/features/i18n-and-theming.md.
+  */
   .fit-media {
     /* Fallback for browsers without container queries (Safari < 16): the file
        is not enlarged, but it is still kept inside the frame. */
@@ -538,18 +474,10 @@
 }
 
 /*
-  Page transitions.
-
-  Written as animations rather than transitions on purpose. The reduced-motion
-  rules below cut every animation to a hundredth of a millisecond, which still
-  ends and still fires `animationend` - and `animationend` is what Vue waits for
-  before taking the old page out. A transition switched off with
-  `transition-property: none` fires nothing at all, and the page would be left
-  hanging on an event that never comes.
-
-  The shape: the page leaving fades and slides a hundred pixels away, the page
-  arriving fades in from a hundred pixels on the other side. Which side is the
-  only thing that changes between the three - see `navDirection` in the router.
+  Page transitions. **Animations, not transitions**: reduced motion cuts an
+  animation to a hundredth of a millisecond, which still fires `animationend`,
+  and that is what Vue waits for. Direction comes from `navDirection`.
+  See docs/features/i18n-and-theming.md.
 */
 @keyframes page-leave {
   to {
@@ -606,17 +534,10 @@
 }
 
 /*
-  The viewer opening and closing.
-
-  The room fades; the picture rises into it and settles back out. The scale is
-  deliberately on the filmstrip and not on the viewer itself: a transform on an
-  ancestor moves every `getBoundingClientRect` beneath it, and the whole of the
-  viewer's sizing is read that way. The strip is inside the frame that gets
-  measured, not around it, so it is the one thing here that can be moved safely.
-
-  The entrance is also held back until the sizing has been done - see
-  `chromeReady` - or the first frames of the fade would show a picture at a size
-  it is about to leave.
+  The viewer opening and closing. The scale sits on the **filmstrip**, not the
+  viewer - a transform on an ancestor moves every rect beneath it, and the
+  sizing is read that way. Held back until `chromeReady`.
+  See docs/features/i18n-and-theming.md.
 */
 @keyframes lightbox-in {
   from {
@@ -651,17 +572,9 @@
 }
 
 /*
-  Nothing in a viewer on its way out answers a hand, and nothing should have to
-  wait for it either. A full-window overlay that is merely fading is still a
-  full-window overlay, and it swallowed the first thing the reader reached for
-  after throwing the picture away.
-
-  The descendants matter as much as the root, which is what the first attempt at
-  this missed. The bars and the arrows take pointer events back for themselves
-  while the viewer is up - they have to, since the surface they float over is
-  the gesture surface - so switching them off at the root alone left them
-  holding the top, the bottom and both sides of the screen. Which is exactly
-  where the page's own header, footer and controls are waiting underneath.
+  Nothing in a viewer on its way out answers a hand. **The descendants matter as
+  much as the root** - the bars and arrows take pointer events back for
+  themselves, and hold all four edges. See docs/features/i18n-and-theming.md.
 */
 .lightbox-leave-active,
 .lightbox-leave-active * {
@@ -677,15 +590,9 @@
 }
 
 /*
-  Unless the picture is flying back to its tile, in which case the room simply
-  goes. Fading it out at the same time gave the reader two departures to watch
-  at once - the picture leaving towards where it came from, and everything
-  including the picture dissolving where it stood.
-
-  Marked on the document and not on the viewer itself: by the time a flight
-  begins the viewer is already being taken away, and a subtree on its way out is
-  never patched again - a class bound on it would be written into a vnode that
-  is never applied to the element that is actually leaving.
+  Unless the picture is flying back to its tile: two departures at once read as
+  one mess. Marked on the **document**, since a subtree on its way out is never
+  patched again. See docs/features/i18n-and-theming.md.
 */
 :root[data-lightbox-flying] .lightbox-leave-active,
 :root[data-lightbox-flying] .lightbox-leave-active .lightbox-strip {
@@ -744,22 +651,10 @@
 }
 
 /*
-  Something folding out of the page in place: the day's map when it is asked
-  for, the note handing over to its editor, a day in the queue opening up.
-
-  The fold is done on `grid-template-rows`, which is the one way to animate to a
-  height nobody has measured. A single-row grid holding the content, taken from
-  `0fr` to `1fr`: the row is what grows, and the content inside keeps the height
-  it would have had all along. `align-items: start` is what buys that - stretched
-  to a row of no height the content would be squashed to nothing and reflowed on
-  every frame of the way back out, and a map or a form doing that mid-fold is
-  the jitter this was meant to avoid. Kept off its natural height, it simply
-  hangs out of the top of the row and is clipped, which is what a fold looks
-  like.
-
-  Clipping only while it moves: a permanent `overflow: hidden` would cut the
-  focus ring off anything sitting at the edge of the panel for the rest of the
-  page's life.
+  Something folding out of the page in place. `grid-template-rows` `0fr` -> `1fr`
+  is the one way to animate to an unmeasured height; `align-items: start` keeps
+  the content at its natural size, and the clip lasts only while it moves.
+  See docs/features/i18n-and-theming.md.
 */
 @keyframes reveal-in {
   from {
@@ -795,19 +690,9 @@
 }
 
 /*
-  A fold whose contents arrive one under the other instead of as a block, and
-  leave the same way.
-
-  Coming in needs nothing extra: `.cascade-item` runs the moment an element is
-  inserted, and the fold opening underneath it is exactly the room the entries
-  are dropping into.
-
-  Going out is the part that has to be arranged. Vue watches the root and takes
-  the whole subtree away the instant *its* animation ends, so the fold is given
-  long enough for the last entry to have gone first - otherwise the stagger is
-  cut off partway and the rest simply vanish. The `animation` shorthand on the
-  entries is a full override of the one they arrived under, which is what makes
-  a finished animation start again as a different one.
+  A fold whose contents arrive and leave one under the other. **The fold outlasts
+  the last entry** - Vue takes the subtree away the instant the root's own
+  animation ends. See docs/features/i18n-and-theming.md.
 */
 @keyframes cascade-out {
   to {
@@ -826,16 +711,9 @@
 }
 
 /*
-  A dialog arriving over the page.
-
-  The room darkens and the panel comes up to meet it. On a phone the panel is a
-  sheet held to the bottom edge and on a desktop it is centred, so the movement
-  is a short rise either way - the one gesture that reads correctly in both.
-
-  The leaving panel stops answering the hand the moment it starts to go, for the
-  same reason the viewer does: an overlay that is merely fading still covers the
-  whole window, and the first thing reached for underneath it would be caught by
-  a dialog the reader has already dismissed.
+  A dialog arriving over the page: a short rise, which reads correctly both as a
+  sheet on a phone and centred on a desktop. The leaving panel stops answering
+  the hand at once, as the viewer does.
 */
 @keyframes modal-in {
   from {
@@ -901,17 +779,9 @@
 }
 
 /*
-  A list arriving in a cascade rather than all at once.
-
-  The same rise the front page's wall makes, handed to each entry in turn. A
-  page of a hundred thumbnails appearing in one frame reads as a jolt however
-  gently the frame is faded; arriving from the top down reads as the page being
-  filled in, and it says which end to start reading from.
-
-  `both` is what holds an entry at the start of its keyframes through its delay -
-  without it every one of them would be visible from the first frame and only the
-  movement would be staggered. The delay is capped by whoever sets it, or the
-  hundredth thumbnail would still be waiting several seconds later.
+  A list arriving in a cascade rather than all at once. `both` is what holds an
+  entry at the start of its keyframes through its delay; the delay itself is
+  capped by `cascadeDelay`. See docs/features/ui-shell.md.
 */
 @keyframes cascade-in {
   from {
@@ -938,12 +808,9 @@
 }
 
 /*
-  The time stamped over a reference pin in the location picker.
-
-  Leaflet's own tooltip styling is a white box with a drop shadow and a pointing
-  arrow, sized for a sentence. These carry four characters and there are two of
-  them on a map two hundred pixels tall, so they are cut down to a chip and the
-  arrow is dropped - at this size it is more mark than the thing it points at.
+  The time stamped over a reference pin in the location picker. Leaflet's own
+  tooltip is sized for a sentence; these carry four characters, so the box and
+  the arrow go. See docs/features/i18n-and-theming.md.
 */
 .leaflet-tooltip.trip-time {
   padding: 1px 5px;

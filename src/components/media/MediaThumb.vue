@@ -8,11 +8,8 @@ const props = defineProps({
 })
 
 /*
-  Two stages, and never one.
-
-  The `miniature` costs no request and is on screen in the first frame; the real
-  preview settles over it once it is whole. A single <img> given
-  `preview || miniature` means an empty frame for as long as the network takes.
+  Two stages, and never one: a single <img> given `preview || miniature` means an
+  empty frame for as long as the network takes.
   See docs/features/media-grid-and-selection.md.
 */
 const miniature = computed(() => miniatureSrc(props.media))

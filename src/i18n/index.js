@@ -22,11 +22,7 @@ function russianPluralRule(choice) {
   return 2
 }
 
-/**
- * Chooses the initial locale. A shared link may carry `?lang=`, which wins so
- * the recipient opens the site in the sender's language; otherwise a previously
- * saved choice, then the browser language, then the default.
- */
+/** Initial locale: `?lang=`, then the saved choice, then the browser, then default. */
 export function detectLocale() {
   const shared = new URLSearchParams(window.location.search).get('lang')
   if (shared && SUPPORTED_LOCALES.includes(shared)) return shared
@@ -46,10 +42,8 @@ export function persistLocale(locale) {
 }
 
 /**
- * Persists a locale only when the visitor has not chosen one before. Used for
- * the `?lang=` shared-link case: it should not override a returning visitor's
- * own saved preference - they still see the shared language this visit, but
- * their stored choice stays intact for next time.
+ * Persists a locale only when the visitor has none of their own - a returning
+ * one sees the shared language this visit and keeps their choice for next time.
  */
 export function persistLocaleIfUnset(locale) {
   if (!localStorage.getItem(STORAGE_KEY)) persistLocale(locale)
@@ -63,36 +57,15 @@ export const i18n = createI18n({
   pluralRules: { ru: russianPluralRule },
 })
 
-/*
-  Takes `?lang=` out of the address, now that it has been read.
-
-  Here, and at once, because this module is evaluated before the router exists -
-  the router imports it - so the parameter is gone before anything has looked at
-  the address, and no navigation is needed to remove it.
-
-  It used to be removed later, with a `router.replace` once routing was ready,
-  and that turned out to be the whole of a fault that took a long time to place.
-  A viewer open at that moment reads a change of address as the reader being
-  taken somewhere else and closes itself, so a link to an open picture opened the
-  day and nothing more.
-
-  Both halves had to line up for it to show, which is why it looked so arbitrary.
-  The viewer is only open that early when the day's data has outrun the download
-  of the page's own code - that is, on a cold cache - and the removal only
-  happens when a language was shared in the first place. Hence: never on a second
-  visit, never without `?lang=`, every time in Chrome's incognito, which starts
-  cold each session, and not in Firefox's, which keeps its cache between them.
-
-  `history.replaceState` rather than the router: it changes the address without
-  telling anyone, which is exactly what a parameter that has already been spent
-  deserves.
-*/
+/**
+ * Takes `?lang=` out of the address. **At module evaluation, before the router
+ * exists, and with `history.replaceState` rather than the router** - this
+ * ordering is load-bearing. See docs/features/sharing-and-links.md.
+ */
 function consumeSharedLocale() {
   const shared = new URLSearchParams(window.location.search).get('lang')
   if (!shared || !SUPPORTED_LOCALES.includes(shared)) return
 
-  // Only for a visitor with no choice of their own; a returning one keeps theirs
-  // and still sees the shared language for this visit.
   persistLocaleIfUnset(shared)
 
   const address = new URL(window.location.href)

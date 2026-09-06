@@ -2,11 +2,9 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 /**
- * Shared Leaflet setup so every map on the site looks and behaves the same.
- *
- * Tiles default to CARTO Voyager - far cleaner than raw OSM and free without a
- * key. Both the URL and attribution are overridable through the environment, so
- * swapping to a keyed provider with latin labels later is a config change.
+ * Shared Leaflet setup, so every map on the site looks and behaves the same.
+ * Tiles default to keyless CARTO Voyager and are overridable through the
+ * environment. See docs/features/maps.md.
  */
 export const TILE_URL =
   import.meta.env.VITE_MAP_TILE_URL ||
@@ -22,11 +20,6 @@ export const MAX_ZOOM = 19
 export const FALLBACK_CENTER = [36.2, 138.25]
 export const FALLBACK_ZOOM = 5
 
-/**
- * Teardrop pins drawn as inline SVG, so a single marker and a cluster share one
- * silhouette (the cluster is the same drop with a count in its head), and both
- * theme cleanly without shipping PNGs.
- */
 /** The drop every pin on the site is cut from, exported so a legend can draw one. */
 export const PIN_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z'
 
@@ -75,18 +68,9 @@ export const pinIcon = pinIconOf(PIN_COLOR)
 export const neighborIcon = pinIconOf(NEIGHBOR_COLOR, 26)
 
 /*
-  The two reference points that actually matter when placing a photograph: the
-  last one taken before it and the first one after.
-
-  Everything else on that map is context. These two are the answer - whatever is
-  being placed happened between them, usually within a few hundred metres of the
-  line joining them - so they are told apart from the rest by colour and by being
-  the same size as the live pin rather than smaller.
-
-  Two hues rather than one, because "which of these is the earlier" is the whole
-  question. Cool for what is already behind, warm for what is still ahead; both
-  muted enough to stay out of the accent's way, since the accent means "this is
-  the file in hand".
+  The last point taken before the file and the first after - the two that
+  actually place it. Cool for behind, warm for ahead, both full size.
+  See docs/features/maps.md.
 */
 export const BEFORE_COLOR = '#4f7ca8'
 export const AFTER_COLOR = '#3f8f6f'
@@ -95,17 +79,9 @@ export const beforeIcon = pinIconOf(BEFORE_COLOR, 30)
 export const afterIcon = pinIconOf(AFTER_COLOR, 30)
 
 /**
- * Creates a base map with CARTO tiles and ctrl-to-zoom on the wheel.
- *
- * Plain wheel zoom is hostile inside a scrolling page - the map swallows the
- * scroll - so the wheel only zooms while Ctrl (or ⌘) is held, the same
- * convention embedded maps use elsewhere. `onScrollHint` is called when the user
- * scrolls without the modifier, so the caller can flash a hint.
- *
- * `wheelZoom` lifts that restriction, and is meant for a map that fills the
- * window: the reason for the modifier is a page waiting to be scrolled behind
- * the map, and there is none. Leaflet's own handling takes over, which is
- * smoother than the notch-per-level the guarded path applies by hand.
+ * A base map with CARTO tiles. By default the wheel scrolls the page and only
+ * Ctrl/Cmd + wheel zooms, with `onScrollHint` fired otherwise; `wheelZoom` lifts
+ * that for a map filling the window. See docs/features/maps.md.
  */
 export function createBaseMap(container, { center, zoom, onScrollHint, wheelZoom = false } = {}) {
   const map = L.map(container, { scrollWheelZoom: wheelZoom }).setView(

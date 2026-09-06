@@ -26,15 +26,9 @@ const tags = useTagsStore()
 const ui = useUiStore()
 
 /*
-  Filing by resemblance.
-
-  The point of this panel is that tagging one photograph is rarely tagging one
-  photograph: the same subject was shot five times in a row, and again from the
-  other side of the square a week later. The server can find those, so the tags
-  written here can be handed to them without leaving the dialog.
-
-  It loads on its own and is allowed to be slow - the card above it must not wait
-  on a fingerprint search to be readable.
+  Filing by resemblance: the tags written on one photograph handed to the files
+  that look like it. Loads on its own and is allowed to be slow.
+  See docs/features/similarity.md.
 */
 /**
  * Asked for generously, because the tags chosen below then take a bite out of
@@ -58,17 +52,9 @@ const applying = ref(false)
 const progress = ref(null)
 
 /*
-  What the chosen tags would actually change.
-
-  With no tags chosen this is the whole answer, sorted by likeness, which is what
-  the panel is for on its own. Choose a tag and it becomes the far more useful
-  question: which of these does *not* already carry it - because a file that
-  already has every chosen tag gains nothing from being ticked, and leaving it in
-  the wall means reading past it and deciding about it again.
-
-  Missing *any* of them is enough to stay, not missing all: the button hands over
-  every chosen tag at once, so a file short of one of the three is still a file
-  the operation changes.
+  What the chosen tags would actually change - which of these does *not* already
+  carry them. **Missing any is enough to stay**, since the button hands over every
+  chosen tag at once. See docs/features/similarity.md.
 */
 const shown = computed(() => {
   const wanted = chosenTags.value
@@ -201,13 +187,8 @@ function chooseThrough(index) {
 }
 
 /**
- * One request per tag, in turn.
- *
- * `POST /tags/{id}/media` adds a tag without touching the others on those files,
- * which is exactly what is wanted here and is not what a media PATCH would do.
- * It takes one tag at a time, so several tags are several requests - run in
- * sequence rather than at once, both to keep the progress honest and to leave a
- * failure halfway with a clear account of what did land.
+ * One request per tag, **in sequence**: `POST /tags/{id}/media` takes one tag and
+ * adds without touching the others. See docs/features/similarity.md.
  */
 async function apply() {
   const slugs = [...chosenTags.value]

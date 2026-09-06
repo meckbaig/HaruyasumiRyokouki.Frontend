@@ -17,15 +17,8 @@ const props = defineProps({
   seed: { type: String, default: '' },
   /** Sits over another dialog - see ModalDialog. */
   stacked: { type: Boolean, default: false },
-  /**
-   * What clicking a near-duplicate means to the host.
-   *
-   * In the media editor it means "that one is what I meant" - the tag goes onto
-   * the photograph and the dialog is done with. On the tag screen it means "let
-   * me see that one first", which is a different thing entirely: the proposal
-   * has already been paid for, and throwing it away to go and look at something
-   * would mean paying for it again.
-   */
+  /** What clicking a near-duplicate means: "that one is what I meant" in the media
+   *  editor, "let me see it first" on the tag screen. See docs/features/tags.md. */
   inspect: { type: Boolean, default: false },
 })
 
@@ -38,28 +31,17 @@ const ui = useUiStore()
 const editing = computed(() => Boolean(props.tag?.id))
 
 /*
-  Coining a tag is two steps, and the first one is a single word.
-
-  Opened from the picker in the media editor, that word is already known - it is
-  what was being typed when nothing matched - so the first step is skipped and
-  the proposal is on its way before the dialog has finished appearing. Opened
-  from the tag screen there is no word yet, and this is where it is asked for.
-  Without it the button read "new tag" and produced an empty form, which is the
-  one thing the two-step arrangement exists to prevent: captions written by hand,
-  one language at a time, with no proposal to correct and no near-duplicates
-  shown.
+  Coining a tag is two steps, and the first is a single word. Skipped when the
+  picker already has one; asked for on the tag screen, where an empty form is the
+  one thing the arrangement exists to prevent. See docs/features/tags.md.
 */
 const step = ref('form')
 const seedWord = ref('')
 
 /*
-  The draft.
-
-  A proposal costs tokens and a wait, and the one thing an editor wants to do
-  with it before saving is go and look at the tag it says already exists. Closing
-  the dialog to allow that would spend the proposal on the trip, so the dialog
-  folds down to a bar at the foot of the screen instead: everything typed and
-  everything proposed is still there, waiting to be unfolded.
+  A proposal costs tokens and a wait, and the editor wants to go and look at the
+  tag it says already exists - so the dialog folds to a bar rather than closing.
+  See docs/features/tags.md.
 */
 const minimised = ref(false)
 
@@ -71,15 +53,9 @@ const aliases = ref([])
 const similar = ref([])
 
 /*
-  Two waits, and they are not the same wait.
-
-  A proposal *replaces* the form - three captions, the slug, the aliases - so the
-  fields are locked while it is in flight: anything typed into them is about to
-  be thrown away, and letting it be typed is inviting the editor to waste it.
-
-  Asking for more aliases only appends, so nothing is at risk and nothing is
-  locked. It still has to say it is doing something, or the button reads as
-  broken; it says so beside the aliases rather than over the whole form.
+  Two waits, and not the same wait: a proposal **replaces** the form, so the
+  fields lock; asking for aliases only appends, so nothing does.
+  See docs/features/tags.md.
 */
 const proposing = ref(false)
 const suggesting = ref(false)
@@ -88,14 +64,8 @@ const error = ref(null)
 
 const busy = computed(() => proposing.value || suggesting.value)
 
-/**
- * Every language must end up with a caption.
- *
- * A tag with a hole in it is a tag that shows a Russian word to a Japanese
- * reader, and the hole is invisible from whichever language you happened to fill
- * in. Cheaper to refuse it here than to find it months later on a page nobody
- * reads in the language it broke in.
- */
+/** Every language must end up with a caption - a hole is invisible from whichever
+ *  language you filled in, and shows a Russian word to a Japanese reader. */
 const complete = computed(() => SUPPORTED_LOCALES.every((locale) => captions[locale]?.trim()))
 const canSave = computed(() => !busy.value && !saving.value && complete.value && slug.value.trim())
 
@@ -121,18 +91,9 @@ function hydrate(tag) {
 }
 
 /**
- * The first of the two steps that coining a tag is deliberately split into.
- *
- * Nothing is saved. The proposal - three captions, a slug, a handful of aliases
- * - comes from a language model, and it is wrong often enough that it has to be
- * read before it reaches the database. Japanese is where it slips most (katakana
- * where kanji belongs), and aliases second (words broader than the thing they
- * name).
- *
- * The other half of the answer matters as much: tags that already look like
- * this one. It is the check against coining "torii" beside an existing
- * "torii gate", which is the kind of duplicate nobody notices until the
- * vocabulary has two names for one thing.
+ * The first of the two steps. **Saves nothing**: the proposal comes from a
+ * language model, and the near-duplicates it returns are the check against
+ * coining "torii" beside "torii gate". See docs/features/tags.md.
  */
 async function propose(word) {
   proposing.value = true
@@ -207,12 +168,8 @@ function removeAlias(index) {
 }
 
 /**
- * Asks for aliases without touching the captions already written.
- *
- * Asks on whichever caption is filled in - the reader's language first, then any
- * of the others. A tag half-written in Japanese alone still has something to ask
- * about, and refusing because the interface is in Russian would be a silent
- * no-op, which is the worst answer a button can give.
+ * Asks on whichever caption is filled in, reader's language first - refusing
+ * because the interface is in another one would be a silent no-op.
  */
 function firstCaption() {
   const own = captions[ui.locale]?.trim()

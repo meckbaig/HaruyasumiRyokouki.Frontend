@@ -21,13 +21,9 @@ const props = defineProps({
   /** Current point, or null when the file has no location yet. */
   modelValue: { type: Object, default: null },
   /**
-   * Reference points from the day and the ones either side, in the order they
-   * were taken - shown as muted pins, joined by the path between them so a photo
-   * can be placed against the route rather than against a scatter of dots.
-   *
-   * Each carries `before`: whether it was taken before the file being placed.
-   * That is what makes the framing below possible, and it is null when there is
-   * nothing to compare against.
+   * Reference points from the three-day window, in the order they were taken.
+   * Each carries `before`, which is what makes the framing possible.
+   * See docs/features/maps.md.
    */
   points: { type: Array, default: () => [] },
   /**
@@ -77,14 +73,9 @@ function valid(point) {
 }
 
 /*
-  The two points the photograph fell between.
-
-  The list is in the order it was taken, so the nearest before is the last one
-  marked `before` and the nearest after is the first one that is not. Everything
-  else on the map is context; these two are the answer, and until they were told
-  apart a map of grey dots said only "the trip came through here somewhere" -
-  which is no help at all when the file being placed has no pin of its own to
-  read the path against.
+  The two points the photograph fell between - the answer, where everything else
+  on the map is context. The list is in capture order, so the nearest before is
+  the last one marked `before`. See docs/features/maps.md.
 */
 const anchors = computed(() => {
   const usable = props.points.filter(valid)
@@ -94,13 +85,8 @@ const anchors = computed(() => {
 })
 
 /**
- * The label that rides above an anchor pin: when that photograph was taken.
- *
- * Always on show rather than waiting for a hover. A native `title` takes about a
- * second to appear, and on a touchscreen it never appears at all - while these
- * two labels are the whole reason the anchors are worth telling apart: how long
- * before, how long after, and therefore how far the file being placed can
- * reasonably be from either.
+ * When an anchor photograph was taken. **Always on show, never a `title`** - that
+ * takes a second and never appears on a touchscreen. See docs/features/maps.md.
  */
 function timeLabel(marker, point) {
   if (!point.created) return
@@ -122,15 +108,9 @@ function clearPoint() {
 }
 
 /*
-  A margin round the map that does not answer a click.
-
-  Every control the map carries - expand, collapse, the attribution - sits in a
-  corner, and a press that misses one of them by a few pixels used to land on the
-  map instead and move the pin. Placing a point is deliberate; missing a button
-  is not, and the two should not be the same gesture.
-
-  Sized from the box rather than fixed, so the same rule reads the same on a
-  220-pixel strip and on a full window.
+  A margin round the map that does not answer a click: every control sits in a
+  corner, and missing one by a few pixels used to move the pin. Sized from the
+  box, not fixed. See docs/features/maps.md.
 */
 function insetOf(map) {
   const size = map.getSize()
@@ -144,16 +124,9 @@ function nearEdge(map, point) {
 }
 
 /*
-  Coordinates pasted from elsewhere.
-
-  Google Maps copies a place as "34.304847, 133.090327" and that is how anyone
-  actually knows where a photograph was taken - they found it there first. Typing
-  it back in by hand, or hunting for the same rooftop on this map, is work the
-  clipboard has already done.
-
-  Listened for on the document because the map is not a focusable field and
-  cannot receive a paste of its own; anything aimed at a real input is left
-  alone, or pasting a description would move the pin.
+  Coordinates pasted from elsewhere - Google Maps copies a place in this exact
+  form. Listened for on the **document**, since the map is not focusable, and
+  ignored when a real input is the target. See docs/features/maps.md.
 */
 const COORDS = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/
 
@@ -210,14 +183,8 @@ function renderNeighborsOn(picker) {
 
   const usable = props.points.filter(valid)
 
-  /*
-    The line first, so the pins sit on top of it.
-
-    Dots alone say where the trip was; the line says which way it went, and that
-    is what places a photograph - between these two, on the way from the station
-    to the shrine. Same dashed red as the route on the trip map, because it is
-    the same thing at a smaller scale.
-  */
+  // The line first, so the pins sit on top of it. Dots say where the trip was;
+  // the line says which way it went, and that is what places a photograph.
   if (usable.length > 1) {
     L.polyline(
       usable.map((point) => [point.lat, point.lng]),
@@ -275,23 +242,9 @@ function renderNeighborsOn(picker) {
 }
 
 /*
-  Where the map should be looking when it opens.
-
-  Placing a photograph is a search for one spot on a map of a whole country, and
-  almost every one of them was taken near - or between - the last photograph with
-  a location and the next. So that gap is what the map opens on, and the search
-  is over before it starts:
-
-    the file already has a point   →  it, centred; the reader is checking it
-    points before and after        →  the two of them framed, and the answer is
-                                      somewhere on the line drawn between
-    points on one side only        →  the nearest one in time
-    a selection, with no one time  →  all of them
-    nothing at all                 →  wherever the map was left last
-
-  Applied once per file, and only once something is actually known: the reader
-  who then pans off looking for a rooftop is not dragged back by a fetch landing
-  a moment later.
+  Where the map looks when it opens - the gap the photograph fell into, so the
+  search is over before it starts. Applied **once per file**, and only once
+  something is known. The full order is in docs/features/maps.md.
 */
 let framed = false
 
@@ -350,11 +303,8 @@ function frameInline() {
 
 /**
  * Builds one map instance bound to the shared point and neighbour state.
- *
- * `wheelZoom` is for the instance that fills the window. The reason a bare wheel
- * does not zoom the inline map is the page waiting to be scrolled behind it -
- * and full screen there is no page, so the modifier is a toll on the one gesture
- * everybody reaches for. The trip map makes the same distinction.
+ * `wheelZoom` is for the instance filling the window, where there is no page
+ * behind it to scroll. See docs/features/maps.md.
  */
 function buildPicker(el, { wheelZoom = false } = {}) {
   const map = markRaw(
@@ -428,14 +378,8 @@ watch(expanded, async (isOpen) => {
     destroyPicker(fullscreenPicker)
     fullscreenPicker = null
 
-    /*
-      The small map comes back to the point rather than to wherever it was left.
-
-      Going full screen is what people do to place a pin precisely, so the pin is
-      the thing they were looking at when they collapsed - and finding the small
-      map still showing the stretch of country it showed a minute ago means
-      hunting for the mark that was just made.
-    */
+    // Back to the point, not to wherever the small map was left: the pin is what
+    // the reader was looking at when they collapsed.
     const inline = pickers[0]
     if (inline && props.modelValue) {
       inline.map.setView(
@@ -471,15 +415,8 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <!--
-      Inline map: always mounted, never reparented.
-
-      `isolate`: Leaflet stacks its own panes from 200 up to 800, and without a
-      stacking context of their own those numbers compete with everything else in
-      the dialog - which is how the map came to paint over the tag suggestions
-      dropping out of the field above it. Isolating pins every one of them inside
-      this box.
-    -->
+    <!-- Inline map: always mounted, never reparented. `isolate` pins Leaflet's
+         200-800 pane z-indexes inside this box. See docs/features/maps.md. -->
     <div class="relative isolate">
       <div ref="inlineEl" class="h-[220px] w-full overflow-hidden rounded-md ring-1 ring-edge" />
       <Transition
@@ -500,13 +437,8 @@ onBeforeUnmount(() => {
     <p class="field-hint">{{ t('editor.mapHint') }}</p>
     <p class="field-hint">{{ t('editor.clearPointHint') }} {{ t('editor.pasteHint') }}</p>
 
-    <!--
-      A legend, not a label. The muted drops are the only thing on the map
-      nobody put there deliberately, and named on their own - "points from
-      neighbouring days" - they explained neither which marks they were nor what
-      they were for. Drawn beside the sentence, the mark and its meaning arrive
-      together.
-    -->
+    <!-- A legend, not a label: the mark is drawn beside the sentence so the two
+         arrive together. See docs/features/maps.md. -->
     <p v-if="points.length" class="field-hint flex items-start gap-1.5">
       <svg class="mt-px h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
         <path :d="PIN_PATH" :fill="NEIGHBOR_COLOR" />

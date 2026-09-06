@@ -2,11 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 /**
- * Multi-select state for the editor.
- *
- * Selection mode is entered by pressing and holding a tile, then plain clicks
- * add and remove files until it is cleared. Selected ids are held globally so
- * the floating toolbar can act on them from anywhere on the page.
+ * Multi-select state for the editor, global so the floating toolbar can act on
+ * it from anywhere. See docs/features/media-grid-and-selection.md.
  */
 export const useEditorStore = defineStore('editor', () => {
   const selectionMode = ref(false)
@@ -14,19 +11,10 @@ export const useEditorStore = defineStore('editor', () => {
   /** Media objects behind the ids, so the bulk dialog can show file names. */
   const selectedItems = ref(new Map())
 
-  /*
-    What the last bulk save did, for a page that is showing a queue.
-
-    The toolbar is mounted at app level so a selection survives navigation
-    between the day, the results and the pending queue - which is also why it
-    cannot simply tell the page underneath what just happened. Approving a
-    selection took those files out of the queue on the server and left them
-    sitting on the screen until a reload, because nothing carried the fact
-    across.
-
-    A plain record, replaced whole on every save so that watching it fires even
-    when the same files are saved twice.
-  */
+  /**
+   * What the last bulk save did, for a page showing a queue - the toolbar cannot
+   * talk to the page below it. Replaced whole, so a watcher fires on a repeat.
+   */
   const lastSave = ref(null)
   /** The same channel for a deletion, which every list showing them must hear. */
   const lastDelete = ref(null)
@@ -50,7 +38,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function toggle(media) {
-    // `== null` on purpose: ids are integers now and 0 is a valid id.
+    // `== null`: ids are integers and 0 is a valid one.
     if (media?.id == null) return
 
     const nextIds = new Set(selectedIds.value)
@@ -91,9 +79,8 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * Replaces the whole selection with exactly `mediaList`. Used by the paint
-   * gesture, which recomputes the selection from a snapshot plus the dragged
-   * range on every pointer move, so dragging back can shrink it again.
+   * Replaces the whole selection. For the paint gesture, which recomputes it on
+   * every pointer move so dragging back can shrink it again.
    */
   function setSelection(mediaList) {
     const nextIds = new Set()

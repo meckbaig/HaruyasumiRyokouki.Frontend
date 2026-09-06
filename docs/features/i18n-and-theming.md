@@ -96,6 +96,23 @@ accent is lightened automatically.
 `--color-star` is deliberately **not** themed - a star reads as gold in every palette -
 though a theme may still override it like any token.
 
+### The header logo and the title
+
+The Japanese title opens with the very character the logo draws - 春休み旅行記 against a
+mark reading 春 - so the mark is read as the first character and the word carries on from
+it. `AppHeader` decides that by **looking at the title, not at the locale**: a rewritten
+Japanese name that no longer begins with the glyph simply stops being trimmed instead of
+losing a character it needed. The `aria-label` carries the full title regardless.
+
+The name itself drops out only between `sm` and `md` - where the search field has moved
+into the bar but the bar is not yet wide enough for both.
+
+### The theme switcher is a dropdown
+
+Not a cycling button: with a "system" option the single button showed what looked like the
+same theme twice, so the current choice was never clear. Icons and labels come straight
+from the theme registry, so a new theme appears there with no edit to the component.
+
 ## Motion
 
 Reduced motion is honoured by default. An editor can opt back in, which stamps
@@ -116,6 +133,47 @@ In `main.css` `@layer components`. Use them instead of re-spelling Tailwind:
 
 Named transitions live below that layer: `page-{up,forward,back}`, `lightbox-*`, `modal-*`,
 `reveal*`, `soft-*`, `map-full-*`.
+
+## CSS rules in `main.css` that look arbitrary
+
+Each of these was arrived at by something breaking. Do not simplify one without reading
+the reason.
+
+### Components
+
+| Rule | Why |
+| --- | --- |
+| `html { scrollbar-width: none }` and `AppScrollbar` draws one over the page. | A native bar takes a lane out of the layout, and a lane that comes and goes moves the whole page sideways - which is what made the picture jump as the viewer opened and locked the page behind it. See [ui-shell.md](ui-shell.md). |
+| `.hover-reveal` tests `@media (hover: none)`, **not** a screen width. | Controls offered on approach are invisible where nothing can approach. A width says nothing about the input; `hover: none` is the honest test, and where there is no pointer the controls are on show from the start. |
+| The button classes set `white-space: nowrap`. | Left to wrap, a two-word label breaks in the middle on a narrow screen and the button grows a second storey beside a one-word neighbour that did not. A row should wrap between its buttons, and every row here is already `flex-wrap`. |
+| `.fit-media` sizes with **container query units**, not `object-contain`. | `object-contain` never scales a small file up on a shrink-wrapped element, and on a full-size element the box swallows the empty space around the picture - which has to stay part of the backdrop so a click there still closes the viewer. The frame declares the query basis and the media takes the largest width that fits both axes for `--ar`, so an under-sized file is enlarged like any other and the element still ends where the picture ends. |
+
+### The lightbox
+
+| Rule | Why |
+| --- | --- |
+| The viewer is a **dark room under every theme**, and only the accent travels across. | Photographs need one, and a pale surround competes with them. The accent is lifted towards white: a hue chosen for a light page does not carry on black - the default brick red and the purple theme are both far too dark unaltered. |
+| A plain `var(--color-accent)` line stands before the `color-mix`. | The fallback for browsers without `color-mix`; they keep the unlifted colour. |
+| An `@supports (color: oklch(from …))` block re-derives the same colours. | Relative colour syntax keeps the theme's hue **and** chroma and only raises lightness, where mixing towards white also washes the colour out. It also lets the bars take the accent's hue at a fraction of its saturation - **scaled**, not set, so a neutral theme stays neutral. Older browsers keep the flat values and lose the tint. |
+| `user-select: none` across the whole viewer. | Every gesture it offers is a press and a drag, which is also how a selection begins. Mobile Firefox is the plainest case: a double tap selects instead of zooming. |
+| The bars pad with `max(…, env(safe-area-inset-*))`, sides included. | The viewer is the one screen drawn edge to edge, so it is the one where the home indicator sits *on* something - the row of tags. Landscape on a notched phone is where a viewer is most used and where the notch eats width rather than height. |
+| `.lightbox-cell` has **no padding of its own**. | The cell is the whole window, so scale 1 means "as large as the window allows" - the far end of the zoom. Clearing the bars is the transform's job; padding changed the layout box and dragged the zoom along with every change of it. |
+| The open/close scale sits on the **filmstrip**, not on the viewer. | A transform on an ancestor moves every `getBoundingClientRect` beneath it, and the whole of the viewer's sizing is read that way. The strip is inside the frame that gets measured, not around it. |
+| `.lightbox-leave-active` switches off pointer events on the root **and its descendants**. | An overlay that is merely fading still covers the window and swallowed the first thing reached for afterwards. The bars and arrows take pointer events back while the viewer is up, so switching them off at the root alone left them holding all four edges - exactly where the page's own header, footer and controls wait underneath. |
+| `:root[data-lightbox-flying]` suppresses the room's fade, and is stamped on the **document**. | Fading the room while the picture flies back gives the reader two departures at once. It cannot be a class on the viewer: by the time a flight begins the viewer is already unmounting, and a subtree on its way out is never patched again. |
+
+### Animations
+
+| Rule | Why |
+| --- | --- |
+| Page transitions are **animations, not transitions**. | The reduced-motion rules cut every animation to a hundredth of a millisecond, which still ends and still fires `animationend` - which is what Vue waits for before taking the old page out. A transition switched off with `transition-property: none` fires nothing, and the page hangs on an event that never comes. |
+| The fold (`reveal*`) animates `grid-template-rows` from `0fr` to `1fr`. | The one way to animate to a height nobody has measured. |
+| That grid sets `align-items: start`. | Stretched to a row of no height the content would be squashed to nothing and reflowed on every frame - a map or a form doing that mid-fold is the jitter this exists to avoid. Kept at its natural height it hangs out of the top of the row and is clipped, which is what a fold looks like. |
+| It clips **only while it moves**. | A permanent `overflow: hidden` cuts the focus ring off anything at the edge of the panel for the rest of the page's life. |
+| A cascading fold's leave animation is longer than the fold itself. | Vue watches the root and takes the whole subtree away the instant *its* animation ends, so the fold has to outlast the last entry or the stagger is cut off and the rest vanish. The `animation` shorthand on the entries is a full override of the one they arrived under, which is what restarts a finished animation as a different one. |
+| `.cascade-item` uses `animation-fill-mode: both`. | Without it every entry is visible from the first frame and only the movement is staggered. The delay is capped by `cascadeDelay` - see [ui-shell.md](ui-shell.md). |
+| The leaving modal panel stops answering the hand at once. | Same reason as the viewer: an overlay that is merely fading still covers the window. |
+| `.leaflet-tooltip.trip-time` strips Leaflet's box, shadow and arrow. | Leaflet's styling is sized for a sentence. These carry four characters, two at a time on a map two hundred pixels tall; at that size the arrow is more mark than the thing it points at. |
 
 ## Copy and the build
 

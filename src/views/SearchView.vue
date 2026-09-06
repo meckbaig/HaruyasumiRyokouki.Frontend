@@ -56,14 +56,8 @@ const counts = computed(() => ({
 }))
 
 /**
- * What to call the tag in the heading.
- *
- * Read out of the answer rather than looked up: the dictionary is behind the
- * login, and a visitor following a shared tag link has none. Every file in the
- * results carries the tag that fetched them, already in the right language, so
- * the caption is in the response by definition. The dictionary is only the
- * fallback for the one case the response cannot cover - a tag that matched
- * nothing at all.
+ * What to call the tag in the heading. Read out of the answer, not looked up - a
+ * visitor has no dictionary. See docs/features/search.md.
  */
 const tagName = computed(() =>
   byTag.value
@@ -89,16 +83,9 @@ watch([query, tagSlug], run)
 watch(() => ui.locale, run)
 
 /*
-  A link pointing at one file of these results - the same contract the day page
-  keeps (composables/useMediaLink).
-
-  Resolved against the matched files only, which is what a search link can
-  honestly promise: the rest of a day appears solely because a reader asked for
-  it, and reaching into days that are still folded away to find a file would mean
-  fetching every one of them on the chance that it is there.
-
-  A new query is a new set of results, so a link belonging to the old one is
-  resolved again from scratch, and dropped if it no longer belongs anywhere.
+  A link pointing at one file of these results, the same contract the day page
+  keeps. **Resolved against the matched files only** - reaching into folded-away
+  days would mean fetching every one. See docs/features/sharing-and-links.md.
 */
 // Any overlay, not just this page's viewer: one opened from an edit dialog
 // still covers the outline, and a press over it is not the reader dismissing it.

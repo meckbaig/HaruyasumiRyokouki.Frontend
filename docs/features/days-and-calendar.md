@@ -147,6 +147,18 @@ nothing about what the second click is for.
 - `onNoteSaved` reloads both the day and the day list - `isReady` may have changed, and
   that is what the calendar colours.
 
+### The range is a bar, not a fill
+
+A calendar cell's **fill** says what kind of day it is - nothing recorded, a draft, a
+finished note - and it is the same fill on every calendar on the site. Belonging to a
+picked range is not a kind of day; giving it a fill of its own put it in the same channel
+as the other three, so a finished day and a day inside the range looked alike and inside
+the range the difference between finished and draft disappeared entirely.
+
+So the range is a **bar under the number**. It reads along a row the way a range should, it
+survives every fill underneath it, and the two edges keep the solid mark that says a hand
+put them there.
+
 ## Invariants
 
 1. `parseIsoDate`/`toIsoDate` for calendar dates; `new Date()` only for timestamps.

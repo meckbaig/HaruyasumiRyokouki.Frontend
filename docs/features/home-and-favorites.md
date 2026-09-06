@@ -78,6 +78,19 @@ Standing still, one copy is all there is.
 `markOpenedFrom` exists - see [media-viewer.md](media-viewer.md). `fileAt(index)` maps a
 frame back to its file with `items[index % items.length]`.
 
+The two bounds `wrapped()` uses are deliberately **a pixel apart**. Sharing one would put
+the wall on both sides of it at once and send it back and forth forever. The backward wrap
+is what lets the wall be pushed backwards at all: a browser stops a scroll dead at zero,
+and with nowhere to be sent the wall simply refused to go that way.
+
+### Pushing it by hand
+
+Dragging with a mouse works; a **wheel is left alone on purpose**. The wall loops, so it
+never reaches an end at which to hand the gesture back, and translating a vertical wheel
+into it would trap the page every time the cursor passed over. Shift-wheel still works as
+it always does. A drag that actually moved swallows the click that follows, or letting go
+over a picture would open it.
+
 ### Motion
 
 `drifting` honours the same choice as the rest of the site: the system's reduce-motion
@@ -96,6 +109,14 @@ A file without one is hung as a modest landscape (1.5) and corrected from its **
 which ships inline and can be measured before anything is fetched.
 
 The wall waits up to `SETTLE_TIMEOUT` (1500ms) for miniatures before setting off regardless.
+
+### The wall arrives in a fold
+
+What jarred was not the pictures appearing but the calendar being shoved down the page to
+make room for them, so **the room is what is animated**: a grid row grown `0fr` -> `1fr`
+with the contents fading in as it opens. A height cannot be written down in advance - it is
+whatever the pictures turn out to need. The child clips, or the wall spills out of a row not
+yet tall enough to hold it.
 
 ## Invariants
 

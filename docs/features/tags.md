@@ -39,6 +39,9 @@ the tag set, so a quietly dropped slug is not a tag left alone - it is a tag tak
 Never build a link on a caption: captions get rewritten and differ per locale, so such a
 link breaks on the first rename and sends a Japanese reader to a search for a Russian word.
 
+Tags have **no page of their own**: a set of photographs sharing a tag *is* a search,
+and giving it a second route would be two names for one thing.
+
 ## Reading a tag
 
 `captionForSlug(slug, locale, { known, fetched })` is what a *view* calls when all it has
@@ -176,6 +179,13 @@ changes.** For one file, replace is what is meant; for a selection it is a trap.
   and announcing it would report loading as a fault.
 - `autofocus` marks the field; **`ModalDialog` does the focusing**, because two components
   racing for focus is how the caret ends up somewhere neither meant.
+
+### The tag list is not a table on a phone
+
+Four columns and a link do not fit across 360 pixels, and what fell off the right-hand edge
+was the one control on the row that does something other than open it. So the counts move
+under the caption on the narrow layout and the link keeps its corner; from `sm` up the
+columns come back.
 
 ## Invariants
 

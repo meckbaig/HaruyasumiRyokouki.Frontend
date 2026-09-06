@@ -24,19 +24,11 @@ const props = defineProps({
    * page's own arrival already covers it.
    */
   cascade: { type: Boolean, default: false },
-  /** How many tiles to reveal at a time. */
   chunkSize: { type: Number, default: 60 },
   /**
-   * Whether reaching the end of the list reveals the next chunk by itself.
-   *
-   * On a page that is only this grid, it should: the reader scrolling on is
-   * asking for more by the act of scrolling, and a button in the way is a toll.
-   *
-   * Where the grid is one section among several, it must not. The queue of
-   * unfiled media sits above the queue of unwritten days, and with a few
-   * thousand files waiting the grid grew a chunk every time the bottom came near
-   * - so the days below it could not be reached at all. There the button is the
-   * only way past.
+   * Whether the end of the list reveals the next chunk by itself. **Must be false
+   * where the grid is one section among several**, or nothing below it can be
+   * reached. See docs/features/media-grid-and-selection.md.
    */
   autoReveal: { type: Boolean, default: true },
 })
@@ -61,13 +53,9 @@ const visibleItems = computed(() => props.items.slice(0, visibleCount.value))
 const hasMore = computed(() => visibleCount.value < props.items.length)
 
 /*
-  A new result set starts from the first chunk again - but a shrunken one does not.
-
-  Approving a file takes it out of the pending queue, which hands this a new
-  array; treating that as a new answer folded four hundred revealed thumbnails
-  back to sixty, every time, and the reader had to press "show more" again to get
-  back to where they were working. A list whose every id was already in the
-  previous one is the same list minus something, and the count survives.
+  A new result set restarts from the first chunk - but a **shrunken** one does
+  not, or approving one file folds four hundred revealed thumbnails back to
+  sixty. See docs/features/media-grid-and-selection.md.
 */
 let knownIds = new Set()
 

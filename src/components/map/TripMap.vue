@@ -62,17 +62,9 @@ function locatedMedia() {
 }
 
 /**
- * The picture at the top of a popup, brought up the same way the grid brings up
- * a tile: the inline miniature first, blurred because it is tiny, and the
- * preview fading in over it once it arrives.
- *
- * A landscape strip, which is the shape a popup wants: it sits above a caption
- * and a date in a narrow column, and a square one pushed both out of sight.
- *
- * It went square for a while because the miniature arrived pre-cropped to a
- * square and this box cropped that again - a horizontal file came out looking
- * zoomed in twice over. Miniatures now keep the file's own proportions, so there
- * is only ever the one crop, and the strip is safe again.
+ * The picture at the top of a popup, in the grid's two stages. A **landscape
+ * strip** - it sits above a caption and a date in a narrow column.
+ * See docs/features/maps.md.
  */
 function buildThumbnail(item) {
   const miniature = miniatureSrc(item)
@@ -188,17 +180,9 @@ function renderMarkers() {
 }
 
 /*
-  Framing the points.
-
-  Kept apart from drawing them because it has to be done again: a map built
-  inside a box that has not been laid out yet - an overlay opening, a section
-  unfolding, a tab appearing - computes its zoom against a container of no size
-  and keeps that zoom for good. `invalidateSize` tells Leaflet the box changed
-  and does nothing about the framing, which is why the map sometimes sat at the
-  wrong scale over the right centre.
-
-  Only until the reader takes the wheel, though. After that the view is theirs,
-  and re-framing it because a sidebar opened would be taking it back.
+  Framing the points, kept apart from drawing them because it has to run again -
+  `invalidateSize` says nothing about the framing. Only until `userMoved`.
+  See docs/features/maps.md.
 */
 let userMoved = false
 let fitting = false

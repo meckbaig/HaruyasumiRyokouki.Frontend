@@ -21,16 +21,9 @@ const creating = ref(false)
 onMounted(() => tags.load().catch(() => {}))
 
 /*
-  The whole vocabulary, commonest first.
-
-  Order is the point of this screen. Filing a photograph means remembering what
-  this sort of thing was called last time, and a list sorted alphabetically
-  answers a question nobody asked - the working vocabulary is the top of the
-  usage list, and everything below the fold is the long tail of one-offs.
-
-  Filtering runs over captions *and* aliases in every language, the same as the
-  picker: looking up how a tag is spelled in Japanese means finding it by its
-  Russian name first.
+  The whole vocabulary, commonest first - **order is the point of this screen**.
+  Filtering runs over captions and aliases in every language, as the picker does.
+  See docs/features/tags.md.
 */
 const visible = computed(() =>
   tags.items
@@ -93,15 +86,8 @@ function missingCaptions(tag) {
 
     <EmptyState v-else-if="!visible.length" :message="t('tags.none')" />
 
-    <!--
-      Not a table on a phone.
-
-      Four columns and a link do not fit across 360 pixels, and what fell off the
-      right-hand edge was the one control on the row that does something other
-      than open it. So the counts move under the caption on the narrow layout and
-      the link keeps its corner; from `sm` up there is room for the columns and
-      they come back.
-    -->
+    <!-- Not a table on a phone: the counts move under the caption and the link
+         keeps its corner. See docs/features/tags.md. -->
     <div v-else>
       <!-- Column labels only where there are columns; the narrow layout runs the
            same facts together under the caption, where a heading row would be

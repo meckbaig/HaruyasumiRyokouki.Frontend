@@ -160,6 +160,11 @@ result set is resolved again from scratch and dropped if it no longer belongs an
 `MediaResultGroup` hands the viewer `[...matched, ...rest]` in render order, because the
 viewer walks a single flat list.
 
+A leading `#` is stripped from a free search. Somebody who has seen a chip written
+`#ramen` will type the hash sooner or later, expecting it to mean something. It does not -
+tags are picked from the list, never spelled - and a hash appears in no note, so searching
+for it would answer nothing.
+
 ## Invariants
 
 1. `text=` or `tag=`, never both, never neither.

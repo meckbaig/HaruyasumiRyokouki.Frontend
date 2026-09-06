@@ -1,9 +1,6 @@
 /**
- * Finding the element(s) on the page that stand for a media file.
- *
- * Tiles stamp their id with `data-media-id`. A file can be rendered more than
- * once at a time, so callers ask for all of them or for a visible one.
- * See docs/features/media-grid-and-selection.md.
+ * Finding the elements that stand for a media file. A file can be on the page
+ * more than once. See docs/features/media-grid-and-selection.md.
  */
 
 /** The attribute every tile stamps its id on. Bind it; never spell it out. */

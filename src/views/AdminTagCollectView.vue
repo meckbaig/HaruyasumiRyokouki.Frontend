@@ -23,16 +23,9 @@ const tags = useTagsStore()
 const ui = useUiStore()
 
 /*
-  A second pass over the archive, by subject rather than by day.
-
-  Filing day by day gets every photograph described; it does not get every
-  photograph of a festival tagged "festival", because the festival happened in
-  four different weeks. This screen asks the opposite question - given what
-  already carries this tag, what else in the archive belongs with it - and
-  answers it with the whole archive at once.
-
-  The tag lives in the address so the screen can be linked to from the tag list
-  and from the tag form, and so a reload does not lose it.
+  A second pass over the archive, by subject rather than by day: given what
+  already carries this tag, what else belongs with it. The tag lives in the
+  address so the screen can be linked to. See docs/features/similarity.md.
 */
 const TAKE = 300
 /** Fewer than this marked, and the server declines to guess. */
@@ -138,14 +131,8 @@ function toggle(id) {
   chosen.value = next
 }
 
-/**
- * Everything from the top down to and including this one.
- *
- * Scores fall away monotonically and the drop is usually visible, so what gets
- * marked is almost always an unbroken run from the top followed by a few
- * stragglers. Marking three hundred tiles one at a time to express that is work
- * the shape of the data makes unnecessary.
- */
+/** Everything from the top down to and including this one - what gets marked is
+ *  almost always an unbroken run. See docs/features/similarity.md. */
 function chooseThrough(index) {
   const next = new Set(chosen.value)
   for (const entry of items.value.slice(0, index + 1)) next.add(entry.media.id)

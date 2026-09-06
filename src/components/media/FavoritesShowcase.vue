@@ -16,17 +16,9 @@ const { t } = useI18n()
 const motion = useMotionStore()
 
 /*
-  An exhibition wall that drifts past.
-
-  Pictures hang at one height and keep their own width, so a portrait stands
-  narrow between two landscapes instead of every frame being cropped to the same
-  square the day pages use. The wall drifts slowly to the left; the edges fade
-  out, so a picture enters and leaves rather than being cut off by the viewport.
-
-  It is a real scroll container underneath, and the drift is nothing but
-  `scrollLeft` moving on its own. That is what lets the two coexist: the wall can
-  be pushed by hand at any moment and the drift picks up from wherever it was
-  left. An animated transform could do neither.
+  An exhibition wall that drifts past. A real scroll container underneath, with
+  the drift nothing but `scrollLeft` moving on its own - which is what lets a
+  hand push it at any moment. See docs/features/home-and-favorites.md.
 */
 const HEIGHT_CLASS = 'h-44 sm:h-56 lg:h-64'
 /** Pixels a second. Slow enough to read as drifting rather than scrolling. */
@@ -37,25 +29,16 @@ const SETTLE_TIMEOUT = 1500
 const track = ref(null)
 const settled = ref(0)
 
-/**
- * Whether the wall should drift at all.
- *
- * Honours the same choice as the rest of the site: the system's reduce-motion
- * setting, unless the visitor has opted back in here. Standing still is a fine
- * state to be in - the wall is still a scroll container, so every picture stays
- * reachable by hand.
- */
+/** Whether the wall drifts. Standing still is a fine state - it is still a
+ *  scroll container. */
 const drifting = computed(() => {
   if (motion.preference === 'always') return true
   return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 })
 
 /**
- * Drifting needs somewhere to drift to. A second copy of the wall sits after the
- * first, and the scroll jumps back by exactly one copy's width each time it has
- * passed one - landing on an identical picture in an identical place, so the
- * seam is invisible and the wall reads as endless. Standing still, one copy is
- * all there is to show.
+ * Drifting needs somewhere to drift to, so the wall is hung twice and the scroll
+ * jumps back a copy each lap. See docs/features/home-and-favorites.md.
  */
 const hung = computed(() =>
   drifting.value && props.items.length ? [...props.items, ...props.items] : props.items,
@@ -67,13 +50,9 @@ function fileAt(index) {
 }
 
 /*
-  Proportions come with the file.
-
-  Each one carries its own `aspectRatio`, so the wall is laid out correctly on
-  the first frame - nothing is hung at a guess and corrected as pictures arrive,
-  and no frame resizes under a wall that is trying to drift. A file without one
-  is hung as a modest landscape and corrected from its miniature, which ships
-  inline and can be measured before anything is fetched.
+  Proportions come with the file, so nothing is hung at a guess and resized under
+  a wall that is trying to drift. A file without one is corrected from its
+  miniature. See docs/features/home-and-favorites.md.
 */
 const ratios = ref({})
 const loaded = ref({})
@@ -95,13 +74,9 @@ function ratioOf(media) {
 }
 
 /*
-  The drift.
-
-  Its position is kept here rather than read back out of the element each frame.
-  A browser hands `scrollLeft` back rounded to whole pixels, so a step of a third
-  of a pixel was written and then read as nothing, over and over - the wall stood
-  still while the loop ran perfectly. Keeping the fractional position in hand and
-  only ever writing it is what makes a slow drift possible at all.
+  The drift. **Writes `scrollLeft` and never reads it back**: a browser rounds it
+  to whole pixels, so a third-of-a-pixel step was written and read as nothing.
+  See docs/features/home-and-favorites.md.
 */
 let raf = null
 let lastFrame = 0
@@ -114,12 +89,8 @@ let ready = false
 const held = ref(false)
 
 /**
- * How far the wall travels before it repeats, or 0 when only one copy is hung.
- *
- * Measured as the distance between a frame and its twin, rather than as half the
- * scrollable width: that width also carries the container's padding and one gap
- * too few, and a seam off by even those few tens of pixels is a jump you can see
- * once every lap.
+ * How far the wall travels before it repeats. Measured **between a frame and its
+ * twin**, never as half the scrollable width, which carries padding and a gap.
  */
 function copyWidth() {
   const element = track.value
@@ -132,16 +103,9 @@ function copyWidth() {
 }
 
 /**
- * Keeps the scroll inside one copy's worth of travel, in either direction.
- *
- * Past the end it goes back a copy, and short of the start it goes forward one -
- * both landing on the identical picture in the identical place, so the jump
- * cannot be seen. The second is what lets the wall be pushed backwards at all: a
- * browser stops a scroll dead at zero, and without somewhere to be sent the wall
- * simply refused to go that way.
- *
- * The two bounds are deliberately a pixel apart. Sharing one would put the wall
- * on both sides of it at once and it would be sent back and forth forever.
+ * Keeps the scroll inside one copy's travel, either direction. **The two bounds
+ * are a pixel apart on purpose** - sharing one sends the wall back and forth
+ * forever. See docs/features/home-and-favorites.md.
  */
 function wrapped(position, copy) {
   if (copy <= 0) return position
@@ -199,14 +163,9 @@ function stop() {
 }
 
 /*
-  Pushing the wall with a mouse.
-
-  A wheel is left alone on purpose: the wall loops, so it never reaches an end to
-  hand the gesture back at, and translating a vertical wheel into it would trap
-  the page every time the cursor passed over. Dragging is unambiguous - it can
-  only have been meant for the wall - and shift-wheel still works as it always
-  does. A drag that actually moved swallows the click that follows, or letting go
-  over a picture would open it.
+  Pushing the wall with a mouse. **A wheel is left alone** - the wall loops, so it
+  never reaches an end at which to hand the gesture back.
+  See docs/features/home-and-favorites.md.
 */
 const DRAG_SLOP = 6
 let drag = null
@@ -348,13 +307,9 @@ function open(event, index) {
           :aria-label="media.title || media.fileName || t('media.untitled')"
           @click="open($event, index)"
         >
-          <!--
-            The same two stages as a grid tile: the inline miniature at once,
-            blurred because it is tiny and scaled past the blur so its softened
-            edges do not let the frame show through, and the preview settling
-            over it. The preview fades in only once it is whole, so the frame is
-            never empty and never half-drawn.
-          -->
+          <!-- The same two stages as a grid tile: inline miniature at once,
+               preview settling over it once it is whole.
+               See docs/features/media-grid-and-selection.md. -->
           <img
             v-if="miniatureSrc(media)"
             :src="miniatureSrc(media)"

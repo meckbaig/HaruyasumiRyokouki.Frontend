@@ -1,9 +1,6 @@
 /**
- * Sharing is just "copy the current URL": every shareable state - the day, the
- * search query, the active tab, the map range - already lives in the address
- * bar, so there is nothing else to serialise. The one addition is ?lang=<current
- * locale>, so the recipient opens the site in the language the sender was using
- * (and the crawler serves a preview card in that language).
+ * Sharing is "copy the current URL" plus `?lang=<locale>` - every shareable state
+ * already lives in the address bar. See docs/features/sharing-and-links.md.
  */
 import { currentLocale } from '@/i18n'
 import { withMediaLink } from '@/composables/useMediaLink'
@@ -47,14 +44,9 @@ export async function copyToClipboard(text) {
 }
 
 /**
- * Copies a link to one file rather than to the page as a whole.
- *
- * Built on top of wherever the reader is, so a file shared from a search carries
- * the search with it and lands among the same results. `path` overrides that for
- * a page that cannot resolve a file at all - the front page, whose wall is
- * reshuffled per visit - where the file's own day is the honest destination.
- *
- * See composables/useMediaLink for what `i` and `o` mean.
+ * Copies a link to one file rather than to the page as a whole, built on wherever
+ * the reader is. `path` overrides that for a page that cannot resolve a file at
+ * all - the front page. See docs/features/sharing-and-links.md.
  */
 export function copyMediaUrl(id, { open = false, path = null } = {}) {
   const url = new URL(path ?? window.location.href, window.location.origin)

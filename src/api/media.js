@@ -1,12 +1,8 @@
 import { request } from './client'
 
 /**
- * GET /v1/media/edit?ids=1&ids=2 -> full MediaFileEditDto[] with id and every
- * language's title/description/tags.
- *
- * The public models are flattened to one language, so the editor fetches this
- * richer model to fill all the language tabs. `ids` are integers, sent as a
- * repeated query parameter. Editor-only.
+ * GET /v1/media/edit?ids=1&ids=2 -> full `MediaFileEditDto[]`, every language at
+ * once. `ids` are integers sent as a repeated parameter. Editor-only.
  */
 export async function fetchMediaEdit(ids, signal) {
   const data = await request('/media/edit', {
@@ -18,11 +14,8 @@ export async function fetchMediaEdit(ids, signal) {
 }
 
 /**
- * GET /v1/media/locations?from=&to= -> MediaFileLocationDto[].
- *
- * Only media that carry coordinates. `MediaFileLocationDto` is the flat model
- * minus its text, thumbnails included, so a popup needs no extra fetch.
- * Both `from` and `to` are required (inclusive ISO dates). Public.
+ * GET /v1/media/locations?from=&to= -> `MediaFileLocationDto[]`, geotagged files
+ * only, thumbnails included. Both dates required, inclusive ISO. Public.
  */
 export async function fetchMediaLocations(from, to, signal) {
   const data = await request('/media/locations', { query: { from, to }, signal })
@@ -30,23 +23,15 @@ export async function fetchMediaLocations(from, to, signal) {
 }
 
 /**
- * PATCH /v1/media - applies one set of changes to every id at once.
- *
- * `changes.translations` entries deliberately omit the translation `id`: in a
- * bulk edit each media file has its own translation row, so the backend is
- * expected to match on `languageCode`.
- *
- * `autoTranslate: true` saves what was sent, then returns translations of the
- * empty languages **without storing them** - keeping them is a second save.
+ * PATCH /v1/media - one set of changes applied to every id. Omitting a field is
+ * what tells the backend to leave it alone. See docs/features/api-layer.md.
  *
  * @param {string[]} ids
  * @param {{latitude?: number, longitude?: number, isApproved?: boolean,
  *          private?: boolean, favorite?: boolean, tagIds?: number[],
  *          translations?: Array<{id?: number, languageCode: string,
  *          title?: string, description?: string}>}} changes
- *   Omitted fields are left alone. `tagIds` **replaces** the tag set; to add a
- *   tag use `POST /v1/tags/{id}/media`.
- * @param {{autoTranslate?: boolean}} [options]
+ *   `tagIds` **replaces** the tag set; to add one use `POST /v1/tags/{id}/media`.
  * @returns {Promise<object|null>} `{ items: MediaFileEditDto[] }` when translating, else null.
  */
 export function editMedia(ids, changes, { autoTranslate = false } = {}) {
@@ -57,35 +42,19 @@ export function editMedia(ids, changes, { autoTranslate = false } = {}) {
   })
 }
 
-/**
- * Marks one file for the front page, or takes the mark off.
- *
- * A PATCH carrying nothing but `favorite`: every other field is left out, which
- * is what tells the backend to leave it alone. Editor-only.
- */
+/** Marks one file for the front page, or takes the mark off. Editor-only. */
 export function setFavorite(id, favorite) {
   return editMedia([id], { favorite })
 }
 
-/**
- * Keeps one file out of public view, or lets it back in.
- *
- * The same single-field PATCH as the star: everything else is left out, which is
- * what tells the backend not to touch it. Editor-only.
- */
+/** Keeps one file out of public view, or lets it back in. Editor-only. */
 export function setPrivate(id, isPrivate) {
   return editMedia([id], { private: isPrivate })
 }
 
 /**
- * GET /v1/media/favorites -> MediaFileDto[].
- *
- * The files picked out for the front page. The backend shuffles them and caps
- * the count, so the order is different on every visit and nothing here sorts or
- * trims. Public.
- *
- * They arrive loose rather than inside their days, so each one's day comes from
- * its own `created` timestamp (`mediaDate` in services/mediaAssets).
+ * GET /v1/media/favorites -> `MediaFileDto[]`, shuffled and capped by the server
+ * and loose rather than inside their days. Public.
  */
 export async function fetchFavoriteMedia(signal) {
   const data = await request('/media/favorites', { signal })
@@ -109,17 +78,9 @@ export function syncMedia() {
 }
 
 /**
- * GET /v1/media/{id}/similar -> `{ media, score }[]`, most alike first.
- *
- * The server holds a fingerprint of every photograph's content and compares
- * across the whole archive - other days, other places. It deliberately does
- * **not** cut the list off at a threshold: how alike is alike enough depends on
- * how narrow the thing being looked for is, and there is no one right number.
- * So it always answers with `take` of them and the score comes along, for a
- * person to see where the useful part ended. Editor-only.
- *
- * An empty list means this file has no fingerprint - a video, typically. That is
- * an answer, not a failure.
+ * GET /v1/media/{id}/similar -> `{ media, score }[]`, most alike first and never
+ * cut off at a threshold. An empty list means no fingerprint - a video, usually.
+ * Editor-only. See docs/features/similarity.md.
  */
 export async function fetchSimilarMedia(id, take = 50, signal) {
   const data = await request(`/media/${id}/similar`, { query: { take }, requiresAuth: true, signal })

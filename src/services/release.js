@@ -1,10 +1,7 @@
 /**
- * What release this is, for the footer to say.
- *
- * The number lives in package.json and arrives here as a build-time constant.
- * Only feature releases carry a name - the third segment is for fixes, and a
- * fix belongs to the feature release it follows, so the name is looked up by
- * major and minor alone. CHANGELOG.md is the long version of this list.
+ * What release this is, for the footer to say. Names are keyed by major and minor
+ * alone - the third segment is for fixes, and a fix belongs to the feature
+ * release it follows. See docs/features/build-and-release.md.
  */
 const NAMES = {
   '1.2': 'faster filing',
@@ -29,13 +26,7 @@ export const version = __APP_VERSION__
 /** ISO timestamp of the build this bundle came from. */
 export const build = __APP_BUILD__
 
-/**
- * What each generation of the site calls itself, keyed by major version.
- *
- * Zero says it is still finding its shape. A major after that is a rework
- * rather than a number going up, and can say so here; anything with nothing
- * listed simply carries its name alone.
- */
+/** What each generation of the site calls itself, keyed by major version. */
 const STAGES = {
   0: 'pre-release',
 }

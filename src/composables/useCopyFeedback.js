@@ -2,11 +2,8 @@ import { ref, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 /**
- * "Copied" feedback for a share button, shown beside the button rather than as
- * a page-corner toast - so it is obvious which action it belongs to.
- *
- * `run` takes anything returning a promise of a boolean; `feedback` is
- * `{ ok, text }` while it shows, null otherwise.
+ * "Copied" feedback shown beside a share button rather than as a corner toast.
+ * `run` takes anything answering a promise of a boolean.
  */
 export function useCopyFeedback({ duration = 2000 } = {}) {
   const { t } = useI18n()

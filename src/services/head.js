@@ -1,19 +1,9 @@
 import { i18n } from '@/i18n'
 
 /*
-  Localised document head.
-
-  The static index.html can only carry one language, so its title/description
-  are a fixed fallback. This module rewrites them at runtime to match the active
-  locale and the current route, which fixes the browser tab, bookmarks, and any
-  crawler that executes JavaScript (Google does).
-
-  Link-preview crawlers (Telegram, WhatsApp, VK, Slack, Facebook) do NOT run JS,
-  so this runtime rewrite never reaches them. Their card language is handled at
-  the server: the build emits index.ru/en/ja.html with localized OG tags
-  (scripts/generate-localized-html.mjs) and Apache serves one by ?lang= /
-  Accept-Language (the generated .htaccess). Shared links carry ?lang= (added in
-  services/share.js), which is how the crawler lands on the right variant.
+  Localised document head, rewritten at runtime - which covers browsers and
+  crawlers that run JavaScript. Preview crawlers do not, and are served a static
+  per-locale page instead. See docs/features/sharing-and-links.md.
 */
 
 /** OpenGraph wants a full locale tag; our app locales are the language part. */
@@ -32,12 +22,9 @@ function setMeta(keyAttr, keyValue, content) {
 }
 
 /**
- * Points the manifest link at the locale's own file.
- *
- * A browser reads the manifest when it offers to install, so the name under the
- * icon follows whatever language the reader had chosen by then - not the one the
- * page was served in. In development there are no per-locale manifests (the
- * build writes them), so a missing file is left alone rather than pointed at.
+ * Points the manifest link at the locale's own file, so an installed app takes
+ * the language chosen rather than the one the page was served in. Dev has no
+ * per-locale manifests, so a missing file is left alone.
  */
 function applyManifest(locale) {
   const link = document.querySelector('link[rel="manifest"]')

@@ -27,13 +27,8 @@ const error = ref(null)
 const syncing = ref(false)
 const editing = ref(null)
 const openDayDate = ref(null)
-/**
- * A plain tap opens the file full screen, the same as it does everywhere else.
- * Editing has a button of its own on the tile and a toolbar behind the
- * selection, so the tap was the one way of looking at a file that this page had
- * spent on a dialog - and the queue is exactly where a file most needs looking
- * at before anything is decided about it.
- */
+/** A plain tap opens the file full screen, as everywhere else - editing has its
+ *  own button and the queue is where a file most needs looking at. */
 const lightboxIndex = ref(null)
 
 async function load() {
@@ -112,14 +107,9 @@ function onMediaSaved({ ids, approved } = {}) {
   }
 }
 
-/*
-  The same, for a save made through the floating toolbar.
-
-  That toolbar is mounted at app level so the selection survives navigation, and
-  a component mounted above every page cannot hand this one an event. It records
-  the save in the editor store and this reads it from there - otherwise a
-  selection approved in bulk stayed on the queue until the page was reloaded.
-*/
+/* The same, for a save made through the floating toolbar - it is mounted above
+   every page and cannot hand this one an event, so `editor.lastSave` is the
+   channel. See docs/features/media-grid-and-selection.md. */
 watch(() => editor.lastSave, onMediaSaved)
 
 /** The same again for a deletion made from that toolbar. */

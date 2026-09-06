@@ -14,28 +14,15 @@ const emit = defineEmits(['close'])
 const { t } = useI18n()
 
 /*
-  What a right-click on a picture offers.
-
-  There is one thing to offer so far - a link to that picture where it sits, so
-  it can be sent to someone and land outlined among its neighbours. A menu for a
-  single action is still worth having: the alternative is a permanent button on
-  every tile, and the grid is meant to be photographs rather than controls.
-
-  The menu is placed where the click was and nudged back inside the window if it
-  would hang off an edge. Everything closes it - another click, a key, a scroll,
-  the window changing size - because a menu that outlives its moment is a menu
-  in the way.
+  What a right-click on a picture offers: one action, a link to it where it sits.
+  Placed at the click, nudged back inside the window, and closed by anything at
+  all. See docs/features/media-grid-and-selection.md.
 */
 const menu = ref(null)
 const size = ref({ width: 0, height: 0 })
 
-/**
- * A file kept back from the public has nothing to offer here, since the one
- * thing on the menu is a link to it. The menu still opens, and says why: the
- * browser's own menu has been suppressed on these tiles since long before this,
- * so a right-click that produced nothing at all would read as the page being
- * broken rather than as an answer.
- */
+/** A private file has nothing to offer here. The menu still **opens and says
+ *  why** - the native one is suppressed, so silence would read as a broken page. */
 const hidden = computed(() => isPrivate(props.target?.media))
 
 const position = computed(() => {

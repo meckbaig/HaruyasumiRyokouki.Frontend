@@ -11,14 +11,8 @@ const props = defineProps({
   selected: { type: String, default: null },
   rangeStart: { type: String, default: null },
   rangeEnd: { type: String, default: null },
-  /**
-   * Words for the two ends of the range, shown as tabs above the picked days.
-   *
-   * Blank on the day page, where the calendar picks one date and there is no
-   * range to name. On the trip map there is, and without them a calendar that
-   * answers the first click with one dark square says nothing at all about what
-   * the second click is for.
-   */
+  /** Words for the two ends of a range. Blank on the day page, which picks one
+   *  date. See docs/features/days-and-calendar.md. */
   rangeStartLabel: { type: String, default: '' },
   rangeEndLabel: { type: String, default: '' },
 })
@@ -48,27 +42,10 @@ function inRange(iso) {
 }
 
 /**
- * Cell styling carries three signals at once: whether the day exists in the
- * timeline, whether its note is finished, and whether it is currently picked.
- *
- * The same calendar date can appear in two month grids at once - 28 Feb shows in
- * both February's own cells and as a leading cell of March. Only the owning
- * month gets any selection or range highlight, so a picked day never lights up
- * twice; foreign cells are always rendered plain.
- */
-/**
- * Two things, drawn two ways.
- *
- * The fill says what kind of day this is - nothing recorded, a draft, a finished
- * note - and it is the same fill on every calendar on the site. Belonging to a
- * picked range is not a kind of day; it is a thing done to a stretch of them, and
- * giving it a fill of its own put it in the same channel as the other three. A
- * finished day and a day inside the range then looked alike, and inside the range
- * the difference between finished and draft disappeared entirely.
- *
- * So the range is a bar under the number instead. It reads along a row the way a
- * range should, it survives every fill underneath it, and the two edges keep the
- * solid mark that says a hand put them there.
+ * Two things, drawn two ways: the **fill** says what kind of day this is, the
+ * **bar under the number** says it is in the picked range. A date can appear in
+ * two grids at once, so only the owning month draws either.
+ * See docs/features/days-and-calendar.md.
  */
 function cellClass(cell) {
   if (!cell.inMonth) return 'text-ink-faint/30'

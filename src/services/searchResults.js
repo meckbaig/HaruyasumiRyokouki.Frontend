@@ -1,26 +1,14 @@
 import { tokenize, hasMatch, buildSnippets } from './highlight'
 
 /**
- * Splits a raw search response into the two result tabs.
- *
- * The backend returns days without saying *why* each one matched, but the shape
- * of the response carries enough:
- *
- * - a day that matched through its media comes back with `media` holding only
- *   the matching files;
- * - a day that matched through its note alone comes back with `media` empty.
- *
- * A day can legitimately land in both tabs, and that is not a duplicate - it
- * matched in both places.
+ * Splits a raw search response into the two result tabs. A day can land in both,
+ * and that is not a duplicate. See docs/features/search.md.
  *
  * @param {Array} items DayDto[] straight from `GET /v1/search`.
- * @param {string} query Raw query text.
  */
 export function splitSearchResults(items, query) {
-  // A tag search has no words in it, so nothing is highlighted and no day can
-  // land in the notes tab: the answer is a set of photographs, and the day note
-  // was never what matched. `tokenize('')` gives an empty list, which is exactly
-  // that behaviour with no special case anywhere below.
+  // A tag search has no words in it, so `tokenize('')` is empty and no day can
+  // reach the notes tab - the behaviour wanted, with no special case below.
   const tokens = tokenize(query)
   const days = Array.isArray(items) ? items : []
 

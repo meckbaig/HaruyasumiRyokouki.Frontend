@@ -19,13 +19,9 @@ function resolve(id) {
 let appliedTokens = []
 
 /**
- * Paints a resolved theme by writing its palette as inline custom properties on
- * <html>. Inline vars win over the stylesheet `@theme` defaults, so every
- * Tailwind `var(--color-*)` utility re-themes at once.
- *
- * Tokens the previous theme set and this one does not are removed rather than
- * left standing: some are optional (`accent-on-dark`), and a leftover would
- * quietly apply the old theme's colour to the new one.
+ * Paints a theme as inline custom properties on <html>, which beat the `@theme`
+ * defaults. Tokens the new theme does not define are **removed**, or an optional
+ * one would leak the old colour. See docs/features/i18n-and-theming.md.
  */
 function apply(theme) {
   const root = document.documentElement
@@ -44,16 +40,14 @@ function apply(theme) {
   // Kept as a styling/debug hook even though colours ride on the inline vars.
   root.setAttribute('data-theme', theme.id)
 
-  // Installed as an app, the browser paints its own surround in this colour. A
-  // fixed one would frame a black theme in cream.
+  // Installed as an app, the browser paints its own surround in this colour.
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta && theme.colors?.paper) meta.setAttribute('content', theme.colors.paper)
 }
 
 /**
- * Theme preference and its resolution to a concrete palette. A multi-way palette
- * (plus "system") cannot ride on prefers-color-scheme alone, so the choice is
- * stored and applied explicitly. All theme definitions live in @/theme/themes.
+ * Theme preference and its resolution to a palette. A multi-way choice cannot
+ * ride on `prefers-color-scheme` alone. Definitions live in @/theme/themes.
  */
 export const useThemeStore = defineStore('theme', () => {
   const stored = localStorage.getItem(STORAGE_KEY)

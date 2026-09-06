@@ -2,21 +2,10 @@ import { nextTick } from 'vue'
 import { tileFor } from './mediaTiles'
 
 /**
- * Brings the file a link singled out into view.
- *
- * Found by the id each tile stamps on itself rather than through a chain of
- * template refs, because the tile may be several components deep - inside a
- * search group, inside a grid - and only one page at a time is ever asking.
- *
- * Two ticks: the first lets the grid render the id it was just given, and the
- * grid may also have to reveal further chunks to reach a file far down a long
- * day, which is a second render of its own.
- *
- * Scrolling on load is normally worth avoiding - it costs the reader the place
- * they were put. Here it is the entire point of the link: someone followed it to
- * this picture, and leaving it off screen would be answering a different
- * request. Centred rather than aligned to the top, so the pictures around it
- * come along and it reads as a file among its neighbours.
+ * Brings the file a link singled out into view, found by the id its tile stamps
+ * on itself. Two ticks: one for the id, one for any chunk the grid must reveal.
+ * Centred, so it reads as a file among its neighbours.
+ * See docs/features/sharing-and-links.md.
  */
 export async function scrollToMedia(id) {
   if (id == null) return

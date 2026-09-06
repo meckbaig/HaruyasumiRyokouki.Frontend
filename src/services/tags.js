@@ -1,28 +1,7 @@
 /**
- * Reading a tag.
- *
- * A tag is an entity with an id, and its words hang off it: one **caption** per
- * language (`IsPrimary`), and any number of **aliases**. The difference is the
- * whole point of the arrangement. A caption is what a reader sees; an alias is
- * only ever a way in - someone looking for "noodles" finds photographs captioned
- * "ramen", and never learns that "noodles" was written down anywhere.
- *
- * So aliases are searched and never rendered. Nothing in this module returns
- * them for display, and the public read model does not carry them at all.
- *
- * Two shapes arrive from the API and both are handled here:
- *
- *   TagPublicDto  { slug, value }                     on a media file
- *   TagDto        { id, slug, translations[], aliases[], usageCount }
- *
- * The first is already resolved to the reader's language by the server; the
- * second is the editor's model, carrying every language at once.
- *
- * **The slug is the name a tag is known by outside the editor.** It is what
- * public models carry, what a link puts in the address (`/search?tag=ramen`) and
- * what everything here keys on. The numeric `id` exists only in the editor's
- * model and only for one purpose - `changes.tagIds` on a save - so it is
- * resolved from the dictionary at that one moment and nowhere else.
+ * Reading a tag: an entity with an id, one caption per language, and aliases
+ * that are searched and never rendered. **The slug is its public name** - the
+ * numeric id lives in `TagDto` alone. See docs/features/tags.md.
  */
 
 /** Comparison form: case and diacritics folded away, so `ё` finds `е`. */
@@ -38,12 +17,8 @@ function rows(list) {
 }
 
 /**
- * The caption to put on screen.
- *
- * Asked for a language and falling back rather than failing: a tag mid-edit may
- * have no caption in the reader's language yet, and a chip with nothing written
- * on it is worse than a chip in the wrong language. Last resort is the slug,
- * which is not a caption but is at least a name.
+ * The caption to put on screen. Falls back rather than fails: a chip with
+ * nothing written on it is worse than one in the wrong language.
  */
 export function tagLabel(tag, locale) {
   if (!tag) return ''
@@ -66,29 +41,14 @@ export function tagWords(tag) {
   return words
 }
 
-/**
- * Whether a tag answers to what has been typed.
- *
- * Every language and every alias at once, deliberately: an editor typing
- * "temple" in a Russian interface is naming a tag they know by its English
- * caption, and refusing them because the interface is in another language would
- * be pedantry. The dictionary is small enough that the whole of it is compared
- * on every keystroke.
- */
+/** Whether a tag answers to what was typed - every language and alias at once. */
 export function tagMatches(tag, needle) {
   const wanted = fold(needle).trim()
   if (!wanted) return true
   return tagWords(tag).some((word) => fold(word).includes(wanted))
 }
 
-/**
- * Commonest first.
- *
- * A tag already used two hundred times is far likelier to be the one meant than
- * one used twice, and offering them alphabetically would bury the working
- * vocabulary under everything ever coined. Ties fall back to the caption so the
- * order is at least stable between renders.
- */
+/** Commonest first, caption as a tiebreak. Order is the point - see the feature doc. */
 export function compareTags(a, b, locale) {
   const usage = (b?.usageCount ?? 0) - (a?.usageCount ?? 0)
   if (usage !== 0) return usage
@@ -96,11 +56,8 @@ export function compareTags(a, b, locale) {
 }
 
 /**
- * What to call a tag known only by its slug.
- *
- * `known` is the dictionary entry when there is one; a visitor has no dictionary,
- * so `fetched` is the caption read out of a response. The slug is the last
- * resort - not a caption, but a name.
+ * What to call a tag known only by its slug: `fetched` out of a response first,
+ * then the dictionary entry, then the slug - a name, if not a caption.
  */
 export function captionForSlug(slug, locale, { known = null, fetched = '' } = {}) {
   if (!slug) return ''

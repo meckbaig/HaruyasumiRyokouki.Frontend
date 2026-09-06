@@ -55,18 +55,23 @@ doc yet, read the code and then write one.
   source of truth for the API. When something about the backend is unclear, ask or record
   it as a contract question.
 - **Plain JavaScript, no TypeScript.**
-- **Comments are short. Long explanations belong in `docs/`.** Code is expected to be
-  self-documenting; a comment says what a function, constant or block is for, quickly.
+- **No comment block may exceed four lines.** Not "short" - four. Count the lines of
+  prose; `/*`, `*/`, blanks and JSDoc tag lines (`@param`, `@returns`, `@throws`) do
+  not count - a type signature is not prose. Over the limit is a defect, and the length
+  alone makes it one: no judgement about how valuable the text is overrides the count.
 
-  | In the code | In `docs/features/*.md` |
+  | In the code (4 lines or fewer) | In `docs/features/*.md` |
   | --- | --- |
-  | Name, purpose, a warning, a two-line summary | Workflow and sequence of operations |
-  | A usage example, where it genuinely helps | Why the design is this way, and what broke before |
-  | A one-line note on a non-obvious line | Anything multi-paragraph |
+  | Name, purpose, a warning | Workflow and sequence of operations |
+  | A one-line note on a non-obvious line | Why the design is this way, and what broke before |
+  | A pointer: `See docs/features/x.md.` | Anything that needs a paragraph |
 
-  Nobody reads a fifteen-line comment while working; they skim two lines and move on. If
-  more is needed, write it in the feature doc and, when it matters, point at it in one
-  line. Writing a long block into a source file is a defect, not thoroughness.
+  When the reasoning is worth keeping, it goes to the feature doc and the code keeps one
+  line pointing at it. Nobody reads a fifteen-line comment while working. **Before calling
+  a change done, check the blocks you added.**
+- **A comment sits on the thing it describes.** Two comment blocks in a row means one
+  of them is stranded - either it is a duplicate to delete, or it belongs further down
+  and has drifted. That drift is how a comment goes stale without anyone editing it.
 - Ids are int32: test `id == null`, never truthiness.
 - Use the existing component classes (`.field-input`, `.btn-primary`, `.btn-ghost`,
   `.btn-danger`, `.fit-media`) rather than re-spelling Tailwind.

@@ -3,12 +3,8 @@ import { computed, ref, shallowRef, nextTick, onBeforeUnmount } from 'vue'
 import { motionReduced } from '@/services/motion'
 
 /*
-  The picture flying between a grid tile and the open viewer.
-
-  Nothing animates but transforms, so the image is rasterised once whatever its
-  resolution. Why there are two elements, and why two of the three tracks are
-  sampled rather than written as two keyframes, is in
-  docs/features/media-viewer.md.
+  The picture flying between a grid tile and the open viewer. Transforms only, so
+  the image is rasterised once. See docs/features/media-viewer.md.
 */
 
 /** Marks the flight on <html>; main.css uses it to hold the room's own fade. */
@@ -70,21 +66,11 @@ function transformOf(place) {
 }
 
 /**
- * The three tracks a flight runs on.
+ * The three tracks a flight runs on: the window's travel, and the two that undo
+ * its uneven scale on the image and on the corner.
  *
- * `window` is the outer box travelling between the two rectangles: two keyframes
- * on the real curve, which reproduces the box animation this replaced exactly.
- *
- * `counter` undoes the outer's uneven scale on the image, and `radius` undoes it
- * on the corner. Neither can be two keyframes, because both are quotients of the
- * outer scale and interpolating a quotient's ends is not interpolating the
- * quotient: left that way the picture stretches like jelly and the corner swells
- * to twice the tile's radius halfway across. Both are sampled instead, each
- * sample derived from the outer scale that instant actually has.
- *
- * Sampled in even steps of distance rather than of time, because this curve
- * front-loads hard - the first tenth of the flight covers 40% of the path - and
- * samples spread evenly in time would describe that stretch with two of them.
+ * The last two are sampled, not written as two keyframes - the maths and the
+ * sampling residual are in docs/features/media-viewer.md.
  */
 function buildTracks(base, from, to, fromRadius, toRadius) {
   const a = placement(base, from)
@@ -117,13 +103,8 @@ function buildTracks(base, from, to, fromRadius, toRadius) {
 }
 
 /**
- * The clip that keeps a flight under the page's own header.
- *
- * Fixed for the whole flight, never released: the picture grows upwards and ends
- * against the top of the window whatever the tile it came from, so a clip that
- * opened partway simply let it climb over the header instead. It costs nothing
- * at the end - the viewer's own top bar stands where the header did, and the
- * picture is fitted below it.
+ * The clip that keeps a flight under the page's own header. Fixed for the whole
+ * flight, never released - see the feature doc for why.
  */
 function clipFor(insets) {
   if (!insets?.top) return null
@@ -146,17 +127,16 @@ async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null 
   if (!src || !from || !to || motionReduced()) return
   stop()
 
-  // Laid out in the larger box and scaled down, so the raster is always made at
-  // the resolution the picture ends up needing.
+  // The larger box, so the raster is made at the resolution needed and only
+  // ever scaled down.
   const base = area(from) >= area(to) ? from : to
   if (!base.width || !base.height) return
 
   const tracks = buildTracks(base, from, to, fromRadius, toRadius)
-  // Rendered already holding the first sample, so the frame before the animation
-  // begins is not the untransformed base box.
+  // Rendered holding the first sample, or the frame before the animation would
+  // be the untransformed base box.
   flight.value = { base, tracks, clipPath: clipFor(insets), src }
-  // Set before the await: on the way out the room begins leaving in this same
-  // tick, and the rule that holds its fade is keyed on this attribute.
+  // Before the await: the room begins leaving in this same tick.
   document.documentElement.setAttribute(FLYING_ATTR, '')
 
   await nextTick()
@@ -178,10 +158,7 @@ async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null 
   travel.onfinish = stop
 }
 
-/**
- * Swaps in a sharper file mid-flight - see the invariant in the feature doc.
- * Decoded off-DOM first, so the swap costs one clean frame instead of a hitch.
- */
+/** Swaps in a sharper file mid-flight, decoded off-DOM so it costs one frame. */
 async function setSource(next) {
   if (!next || !flight.value || next === flight.value.src) return
 
@@ -206,11 +183,8 @@ defineExpose({ active, fly, setSource, cancel: stop })
 
 <template>
   <Teleport to="body">
-    <!--
-      The frame is exactly the viewport, so it changes none of the coordinates
-      below; all it ever does is hold the clip that keeps the picture under the
-      page's own header.
-    -->
+    <!-- Exactly the viewport, so it changes no coordinates; it only holds the
+         clip that keeps the picture under the page's header. -->
     <div
       v-if="flight"
       ref="frame"

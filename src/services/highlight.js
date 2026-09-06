@@ -1,14 +1,8 @@
 /**
- * Client-side match finding and snippet extraction for search results.
- *
- * The API returns whole day notes without telling us which part matched, so the
- * frontend locates the occurrences itself. This is the permanent arrangement,
- * not a stand-in: search results are small enough that doing it here is cheaper
- * than teaching the backend to emit snippets.
- *
- * Every range this module returns is expressed in *original* text coordinates,
- * so the caller can slice the untouched string and never has to render HTML
- * built by string concatenation.
+ * Client-side match finding and snippet extraction for search results. Every
+ * range returned is in *original* text coordinates, so a caller slices the
+ * untouched string and never builds HTML by concatenation.
+ * See docs/features/search.md.
  */
 
 /** How much context to keep on each side of a match inside a snippet. */
@@ -26,13 +20,9 @@ function normalizeChar(char) {
 }
 
 /**
- * Builds a normalised copy of `text` together with an index map back into the
- * original. Normalisation can change length (ligatures expand, diacritics
- * vanish), so a naive `indexOf` on the normalised string would report offsets
- * that no longer line up with what we display.
- *
- * @returns {{normalized: string, map: number[]}} `map[i]` is the index in the
- *   original string that produced `normalized[i]`.
+ * A normalised copy of `text` plus a map back into the original: `map[i]` is the
+ * index that produced `normalized[i]`. Normalising changes length, so offsets
+ * taken from the normalised string do not line up with what is displayed.
  */
 function normalizeWithMap(text) {
   let normalized = ''
@@ -50,10 +40,8 @@ function normalizeWithMap(text) {
 }
 
 /**
- * Splits a query into normalised search tokens, dropping punctuation and noise.
- *
- * The em/en dashes in the class below are separators, not typography - keep them
- * despite the project-wide rule against those characters.
+ * Splits a query into normalised search tokens. The em/en dashes in the class
+ * below are separators, not typography - they stay despite the project rule.
  */
 export function tokenize(query) {
   if (!query) return []
@@ -84,10 +72,8 @@ function mergeRanges(ranges) {
 }
 
 /**
- * Finds every occurrence of every token inside `text`.
- *
- * @returns {Array<[number, number]>} merged `[start, end)` ranges in original
- *   coordinates, sorted by position.
+ * Every occurrence of every token inside `text`.
+ * @returns {Array<[number, number]>} merged `[start, end)` ranges, original coordinates.
  */
 export function findRanges(text, tokens) {
   if (!text || !tokens?.length) return []
@@ -151,9 +137,6 @@ function snapToBoundary(text, index, direction) {
 /**
  * Cuts `text` down to the neighbourhoods of its matches.
  *
- * @param {string} text
- * @param {string[]} tokens
- * @param {{radius?: number, maxSnippets?: number}} [options]
  * @returns {Array<{text: string, ranges: Array<[number, number]>, hasPrefix: boolean, hasSuffix: boolean}>}
  *   Each snippet's ranges are relative to that snippet's own `text`.
  */
@@ -203,12 +186,7 @@ export function buildSnippets(text, tokens, options = {}) {
   })
 }
 
-/**
- * Splits text into alternating plain and highlighted parts, ready for a
- * `v-for` render. Avoids `v-html` entirely.
- *
- * @returns {Array<{text: string, match: boolean}>}
- */
+/** Alternating plain and matched parts, ready for a `v-for`. Avoids `v-html`. */
 export function toParts(text, ranges) {
   const source = String(text ?? '')
   if (!ranges?.length) return source ? [{ text: source, match: false }] : []

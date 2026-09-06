@@ -57,15 +57,8 @@ async function refresh() {
   reload()
 }
 
-/*
-  Fullscreen.
-
-  A second map rather than this one moved into an overlay: a live Leaflet
-  instance carried through a Teleport comes out broken - blank tiles, and dead
-  once it is put back - which is why the location picker in the editor builds two
-  as well. Both are driven from the same media, so they show the same thing and
-  neither knows about the other.
-*/
+/* Fullscreen builds a **second map**; a live Leaflet instance carried through a
+   Teleport comes out broken. See docs/features/maps.md. */
 const expanded = ref(false)
 
 function onKeydown(event) {

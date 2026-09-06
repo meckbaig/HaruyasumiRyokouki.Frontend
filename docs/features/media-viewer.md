@@ -328,6 +328,27 @@ either expanded - so their height is measured, not assumed, and fed back into th
 - The picture needs no animation of its own: it reads from the bars, and the observer
   reports every frame.
 
+## Template and CSS
+
+Rules that live in the markup, each of which looks arbitrary and is not.
+
+| Rule | Why |
+| --- | --- |
+| **Every file lives in the filmstrip, video included.** | Video used to sit in a branch of its own. With no strip on screen there was nothing to slide, so a turn *away* from a video swapped while a turn *towards* it slid. What actually differs is the gestures, and those are turned off per file. |
+| A video cell writes `aspect-ratio` out; a picture does not. | A video has no proportions until its metadata arrives, so `height: auto` would be settled from the 300x150 every `<video>` starts life at. The file states its shape, so the element is given it outright. |
+| The video cell is clipped into the band by the same transform that places a picture there. | Otherwise the controls along its bottom edge sit behind the footer. There is nothing to zoom, so that transform never leaves its resting value. |
+| **Each layer fades out; none fades in.** | A layer fading in over one fading out leaves a moment where neither is solid and the dark room shows between them. Fading only the upper one away means the one beneath is already whole and waiting. |
+| A layer is transparent **until it is whole**, not merely until it starts arriving. | A picture still downloading is painted as far as it has got and left blank below - a half-drawn photograph on white. |
+| The miniature is blurred and scaled past the blur inside a box that clips it. | It is a handful of pixels; without the overscan its softened edges fray against the dark. It ships inline, so it is the only thing on screen on the one path where nothing is cached - a shared link opened cold. |
+| Every layer carries `draggable="false"`. | Without it a mouse press starts the browser's own image drag and the pan never receives its moves. |
+| **The bars slide out of view; they do not fade.** | A backdrop filter and an opacity transition on the same element do not co-operate - the browser holds the blurred backdrop until the opacity settles, so the bar arrives first and the blur snaps in behind it. Sliding leaves it fully opaque throughout. The arrows leave the same way for the same reason. |
+| The chrome wrapper is `pointer-events-none`; each bar takes them back. | The space between the bars has to stay with the gesture surface. |
+| The arrows are positioned against the **window**, not laid out between the bars. | They belong to the screen. Letting the bars decide their height moved them whenever a description or a row of tags did. |
+| A clipped description carries **both** a line clamp and a max-height. | The clamp is what ends a cut-off line in an ellipsis; the max-height is what can be animated, and what the overflow check reads. They agree on two lines, so the clamp decides how it looks and the height decides how it moves. |
+| The tag expander's hit area reaches well out sideways and up over the picture, and stays shallow below. | The pill is small; what answers a finger is not. Below is where the tags themselves begin. |
+| The "open in this day" link writes `?i=` but **not** `?o=`. | The file was already being looked at full screen; opening it again on arrival would be no arrival at all. The link is left out on that day's own page. |
+| A private file's share button is **removed**, not disabled. | The recipient would be sent to a day that, as far as they are concerned, does not contain it. An offer that is not there cannot be taken up by mistake; a disabled one still invites it. |
+
 ## Invariants
 
 Do not "fix" these:

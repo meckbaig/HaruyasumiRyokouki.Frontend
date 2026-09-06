@@ -67,6 +67,17 @@ Both the trip map and the picker make this distinction.
 The guarded path calls `event.preventDefault()` to stop the browser's own ctrl+wheel page
 zoom, and applies one zoom level per notch by hand.
 
+### Re-framing is separate from drawing
+
+`fitToPoints` is kept apart from drawing the markers because it has to run **again**. A map
+built inside a box that has not been laid out yet - an overlay opening, a section
+unfolding, a tab appearing - computes its zoom against a container of no size and keeps
+that zoom for good. `invalidateSize` tells Leaflet the box changed and does nothing about
+the framing, which is why a map sometimes sat at the wrong scale over the right centre.
+
+Only until `userMoved`, though. After the reader takes the wheel the view is theirs, and
+re-framing because a sidebar opened would be taking it back.
+
 ## Popups
 
 Built as **real DOM, never an HTML string**, so a title or file name can never be
@@ -134,6 +145,19 @@ answer.
 `fitBounds` is capped at `maxZoom: 16`: a photograph taken seconds after the last one gives
 a gap of a few metres, and framing that exactly puts the map on a rooftop with no idea
 which rooftop.
+
+### Picker details
+
+| Rule | Why |
+| --- | --- |
+| The framing is applied **once per file**, and only once something is known. | A reader who has panned off looking for a rooftop must not be dragged back by a fetch landing a moment later. |
+| The route line is drawn **before** the pins. | Dots say where the trip was; the line says which way it went, and that is what places a photograph. Same dashed red as the trip map - the same thing at a smaller scale. |
+| The two anchors carry a permanent time label, not a `title`. | A native tooltip takes about a second and never appears on a touchscreen, while "how long before, how long after" is the whole reason the anchors are worth telling apart. |
+| A margin round the map does not answer a click. | Every map control sits in a corner, and a press that missed one by a few pixels used to move the pin. Placing a point is deliberate; missing a button is not. The margin is sized from the box, so it reads the same on a 220px strip and full screen. |
+| A paste of `34.304847, 133.090327` sets the point. | That is how anyone actually knows where a photograph was taken - Google Maps copies a place in exactly that form. Listened for on the **document**, since the map is not focusable, and ignored when a real input is the target, or pasting a description would move the pin. |
+| Collapsing from full screen returns the small map **to the point**, not to where it was left. | Going full screen is what people do to place a pin precisely, so the pin is what they were looking at. |
+| The inline map's wrapper is `isolate`. | Leaflet stacks its panes from 200 to 800; without a stacking context those numbers compete with the rest of the dialog, and the map painted over the tag suggestions dropping out of the field above it. |
+| The neighbour-pin hint draws a pin **beside** the sentence. | The muted drops are the only thing on the map nobody put there deliberately. Named on their own they explained neither which marks they were nor what they were for. |
 
 ## Invariants
 

@@ -14,8 +14,7 @@ import { updateHead, navDirection } from '@/router'
 const { t, locale } = useI18n()
 const route = useRoute()
 
-// The router sets the head on navigation; re-apply it when the locale changes
-// mid-page so the tab title and preview meta follow the switch immediately.
+// The router sets the head on navigation; re-apply it on a mid-page locale switch.
 watch(locale, () => updateHead(route))
 </script>
 
@@ -30,26 +29,13 @@ watch(locale, () => updateHead(route))
   <div class="flex min-h-screen flex-col">
     <AppHeader />
 
-    <!--
-      `overflow-x-clip`, not `hidden`: a page sliding sideways would otherwise
-      reach past the edge and put a scrollbar under it for the length of the
-      animation. Clipping does the same without making this a scroll container,
-      which would take the sticky header with it.
-    -->
+    <!-- `overflow-x-clip`, not `hidden`: clipping without becoming a scroll
+         container. See docs/features/ui-shell.md. -->
     <main id="main" class="flex-1 overflow-x-clip">
       <!--
-        Views arrive as their own chunks, so a first visit to one has to wait for
-        the download. Without a fallback that wait shows as a blank page, which
-        reads as a hung site rather than as loading.
-
-        Keyed by path and not by full address: the viewer writes the open file
-        into the query as it is paged through, and a key that watched the whole
-        address would tear the page down and build it again on every picture.
-
-        `Suspense` on the outside and `Transition` within, which is the only way
-        round that works: a transition holding a suspense boundary with
-        `mode="out-in"` plays the departure and then never resolves the arrival,
-        leaving the page empty between the header and the footer.
+        Keyed by path, **not** the full address: the viewer writes the open file
+        into the query. `Suspense` outside, `Transition` within - the reverse
+        plays the departure and never resolves the arrival.
       -->
       <RouterView v-slot="{ Component, route: current }">
         <Suspense>

@@ -2,22 +2,10 @@ import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 /**
- * Pointing a link at one file inside a page.
- *
- * A day and a search result are both lists, and a link to one of them says
- * nothing about which picture was being looked at. Two query parameters do:
- *
- *   i=<media id>  the file to single out, outlined in the list
- *   o=1           and it should be open full screen straight away
- *
- * `o` means nothing on its own - there has to be a file for it to open - so it
- * is only ever written alongside `i`.
- *
- * The page resolves `i` against what it actually holds, because a link can be
- * stale or simply wrong: a file may have been moved to another day, or the
- * search it was shared from may no longer match it. Whatever cannot be resolved
- * is dropped from the address bar and the page opens as if it had never been
- * asked for.
+ * Pointing a link at one file inside a page: `i=<media id>` singles it out, `o=1`
+ * opens it full screen and is only ever written alongside `i`. A link that
+ * cannot be resolved is dropped from the address.
+ * See docs/features/sharing-and-links.md.
  */
 export const MEDIA_PARAM = 'i'
 export const OPEN_PARAM = 'o'
@@ -32,13 +20,9 @@ export function readMediaLink(query) {
 }
 
 /**
- * What page a route is, ignoring which file it points at.
- *
- * Writing `i` changes the address, and anything watching the address for a page
- * change would read that as having been taken somewhere else - which is how
- * opening a file came to close the viewer the same instant. This is the address
- * with the pair taken out and the rest put in a fixed order, so it changes when
- * the reader is actually moved and not when a picture is named.
+ * What page a route is, ignoring which file it points at. **Anything asking "did
+ * the reader move?" compares this, never `route.fullPath`** - writing `i` would
+ * otherwise read as a navigation. See docs/features/sharing-and-links.md.
  */
 export function pageIdentity(route) {
   const query = withMediaLink(route.query, null)
@@ -59,21 +43,11 @@ export function withMediaLink(query, id, open = false) {
 }
 
 /**
- * Reads and writes the pair for the current route.
+ * Reads and writes the pair for the current route. Writes **replace**, never
+ * push. See docs/features/sharing-and-links.md.
  *
- * Writes replace rather than push: paging through a day's files would otherwise
- * bury the page the visitor arrived on under one history entry per picture, and
- * the back button would walk them out one at a time.
- *
- * The outline is also dismissed by any click that is not about it. It has done
- * its job the moment the reader has found the picture, and one that stays put
- * turns into something to be got rid of. Clicks on links are left alone: one is
- * about to take the page somewhere, and replacing the address underneath a
- * navigation cancels it.
- *
- * @param {{ suspended?: () => boolean }} [options] `suspended` holds the
- *   dismissal off while the viewer is open - the outline is behind it, and the
- *   click that opened it must not take it away.
+ * @param {{ suspended?: () => boolean }} [options] holds dismissal off while the
+ *   viewer is open - the outline is behind it.
  */
 export function useMediaLink({ suspended = () => false } = {}) {
   const route = useRoute()
@@ -95,20 +69,10 @@ export function useMediaLink({ suspended = () => false } = {}) {
     write(null)
   }
 
-  /*
-    Dismissal listens for the press, not the click.
-
-    A click is the tail of a gesture rather than an event in its own right: it is
-    dispatched once a press that began some time earlier is released, and a
-    navigation can start in between. So a page arriving by way of a click - the
-    map's "open this day" button is one - can be handed the end of a gesture that
-    was never aimed at it, and read it as the reader waving away an outline they
-    have not had time to see.
-
-    A press cannot be inherited that way. It is dispatched the moment a finger or
-    a button goes down, which is always on the page already in front of the
-    reader. It also answers sooner, which is what a dismissal wants to be.
-  */
+  /**
+   * Listens for the press, not the click: a click is the tail of a gesture that
+   * may have begun on the previous page. See docs/features/sharing-and-links.md.
+   */
   function dismiss(event) {
     if (link.value.id == null || suspended()) return
     if (event.target?.closest?.('a[href]')) return

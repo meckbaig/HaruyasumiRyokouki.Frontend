@@ -4,22 +4,9 @@ import { fetchTags } from '@/api/tags'
 import { compareTags, tagMatches } from '@/services/tags'
 
 /**
- * The whole tag dictionary, held in memory for as long as an editor is signed
- * in.
- *
- * Fetched once rather than searched over the wire. The dictionary is a few
- * hundred entries and a few dozen kilobytes, it changes rarely, and filtering it
- * on the client answers on the keystroke - no debounce, no request racing
- * another request back.
- *
- * The real reason is not speed, though. Half the work of filing a photograph is
- * remembering what you called this sort of thing the last time, and a list you
- * can see the whole of answers that. A search box that only responds to what you
- * already thought of does not.
- *
- * Editor-only: `GET /v1/tags` is behind the login, and a visitor never has a
- * dictionary. Anything shown to a visitor has to name its tags from what the
- * server already put in the response.
+ * The whole tag dictionary, fetched once and held for the editor session.
+ * **Editor-only** - a visitor has none, and must name tags from the response it
+ * already has. See docs/features/tags.md.
  */
 export const useTagsStore = defineStore('tags', () => {
   const items = ref([])
@@ -57,9 +44,8 @@ export const useTagsStore = defineStore('tags', () => {
   }
 
   /**
-   * Writes a tag the server has just returned into the dictionary, in place if
-   * it was already there. Creating and editing both answer with the saved model,
-   * so the list stays true without asking for it again.
+   * Writes a server-returned tag in, in place if it was there. Create and edit
+   * both answer with the saved model, so the list stays true without refetching.
    */
   function upsert(tag) {
     if (!tag?.id) return
@@ -72,10 +58,7 @@ export const useTagsStore = defineStore('tags', () => {
     return byId.value.get(id) ?? null
   }
 
-  /**
-   * The dictionary is the one place a slug can be turned back into the numeric
-   * id a save needs - nothing else on the client has both.
-   */
+  /** The only place a slug becomes an id - nothing else on the client has both. */
   function getBySlug(slug) {
     return bySlug.value.get(slug) ?? null
   }

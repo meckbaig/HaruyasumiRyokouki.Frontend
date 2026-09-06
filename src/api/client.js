@@ -65,19 +65,16 @@ async function readProblem(response) {
 }
 
 /**
- * Single entry point for every backend call.
+ * Single entry point for every backend call. See docs/features/api-layer.md.
  *
  * @param {string} path      Path below the API base, e.g. `/days`.
  * @param {object} [options]
  * @param {string} [options.method]        Defaults to GET.
  * @param {object} [options.query]         Query parameters; empty values are dropped.
  * @param {*}      [options.body]          Serialised as JSON when present.
- * @param {boolean}[options.requiresAuth]  Marks an editor-only call, so a 401
- *   drops the session and bounces to the login page. Public pages must leave
- *   this off - an anonymous 401 there should surface as a plain error instead
- *   of yanking the visitor away from the content.
- * @param {string} [options.authHeader]    Overrides the stored credentials, used
- *   while verifying a login that has not been saved to the session yet.
+ * @param {boolean}[options.requiresAuth]  Editor-only call: a 401 drops the
+ *   session and bounces to /login. Public pages must leave it off.
+ * @param {string} [options.authHeader]    Overrides the stored credentials.
  * @param {AbortSignal} [options.signal]
  */
 export async function request(path, options = {}) {

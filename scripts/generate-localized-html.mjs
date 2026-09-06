@@ -1,15 +1,8 @@
 /*
-  Post-build: emit a localized index.html per locale so link-preview crawlers
-  (which do not run JS) get a card in the right language.
-
-  Reads dist/index.html (built by Vite), swaps the block between the
-  `<!-- seo:start -->` / `<!-- seo:end -->` markers and the <html lang> for each
-  locale, and writes dist/index.<locale>.html. dist/index.html is overwritten
-  with the default locale as the no-match fallback. Also writes dist/.htaccess
-  with the Apache rules that pick a file by ?lang= / Accept-Language.
-
-  Copy lives in the locale JSON (`app.title`, `app.subtitle`, `seo.description`)
-  - the single source of truth shared with the runtime head (src/services/head.js).
+  Post-build: a localized index.html per locale, so link-preview crawlers - which
+  do not run JS - get a card in the right language. Also the per-locale manifests
+  and the .htaccess that picks between them.
+  See docs/features/build-and-release.md.
 */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -64,15 +57,9 @@ function seoBlock(locale) {
 }
 
 /*
-  The name an installed app carries comes from the manifest, and the manifest
-  format has no way to say a name three times over. So there is one file per
-  locale, and each localized index points at its own - which is what puts the
-  right name under the icon at the moment the app is installed.
-
-  The runtime swaps this link as well (services/head.js), for a reader who
-  changes language and only then installs. Neither can rename an app already on
-  a home screen: that name was taken at install time and stays until it is
-  installed again.
+  One manifest per locale - the format has no way to say a name three times over,
+  and the name under the icon is taken at install time and never revised.
+  See docs/features/build-and-release.md.
 */
 function renderManifest(base, locale) {
   const m = loadMessages(locale)
