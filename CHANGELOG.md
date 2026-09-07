@@ -4,6 +4,35 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.3.0 - a lighter viewer
+
+The viewer's open and close animations now run on a dedicated element instead of re-rendering
+the image every frame. The filmstrip keys its images by file so a fast page turn does not paint
+the file just left as the one coming next, video metadata that arrives after it was paged past
+no longer leaves detached audio running, and gestures work in the space around a player while
+presses on it go to its own controls.
+
+The tag input in the editor stopped being a row of chips with a box at the end and became
+one editable line, where the gaps between chips are real text and the caret can sit anywhere.
+Typing in a gap filters the dictionary and inserts at that position; Backspace pulls the
+previous chip back into text for re-editing. The editor keeps its place while open: the title
+field takes focus when the dialog opens, after the model loads, and on un-minimise, and
+coordinates pasted from Google Maps land in whichever field they belong to rather than only
+one.
+
+- The tag input is one editable line of chips; typing in a gap filters and inserts at that position
+- Backspace pulls the previous chip back into text for re-editing
+- The first dropdown option is auto-selected when typing starts in the tag input
+- The title field takes focus on dialog open, after model load, and on un-minimise
+- Coordinates pasted from Google Maps land in whichever field they belong to
+- The deletion confirmation dialog autofocuses its confirmation button
+- Multiple dots of selected media render above neighboring markers on the editor map
+- Full-screen open and close animations run on a dedicated element instead of re-rendering the image every frame
+- A fast page turn no longer paints the file just left as the one coming next in the filmstrip
+- Video metadata that arrives after it was paged past no longer leaves detached audio running
+- Gestures work in the space around a player while presses on it go to its own controls
+- Long file names wrap onto two lines instead of truncating in full-screen mode
+
 ## 1.2.0 - faster filing
 
 Everything here is about the screens used to put the archive in order. Filing a
