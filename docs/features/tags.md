@@ -170,6 +170,13 @@ changes.** For one file, replace is what is meant; for a selection it is a trap.
 
 - Tags are **chosen, never spelled out.** They used to be words typed into a box, one list
   per language, and every misspelling and near-synonym coined a new one.
+- The field is **one editable line of chips**, not chips plus a trailing box. Chips are
+  atomic and the gaps between them are real text, so the caret can be parked in any gap
+  with the mouse or the arrow keys. That is what lets a tag be edited in the middle of the
+  line, not only at the end.
+- Typing in a gap filters the dictionary and the pick lands **at that gap**. Backspace at
+  the start of a gap pulls the chip on its left back into text and re-opens the picker, so
+  the tag can be re-committed with Enter or swapped for another match in place.
 - Coining is offered whenever something is typed, not only when nothing matched: "temple"
   matching "temple grounds" does not mean "temple" exists.
 - `single` mode exists for the collect screen. The alternative is a second autocomplete

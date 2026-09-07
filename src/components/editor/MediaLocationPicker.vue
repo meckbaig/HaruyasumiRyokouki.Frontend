@@ -125,24 +125,21 @@ function nearEdge(map, point) {
 
 /*
   Coordinates pasted from elsewhere - Google Maps copies a place in this exact
-  form. Listened for on the **document**, since the map is not focusable, and
-  ignored when a real input is the target. See docs/features/maps.md.
+  form. Listened for on the **document** so it fires regardless of where the
+  cursor sits, and always takes precedence over text insertion when matched.
+  See docs/features/maps.md.
 */
 const COORDS = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/
 
 function onPaste(event) {
-  const target = event.target
-  const tag = target?.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return
-
   const match = COORDS.exec(event.clipboardData?.getData('text') ?? '')
-  if (!match) return
+  if (!match) return // let normal paste continue when there is no coordinate pattern
 
   const lat = Number(match[1])
   const lng = Number(match[2])
-  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return // not valid coordinates, let it through
 
-  event.preventDefault()
+  event.preventDefault() // stop text insertion when we have valid coordinates
   setPoint(lat, lng)
   for (const picker of pickers) picker.map.setView([lat, lng], Math.max(picker.map.getZoom(), 15))
   ui.notify(t('editor.pastedPoint'), 'success')

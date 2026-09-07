@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, watch, computed, defineAsyncComponent } from 'vue'
+import { ref, reactive, watch, computed, defineAsyncComponent, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import LanguageTabs from './LanguageTabs.vue'
@@ -75,6 +75,7 @@ const baseline = reactive({})
 // Translation row ids per language, so an existing row is updated in place.
 const rowIds = reactive({})
 const activeLang = ref(ui.locale)
+const titleInputRef = ref(null)
 const coords = ref(null)
 const coordsTouched = ref(false)
 /*
@@ -359,9 +360,30 @@ watch(
 
     loadModels()
     loadNeighborPoints()
+    nextTick(() => {
+      if (titleInputRef.value) titleInputRef.value.focus()
+    })
   },
   { immediate: true },
 )
+
+/** Refocus the title input once models are loaded and the form is fully rendered. */
+watch(models, () => {
+  if (props.open && !minimised.value && models.value.length > 0) {
+    nextTick(() => {
+      if (titleInputRef.value) titleInputRef.value.focus()
+    })
+  }
+})
+
+/** Focus the title input whenever the dialog is un-minimised. */
+watch(minimised, (value) => {
+  if (!value) {
+    nextTick(() => {
+      if (titleInputRef.value) titleInputRef.value.focus()
+    })
+  }
+})
 
 function onCoords(value) {
   coords.value = value
@@ -541,6 +563,7 @@ async function save() {
 
 <template>
   <ModalDialog
+    :key="'dialog-' + (open && !minimised ? 'open' : 'closed')"
     :open="open && !minimised"
     :title="isBulk ? t('editor.editBulk', { count: editList.length }) : t('editor.editMedia')"
     @close="emit('close')"
@@ -575,7 +598,14 @@ async function save() {
 
         <div>
           <label class="field-label" for="media-title">{{ t('editor.title') }}</label>
-          <input id="media-title" v-model="active.title" type="text" class="field-input" />
+          <input
+            ref="titleInputRef"
+            id="media-title"
+            data-autofocus
+            v-model="active.title"
+            type="text"
+            class="field-input"
+          />
         </div>
 
         <div>
