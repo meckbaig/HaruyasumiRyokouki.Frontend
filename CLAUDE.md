@@ -77,6 +77,12 @@ doc yet, read the code and then write one.
   `.btn-danger`, `.fit-media`) rather than re-spelling Tailwind.
 - Before adding a helper, check `src/services/` - most non-obvious logic already has a
   home there, and duplicated logic is this project's recurring failure mode.
+- **Prefer existing props, attributes, and built-in mechanisms over custom code.**
+  Check component `defineProps`, slot names, and global attributes (`data-*`) before
+  writing refs, watchers, or event handlers. A single attribute beats ten lines of JS.
+- **Don't sacrifice clarity for brevity.** Readable, well-commented code is preferred
+  over clever one-liners. The rule above applies to *infrastructure* — use what already
+  exists instead of reinventing it — not to making code harder to understand.
 
 ## Commands
 
