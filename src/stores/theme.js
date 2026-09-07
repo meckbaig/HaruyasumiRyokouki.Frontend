@@ -18,12 +18,16 @@ function resolve(id) {
 /** Custom properties written for the theme currently on screen. */
 let appliedTokens = []
 
+/** The concrete themed entry on screen now (system resolves to light/dark). */
+const resolvedTheme = ref(null)
+
 /**
  * Paints a theme as inline custom properties on <html>, which beat the `@theme`
  * defaults. Tokens the new theme does not define are **removed**, or an optional
  * one would leak the old colour. See docs/features/i18n-and-theming.md.
  */
 function apply(theme) {
+  resolvedTheme.value = theme
   const root = document.documentElement
   const tokens = Object.keys(theme.colors ?? {})
 
@@ -69,5 +73,5 @@ export const useThemeStore = defineStore('theme', () => {
     })
   }
 
-  return { preference, themes, THEME_OPTIONS, set, init }
+  return { preference, resolvedTheme, themes, THEME_OPTIONS, set, init }
 })

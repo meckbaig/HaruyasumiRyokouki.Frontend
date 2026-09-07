@@ -22,19 +22,10 @@ function setMeta(keyAttr, keyValue, content) {
 }
 
 /**
- * Points the manifest link at the locale's own file, so an installed app takes
- * the language chosen rather than the one the page was served in. Dev has no
- * per-locale manifests, so a missing file is left alone.
- */
-function applyManifest(locale) {
-  const link = document.querySelector('link[rel="manifest"]')
-  if (!link || !import.meta.env.PROD) return
-  link.setAttribute('href', `/manifest.${locale}.webmanifest`)
-}
-
-/**
  * Applies a localised head. `title` is the page-specific part (omitted on the
  * home page); `description` overrides the default tagline when a page has one.
+ * The install manifest is NOT touched here - src/composables/useInstallManifest
+ * owns that link so it can theme it. See docs/features/install-and-theming.md.
  */
 export function applyHead({ title, description } = {}) {
   const { t, locale } = i18n.global
@@ -55,6 +46,5 @@ export function applyHead({ title, description } = {}) {
   setMeta('name', 'twitter:title', fullTitle)
   setMeta('name', 'twitter:description', desc)
 
-  applyManifest(locale.value)
   document.documentElement.setAttribute('lang', locale.value)
 }

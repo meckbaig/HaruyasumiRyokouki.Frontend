@@ -7,6 +7,7 @@ import { i18n } from './i18n'
 import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
 import { useMotionStore } from './stores/motion'
+import { useInstallManifest } from './composables/useInstallManifest'
 import './assets/main.css'
 
 const app = createApp(App)
@@ -20,6 +21,8 @@ app.use(i18n)
 useAuthStore().restore()
 useThemeStore().init()
 useMotionStore().init()
+// Themed install manifest; needs the theme painted first so paper is resolved.
+useInstallManifest()
 installAuthRedirect()
 
 app.use(router)

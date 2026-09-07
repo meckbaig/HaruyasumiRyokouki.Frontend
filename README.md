@@ -124,6 +124,7 @@ still waiting to be filed.
 | Day notes, drafts, pending queue | `src/components/editor/DayEditForm.vue` | [day-editor-and-pending.md](docs/features/day-editor-and-pending.md) |
 | Links, sharing, localised previews | `src/composables/useMediaLink.js` | [sharing-and-links.md](docs/features/sharing-and-links.md) |
 | Locales, themes, motion, CSS conventions | `src/theme/themes.js` | [i18n-and-theming.md](docs/features/i18n-and-theming.md) |
+| Installed-app theming, status bar, install manifest | `src/composables/useInstallManifest.js` | [install-and-theming.md](docs/features/install-and-theming.md) |
 | Overlays, dialogs, toasts, scrollbar | `src/services/overlayStack.js` | [ui-shell.md](docs/features/ui-shell.md) |
 | Build, releases, deploy | `vite.config.js` | [build-and-release.md](docs/features/build-and-release.md) |
 

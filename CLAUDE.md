@@ -26,6 +26,7 @@ Documentation lives in [docs/](docs/) and is written for you.
 | Day notes, pending queue | [day-editor-and-pending.md](docs/features/day-editor-and-pending.md) |
 | Links, sharing, previews | [sharing-and-links.md](docs/features/sharing-and-links.md) |
 | Locales, themes, motion, CSS | [i18n-and-theming.md](docs/features/i18n-and-theming.md) |
+| Installed-app theming, status bar, install manifest | [install-and-theming.md](docs/features/install-and-theming.md) |
 | Dialogs, overlays, toasts | [ui-shell.md](docs/features/ui-shell.md) |
 | Build, release, deploy | [build-and-release.md](docs/features/build-and-release.md) |
 
