@@ -577,7 +577,7 @@ watch(
         :aria-disabled="disabled"
         :contenteditable="disabled ? 'false' : 'true'"
         :data-autofocus="autofocus ? '' : undefined"
-        class="min-h-[1.5rem] w-full text-sm text-ink outline-none"
+        class="min-h-[1rem] w-full text-sm text-ink outline-none flex flex-wrap content-start gap-x-0.75 gap-1"
         @input="onInput"
         @keydown="onKeydown"
         @keyup="onKeyup"
