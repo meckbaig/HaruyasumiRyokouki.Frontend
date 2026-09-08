@@ -114,7 +114,7 @@ function buildChip(slug, index) {
 
   const chip = document.createElement('span')
   chip.className =
-    'inline-flex cursor-default select-none items-center gap-1 rounded-full bg-edge/60 py-0.5 pl-2.5 pr-1 text-xs text-ink'
+    'my-0.5 mr-0.75 inline-flex cursor-default select-none items-center gap-1 rounded-full bg-edge/60 py-0.5 pl-2.5 pr-1 text-xs text-ink'
   chip.dataset.slug = slug
   chip.setAttribute('contenteditable', 'false')
   chip.setAttribute('tabindex', '-1')
@@ -577,7 +577,7 @@ watch(
         :aria-disabled="disabled"
         :contenteditable="disabled ? 'false' : 'true'"
         :data-autofocus="autofocus ? '' : undefined"
-        class="min-h-[1rem] w-full text-sm text-ink outline-none flex flex-wrap content-start gap-x-0.75 gap-1"
+        class="-my-0.5 min-h-[1.5rem] w-full text-sm text-ink outline-none"
         @input="onInput"
         @keydown="onKeydown"
         @keyup="onKeyup"
