@@ -129,7 +129,17 @@ const hiddenState = computed(() => markState((media) => isPrivate(media)))
 const approvedMixed = computed(() => !approvedTouched.value && approvedState.value === null)
 const favoriteMixed = computed(() => !favoriteTouched.value && favoriteState.value === null)
 const hiddenMixed = computed(() => !hiddenTouched.value && hiddenState.value === null)
-const anyMixed = computed(() => approvedMixed.value || favoriteMixed.value || hiddenMixed.value)
+
+/** A mark's meaning on hover, with the dash note added while it shows a dash. */
+function markTitle(meaning, mixed) {
+  return mixed ? `${meaning}\n${t('editor.mixedHint')}` : meaning
+}
+
+// Each mark's own meaning is always on hover; the dash explanation joins it
+// only while that box still shows the dash. See docs/features/media-editor.md.
+const approvedTitle = computed(() => markTitle(t('editor.approvedHint'), approvedMixed.value))
+const favoriteTitle = computed(() => markTitle(t('editor.favoriteHint'), favoriteMixed.value))
+const hiddenTitle = computed(() => markTitle(t('editor.hiddenHint'), hiddenMixed.value))
 const autoTranslate = ref(false)
 const saving = ref(false)
 const error = ref(null)
@@ -650,17 +660,26 @@ async function save() {
           />
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-ink-soft">
-          <TriStateCheck
-            v-model="approved"
-            :mixed="approvedMixed"
-            @change="approvedTouched = true"
-          />
-          {{ t('editor.approved') }}
-        </label>
+        <!-- The four marks read as one control, so they sit half as far apart
+             as the fields around them; each meaning lives on hover.
+             See docs/features/media-editor.md. -->
+        <div class="space-y-2">
+          <label
+            class="flex items-center gap-2 text-sm text-ink-soft"
+            :title="approvedTitle"
+          >
+            <TriStateCheck
+              v-model="approved"
+              :mixed="approvedMixed"
+              @change="approvedTouched = true"
+            />
+            {{ t('editor.approved') }}
+          </label>
 
-        <div>
-          <label class="flex items-center gap-2 text-sm text-ink-soft">
+          <label
+            class="flex items-center gap-2 text-sm text-ink-soft"
+            :title="favoriteTitle"
+          >
             <TriStateCheck
               v-model="favorite"
               :mixed="favoriteMixed"
@@ -668,47 +687,41 @@ async function save() {
             />
             {{ t('editor.favorite') }}
           </label>
-          <p v-if="isBulk" class="field-hint">{{ t('editor.favoriteBulkHint') }}</p>
-        </div>
 
-        <div>
-          <label class="flex items-center gap-2 text-sm text-ink-soft">
+          <label
+            class="flex items-center gap-2 text-sm text-ink-soft"
+            :title="hiddenTitle"
+          >
             <TriStateCheck v-model="hidden" :mixed="hiddenMixed" @change="hiddenTouched = true" />
             {{ t('editor.hidden') }}
           </label>
-          <p class="field-hint">
-            {{ isBulk ? t('editor.hiddenBulkHint') : t('editor.hiddenHint') }}
-          </p>
-        </div>
 
-        <!-- Said once, under the marks it applies to, and only where a selection
-             can disagree with itself. -->
-        <p v-if="isBulk && anyMixed" class="field-hint">{{ t('editor.mixedHint') }}</p>
+          <p v-if="isBulk" class="field-hint">{{ t('editor.marksBulkNote') }}</p>
 
-        <div>
-          <label class="flex items-center gap-2 text-sm text-ink-soft">
-            <input v-model="autoTranslate" type="checkbox" class="rounded border-edge" />
-            {{ t('editor.autoTranslate') }}
-          </label>
-          <p class="field-hint">{{ t('editor.autoTranslateHint') }}</p>
-          <!-- The one case where the "only what you changed" rule is suspended,
-               and on a selection that means every file gets this text. -->
-          <p v-if="isBulk && autoTranslate" class="field-hint text-accent">
-            {{ t('editor.autoTranslateBulkWarning') }}
-          </p>
+          <div>
+            <label
+              class="flex items-center gap-2 text-sm text-ink-soft"
+              :title="t('editor.autoTranslateHint')"
+            >
+              <input v-model="autoTranslate" type="checkbox" class="rounded border-edge" />
+              {{ t('editor.autoTranslate') }}
+            </label>
+            <!-- The one case where the "only what you changed" rule is suspended,
+                and on a selection that means every file gets this text. -->
+            <p v-if="isBulk && autoTranslate" class="field-hint text-accent">
+              {{ t('editor.autoTranslateBulkWarning') }}
+            </p>
+          </div>
         </div>
 
         <p v-if="translated" class="rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
           {{ t('editor.translationReview') }}
         </p>
-      </fieldset>
+        
 
-      <!--
-        Filing one photograph is rarely filing one photograph. The panel loads on
-        its own and only for a single file - "similar to these forty" is not a
-        question with an answer.
-      -->
+      <!-- The panel stays mounted so its slow request runs in the background. -->
       <SimilarMediaPanel v-if="open && single" :media="single" :tag-slugs="tagSlugs" />
+      </fieldset>
 
       <p v-if="showLoading" class="text-xs text-ink-faint">{{ t('common.loading') }}</p>
 

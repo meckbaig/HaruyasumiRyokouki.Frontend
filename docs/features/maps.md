@@ -158,6 +158,7 @@ which rooftop.
 | Collapsing from full screen returns the small map **to the point**, not to where it was left. | Going full screen is what people do to place a pin precisely, so the pin is what they were looking at. |
 | The inline map's wrapper is `isolate`. | Leaflet stacks its panes from 200 to 800; without a stacking context those numbers compete with the rest of the dialog, and the map painted over the tag suggestions dropping out of the field above it. |
 | The neighbour-pin hint draws a pin **beside** the sentence. | The muted drops are the only thing on the map nobody put there deliberately. Named on their own they explained neither which marks they were nor what they were for. |
+| The map hints occupy two fixed rows below the 220px map. | Reference points arrive after the editor opens; replacing the second row must not move the fields below. |
 
 ## Invariants
 

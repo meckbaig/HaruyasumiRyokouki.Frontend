@@ -435,37 +435,36 @@ onBeforeUnmount(() => {
       </Transition>
     </div>
 
-    <p class="field-hint">{{ t('editor.mapHint') }}</p>
-    <p class="field-hint">{{ t('editor.clearPointHint') }} {{ t('editor.pasteHint') }}</p>
+    <div class="grid h-10 grid-rows-2 overflow-hidden">
+      <p class="field-hint truncate">{{ t('editor.mapHint') }}</p>
 
-    <!-- A legend, not a label: the mark is drawn beside the sentence so the two
-         arrive together. See docs/features/maps.md. -->
-    <p v-if="points.length" class="field-hint flex items-start gap-1.5">
-      <svg class="mt-px h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-        <path :d="PIN_PATH" :fill="NEIGHBOR_COLOR" />
-      </svg>
-      {{ t('editor.neighborPoints') }}
-    </p>
-
-    <!-- Named, because two colours mean nothing on their own and guessing which
-         is the earlier is the one thing this is meant to save. -->
-    <p
-      v-if="anchors.before || anchors.after"
-      class="field-hint flex flex-wrap items-center gap-x-3 gap-y-1"
-    >
-      <span v-if="anchors.before" class="flex items-center gap-1.5">
-        <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-          <path :d="PIN_PATH" :fill="BEFORE_COLOR" />
-        </svg>
-        {{ t('editor.pointBefore') }}
-      </span>
-      <span v-if="anchors.after" class="flex items-center gap-1.5">
-        <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-          <path :d="PIN_PATH" :fill="AFTER_COLOR" />
-        </svg>
-        {{ t('editor.pointAfter') }}
-      </span>
-    </p>
+      <!-- Keep the second row in place while reference points arrive. -->
+      <div class="min-w-0">
+        <p v-if="anchors.before || anchors.after" class="field-hint flex items-center gap-3">
+          <span v-if="anchors.before" class="flex shrink-0 items-center gap-1.5">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" aria-hidden="true">
+              <path :d="PIN_PATH" :fill="BEFORE_COLOR" />
+            </svg>
+            {{ t('editor.pointBefore') }}
+          </span>
+          <span v-if="anchors.after" class="flex shrink-0 items-center gap-1.5">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" aria-hidden="true">
+              <path :d="PIN_PATH" :fill="AFTER_COLOR" />
+            </svg>
+            {{ t('editor.pointAfter') }}
+          </span>
+        </p>
+        <p v-else-if="points.length" class="field-hint flex items-center gap-1.5">
+          <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path :d="PIN_PATH" :fill="NEIGHBOR_COLOR" />
+          </svg>
+          <span class="truncate">{{ t('editor.neighborPoints') }}</span>
+        </p>
+        <p v-else class="field-hint truncate">
+          {{ t('editor.clearPointHint') }}
+        </p>
+      </div>
+    </div>
 
     <!-- Fullscreen map: a separate instance in a body-level overlay. -->
     <Teleport to="body">

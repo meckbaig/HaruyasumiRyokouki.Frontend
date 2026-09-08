@@ -566,7 +566,7 @@ watch(
   <!-- Lifted into the positioned layer so the list drops *over* what follows it
        in the dialog - the map below is the thing it kept landing behind. -->
   <div class="relative z-30">
-    <span class="field-label">{{ t('editor.tags') }}</span>
+    <span class="field-label" :title="t('tags.pickHint')">{{ t('editor.tags') }}</span>
 
     <div
       class="relative min-w-32 rounded-md border border-edge bg-paper-raised px-2 py-2 transition focus-within:border-ink-faint"
@@ -638,7 +638,6 @@ watch(
       </div>
     </div>
 
-    <p class="field-hint">{{ t('tags.pickHint') }}</p>
     <p v-if="unknownCount > 0" class="field-hint">
       {{ t('tags.unknownIds', { count: unknownCount }) }}
     </p>

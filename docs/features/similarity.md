@@ -108,6 +108,10 @@ Two watchers keep the state honest:
 
 The panel loads independently and is allowed to be slow: the card above it must not wait on
 a fingerprint search to be readable, which is why it sits outside that card's `fieldset`.
+The panel stays mounted while collapsed, so opening the editor starts the request in the
+background. Its heading is the reveal control. Once opened, the wall of results scrolls on
+its own at a fixed height, so the response cannot push the editing fields around, and the
+controls sit below that wall where they stay in reach instead of trailing the last tile.
 
 An **empty list means the file has no fingerprint** - a video, typically. That is an answer,
 not a failure.

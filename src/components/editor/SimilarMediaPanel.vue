@@ -41,6 +41,7 @@ const TAKE = 200
 const items = ref([])
 const loading = ref(false)
 const failed = ref(false)
+const expanded = ref(false)
 
 /** Ids of the neighbours ticked for tagging. */
 const chosen = ref(new Set())
@@ -229,163 +230,199 @@ async function apply() {
 </script>
 
 <template>
-  <section>
-    <div class="mb-1 flex items-center justify-between gap-4">
-      <span class="field-label mb-0">{{ t('similar.title') }}</span>
-      <span v-if="chosenCount" class="text-xs text-ink-faint">
-        {{ t('similar.chosen', { count: chosenCount }, chosenCount) }}
+  <section :title="t('similar.hint')">
+    <!-- The heading is the reveal control. The count of chosen records lives in
+         the action row below, so the title keeps the full width on small screens
+         and nothing overflows sideways. -->
+    <button
+      type="button"
+      class="flex w-full min-w-0 items-center justify-between gap-3 rounded-md border border-edge bg-paper-raised px-3 py-2 text-left text-sm font-medium text-ink transition hover:border-ink-faint"
+      :aria-expanded="expanded"
+      :aria-label="expanded ? t('similar.hide') : t('similar.reveal')"
+      @click="expanded = !expanded"
+    >
+      <span class="truncate">{{ t('similar.title') }}</span>
+      <span class="flex shrink-0 items-center gap-2 text-xs font-normal text-ink-faint">
+        <span v-if="loading" class="h-2 w-10 animate-pulse rounded bg-edge" aria-hidden="true" />
+        <span v-else-if="failed">{{ t('similar.failed') }}</span>
+        <span v-else class="hidden sm:inline">{{ expanded ? t('similar.hide') : t('similar.reveal') }}</span>
+        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path
+            d="m4 6 4 4 4-4"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
       </span>
-    </div>
+    </button>
 
-    <p v-if="loading" class="field-hint">{{ t('similar.searching') }}</p>
-
-    <p v-else-if="failed" class="field-hint">{{ t('similar.failed') }}</p>
-
-    <!-- No fingerprint rather than no matches: videos have none, and the server
-         says so with an empty list instead of an error. -->
-    <p v-else-if="!items.length" class="field-hint">{{ t('similar.unavailable') }}</p>
-
-    <template v-else>
-      <!-- Everything the chosen tags would have touched already carries them,
-           which is a finished job rather than an empty answer. -->
-      <p
-        v-if="!shown.length"
-        class="rounded-md border border-edge bg-edge/30 px-3 py-2 text-xs text-ink-soft"
-      >
-        {{ t('similar.allTagged') }}
-      </p>
-
-      <div v-else class="max-h-64 overflow-y-auto rounded-md border border-edge p-1.5">
-        <div
-          ref="grid"
-          class="grid grid-cols-3 gap-1.5 sm:grid-cols-4"
-          @pointerdown="paint.onPointerDown"
-          @touchstart.passive="paint.onTouchStart"
-          @click.capture="paint.onClickCapture"
-        >
+    <div v-show="expanded" class="mt-2">
+      <!-- The wall of records scrolls on its own, at a fixed height, so the
+           controls below stay in reach instead of trailing the last tile. -->
+      <div class="h-[min(21.5rem,40vh)] overflow-y-auto rounded-md border border-edge p-1.5">
+        <div v-if="loading" class="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
           <div
-            v-for="(entry, index) in shown"
-            :key="entry.media.id"
-            :data-tile-index="index"
-            class="cascade-item group relative"
-            :style="cascadeDelay(index)"
+            v-for="index in 12"
+            :key="index"
+            class="aspect-square animate-pulse rounded bg-edge/60"
+          />
+        </div>
+
+        <p v-else-if="failed" class="field-hint">{{ t('similar.failed') }}</p>
+
+        <!-- No fingerprint rather than no matches: videos have none, and the server
+             says so with an empty list instead of an error. -->
+        <p v-else-if="!items.length" class="field-hint">{{ t('similar.unavailable') }}</p>
+
+        <!-- Everything the chosen tags would have touched already carries them,
+             which is a finished job rather than an empty answer. -->
+        <p
+          v-else-if="!shown.length"
+          class="rounded-md border border-edge bg-edge/30 px-3 py-2 text-xs text-ink-soft"
+        >
+          {{ t('similar.allTagged') }}
+        </p>
+
+        <div v-else>
+          <div
+            ref="grid"
+            class="grid grid-cols-3 gap-1.5 sm:grid-cols-4"
+            @pointerdown="paint.onPointerDown"
+            @touchstart.passive="paint.onTouchStart"
+            @click.capture="paint.onClickCapture"
           >
-            <button
-              type="button"
-              class="block w-full touch-pan-y overflow-hidden rounded ring-1 transition"
-              :class="
-                chosen.has(entry.media.id)
-                  ? 'ring-2 ring-accent'
-                  : 'ring-edge hover:ring-ink-faint'
-              "
-              :aria-pressed="chosen.has(entry.media.id)"
-              :aria-label="entry.media.fileName"
-              @click="toggle(entry.media.id)"
+            <div
+              v-for="(entry, index) in shown"
+              :key="entry.media.id"
+              :data-tile-index="index"
+              class="cascade-item group relative"
+              :style="cascadeDelay(index)"
             >
-              <MediaThumb :media="entry.media" :alt="entry.media.fileName" />
-            </button>
-
-            <span
-              class="pointer-events-none absolute bottom-0.5 left-0.5 rounded px-1 py-0.5 text-[10px] font-medium"
-              :class="scoreBadgeClass(entry.score)"
-            >
-              {{ scorePercent(entry.score) }}%
-            </span>
-
-            <!-- Two things a tile can do besides being ticked, both offered the
-                 way the pencil is on a grid tile: only when reached for. -->
-            <button
-              type="button"
-              class="hover-reveal absolute right-0.5 top-0.5 rounded bg-paper/90 p-1 text-ink shadow-sm transition"
-              :title="t('similar.chooseThrough')"
-              :aria-label="t('similar.chooseThrough')"
-              @click="chooseThrough(index)"
-            >
-              <svg
-                class="h-3 w-3"
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                aria-hidden="true"
+              <button
+                type="button"
+                class="block w-full touch-pan-y overflow-hidden rounded ring-1 transition"
+                :class="
+                  chosen.has(entry.media.id)
+                    ? 'ring-2 ring-accent'
+                    : 'ring-edge hover:ring-ink-faint'
+                "
+                :aria-pressed="chosen.has(entry.media.id)"
+                :aria-label="entry.media.fileName"
+                @click="toggle(entry.media.id)"
               >
-                <path d="M6 10V2M3 5l3-3 3 3" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </button>
+                <MediaThumb :media="entry.media" :alt="entry.media.fileName" />
+              </button>
 
-            <button
-              type="button"
-              class="hover-reveal absolute left-0.5 top-0.5 rounded bg-paper/90 p-1 text-ink shadow-sm transition"
-              :title="t('similar.openFull')"
-              :aria-label="t('similar.openFull')"
-              @click="openFull($event, index)"
-            >
-              <svg
-                class="h-3 w-3"
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                aria-hidden="true"
+              <span
+                class="pointer-events-none absolute bottom-0.5 left-0.5 rounded px-1 py-0.5 text-[10px] font-medium"
+                :class="scoreBadgeClass(entry.score)"
               >
-                <path d="M4.5 1.5h-3v3M7.5 10.5h3v-3" stroke-linecap="round" />
-              </svg>
-            </button>
+                {{ scorePercent(entry.score) }}%
+              </span>
+
+              <!-- Two things a tile can do besides being ticked, both offered the
+                   way the pencil is on a grid tile: only when reached for. -->
+              <button
+                type="button"
+                class="hover-reveal absolute right-0.5 top-0.5 rounded bg-paper/90 p-1 text-ink shadow-sm transition"
+                :title="t('similar.chooseThrough')"
+                :aria-label="t('similar.chooseThrough')"
+                @click="chooseThrough(index)"
+              >
+                <svg
+                  class="h-3 w-3"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path d="M6 10V2M3 5l3-3 3 3" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                class="hover-reveal absolute left-0.5 top-0.5 rounded bg-paper/90 p-1 text-ink shadow-sm transition"
+                :title="t('similar.openFull')"
+                :aria-label="t('similar.openFull')"
+                @click="openFull($event, index)"
+              >
+                <svg
+                  class="h-3 w-3"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path d="M4.5 1.5h-3v3M7.5 10.5h3v-3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Which of this file's tags travel. All of them by default: that is the
-           usual intent, and unticking is easier than ticking three. -->
-      <div v-if="availableTags.length" class="mt-2 flex flex-wrap items-center gap-1.5">
-        <button
-          v-for="tag in availableTags"
-          :key="tag.slug"
-          type="button"
-          class="rounded-full border px-2.5 py-0.5 text-xs transition"
-          :class="
-            chosenTags.has(tag.slug)
-              ? 'border-accent bg-accent-soft text-ink'
-              : 'border-edge text-ink-faint hover:text-ink'
-          "
-          :aria-pressed="chosenTags.has(tag.slug)"
-          @click="toggleTag(tag.slug)"
-        >
-          #{{ tagLabel(tag, ui.locale) }}
-        </button>
-      </div>
+      <!-- Controls sit below the scrolling wall, always in reach. -->
+      <template v-if="items.length">
+        <!-- Which of this file's tags travel. All of them by default: that is the
+             usual intent, and unticking is easier than ticking three. -->
+        <div v-if="availableTags.length" class="mt-2 flex flex-wrap items-center gap-1.5">
+          <button
+            v-for="tag in availableTags"
+            :key="tag.slug"
+            type="button"
+            class="rounded-full border px-2.5 py-0.5 text-xs transition"
+            :class="
+              chosenTags.has(tag.slug)
+                ? 'border-accent bg-accent-soft text-ink'
+                : 'border-edge text-ink-faint hover:text-ink'
+            "
+            :aria-pressed="chosenTags.has(tag.slug)"
+            @click="toggleTag(tag.slug)"
+          >
+            #{{ tagLabel(tag, ui.locale) }}
+          </button>
+        </div>
 
-      <p v-else class="field-hint mt-2">{{ t('similar.noTags') }}</p>
+        <p v-else class="field-hint mt-2">{{ t('similar.noTags') }}</p>
 
-      <!-- What choosing a tag did to the wall above, said plainly: silence would
-           read as the server having returned fewer files than it did. -->
-      <p v-if="availableTags.length" class="field-hint mt-1">
-        {{
-          chosenTags.size
-            ? t('similar.filtered', { count: hiddenCount })
-            : t('similar.pickTags')
-        }}
-      </p>
+        <!-- What choosing a tag did to the wall above, said plainly: silence would
+             read as the server having returned fewer files than it did. -->
+        <p v-if="availableTags.length" class="field-hint mt-1">
+          {{
+            chosenTags.size
+              ? t('similar.filtered', { count: hiddenCount })
+              : t('similar.pickTags')
+          }}
+        </p>
 
-      <div class="mt-2 flex items-center gap-3">
-        <button type="button" class="btn-primary !py-1.5" :disabled="!canApply" @click="apply">
-          {{ t('similar.apply') }}
-        </button>
-        <span v-if="progress" class="text-xs text-ink-faint">
-          {{ t('similar.progress', { done: progress.done, total: progress.total }) }}
-        </span>
-        <button
-          v-else-if="chosenCount"
-          type="button"
-          class="text-xs text-ink-faint underline underline-offset-2 transition hover:text-ink"
-          @click="chosen = new Set()"
-        >
-          {{ t('common.clearSelection') }}
-        </button>
-      </div>
-
-      <p class="field-hint mt-1">{{ t('similar.hint') }}</p>
-    </template>
+        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <button type="button" class="btn-primary !py-1.5" :disabled="!canApply" @click="apply">
+            {{ t('similar.apply') }}
+          </button>
+          <span v-if="progress" class="text-xs text-ink-faint">
+            {{ t('similar.progress', { done: progress.done, total: progress.total }) }}
+          </span>
+          <template v-else>
+            <span v-if="chosenCount" class="text-xs text-ink-faint">
+              {{ t('similar.chosen', { count: chosenCount }, chosenCount) }}
+            </span>
+            <button
+              v-if="chosenCount"
+              type="button"
+              class="text-xs text-ink-faint underline underline-offset-2 transition hover:text-ink"
+              @click="chosen = new Set()"
+            >
+              {{ t('common.clearSelection') }}
+            </button>
+          </template>
+        </div>
+      </template>
+    </div>
 
     <MediaLightbox v-model:index="lightboxIndex" :items="lightboxItems" />
   </section>

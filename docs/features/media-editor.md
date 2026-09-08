@@ -49,8 +49,18 @@ will otherwise start typing into.
 Anything already an edit model - the pending queue - is used as-is; `isEditModel(entity)`
 is `Array.isArray(entity.translations)`.
 
-`SimilarMediaPanel` sits **outside** the fieldset: nothing in it is part of saving this
-card, and it must not wait on this request.
+`SimilarMediaPanel` stays inside the fieldset so its spacing follows the editor fields.
+It is not a save field and is not blocked by the panel's own collapsed state. It stays
+mounted behind its collapsed heading, so its similarity request starts in the background
+even when the editor does not need the results immediately. Expanding it reveals a
+fixed-height scrolling work area; loading, failure, and results therefore do not move the
+fields above it.
+
+The three marks sit as one compact group, spaced half as far apart as the fields around
+them. Each label's meaning is its hover title - `approvedHint`, `favoriteHint`,
+`hiddenHint` - and the mixed-selection explanation joins that title as a second line only
+while the box still shows a dash. On a bulk edit a single plural note under all three
+marks says any changed mark reaches every selected file, once rather than per mark.
 
 ## The baseline rule
 
@@ -218,6 +228,11 @@ Points are sorted by `created` because the picker joins them into the path that 
 - a path drawn in server row order is a scribble. Each carries `before`, which lets the
 picker frame the gap the photograph fell into rather than the whole day. Files being edited
 are excluded. A failed fetch is silent; the picker still works.
+
+The inline map remains 220px high. Its text below is a fixed two-row area: the first row is
+the short map instruction, and the second row holds the point legend or the clear/paste
+hint. Reference points may replace that row's content, but never add another row or change
+the editor height.
 
 ## Invariants
 
