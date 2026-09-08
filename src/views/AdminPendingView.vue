@@ -154,14 +154,7 @@ function dayTitle(day) {
         >
           {{ t('common.clearSelection') }}
         </button>
-        <button
-          v-else-if="pending.media.length"
-          type="button"
-          class="btn-ghost"
-          @click="editor.selectMany(pending.media)"
-        >
-          {{ t('common.selectAll') }}
-        </button>
+
         <RouterLink :to="{ name: 'admin-tags' }" class="btn-ghost">
           {{ t('tags.title') }}
         </RouterLink>

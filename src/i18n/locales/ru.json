@@ -119,7 +119,6 @@
     "edit": "Редактировать",
     "close": "Закрыть",
     "selected": "Выбрано: {count}",
-    "selectAll": "Выбрать все",
     "clearSelection": "Снять выделение",
     "confirm": "Подтвердить"
   },
