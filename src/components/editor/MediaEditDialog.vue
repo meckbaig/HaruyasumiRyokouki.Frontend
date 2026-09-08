@@ -80,11 +80,20 @@ const coords = ref(null)
 const coordsTouched = ref(false)
 /*
   Tags belong to the file, not to a translation, so they sit outside the language
-  tabs. Held as slugs - the only name a media model carries; the ids a save wants
-  are looked up at save time. See docs/features/tags.md.
+  tabs. The form holds slugs, while the media model also carries the client caption;
+  ids a save wants are looked up at save time. See docs/features/tags.md.
 */
 const tagSlugs = ref([])
 const tagsTouched = ref(false)
+const knownTags = computed(() => {
+  const bySlug = new Map()
+  for (const media of editList.value) {
+    for (const tag of media?.tags ?? []) {
+      if (tag?.slug) bySlug.set(tag.slug, tag)
+    }
+  }
+  return [...bySlug.values()]
+})
 const approved = ref(false)
 const favorite = ref(false)
 const hidden = ref(false)
@@ -621,7 +630,12 @@ async function save() {
         <!-- Outside the language tabs on purpose: a tag is the same tag in all
              three, and putting it under a tab would suggest otherwise. -->
         <div>
-          <TagPicker :model-value="tagSlugs" :disabled="loading" @update:model-value="onTags" />
+          <TagPicker
+            :model-value="tagSlugs"
+            :known-tags="knownTags"
+            :disabled="loading"
+            @update:model-value="onTags"
+          />
           <p v-if="isBulk" class="field-hint">{{ t('tags.bulkHint') }}</p>
         </div>
 

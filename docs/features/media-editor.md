@@ -104,8 +104,13 @@ Tags belong to the file, not to any translation, so they sit outside the languag
 a save carries them **beside** `translations`. Nothing about them needs translating - the
 tag already knows its own three captions.
 
-They are held as **slugs**, the only name media models carry. `resolveTagIds()` looks the
-numeric ids up in the dictionary at save time, and **an unresolvable slug aborts the save
+The media model already carries each tag as `{ slug, value }`. `MediaEditDialog` passes
+those tags to `TagPicker`, which renders `value` immediately and does not wait for the
+editor dictionary. The dictionary still loads in the background for autocomplete and for
+resolving slugs to ids when saving.
+
+The form holds **slugs**, while media models also carry the client caption. `resolveTagIds()`
+looks the numeric ids up in the dictionary at save time, and **an unresolvable slug aborts the save
 with a message** rather than being skipped: the save replaces the set, so a dropped slug is
 not a tag left alone but a tag taken off.
 
@@ -193,6 +198,11 @@ everything still in it. The cross keeps its meaning: done with this, whatever it
 `ModalDialog` emits `dismiss` for the backdrop and `close` for the cross.
 
 A fresh open is never a folded one, whatever the last one ended as.
+
+The dialog component stays mounted when the user dismisses it: the parent keeps the
+selected media, while `ModalDialog` is folded through `minimised`. Opening another file
+hydrates the same component with new props; the form and tag line must therefore react to
+new models rather than rely on a mount-only initialisation.
 
 ## The location picker
 

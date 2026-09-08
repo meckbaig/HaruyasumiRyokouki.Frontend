@@ -16,6 +16,8 @@ const INVISIBLE = /[\u200B\u200C\u200D]/g
 const props = defineProps({
   /** Slugs of the tags on the file(s) being edited. */
   modelValue: { type: Array, default: () => [] },
+  /** Tag captions already carried by the media model. */
+  knownTags: { type: Array, default: () => [] },
   disabled: { type: Boolean, default: false },
   /**
    * One tag at a time. The tag-collecting screen asks about exactly one tag, and
@@ -59,13 +61,19 @@ const activeGap = ref(0)
 const caret = ref(null)
 const focusAfterRender = ref(false)
 
+const knownBySlug = computed(() => new Map(props.knownTags.map((tag) => [tag.slug, tag])))
+
+function tagForSlug(slug) {
+  return knownBySlug.value.get(slug) ?? tags.getBySlug(slug)
+}
+
 /*
   Chosen from a dictionary, never spelled out - the only way a new tag comes into
   existence is deliberately, through the form below. The whole dictionary is in
   memory, so filtering is a plain array scan. See docs/features/tags.md.
 */
 const selected = computed(() =>
-  props.modelValue.map((slug) => tags.getBySlug(slug)).filter(Boolean),
+  props.modelValue.map((slug) => tagForSlug(slug)).filter(Boolean),
 )
 
 /**
@@ -109,7 +117,7 @@ function syncGaps(chipCount) {
 }
 
 function buildChip(slug, index) {
-  const tag = tags.getBySlug(slug)
+  const tag = tagForSlug(slug)
   const label = tag ? tagLabel(tag, ui.locale) : slug
 
   const chip = document.createElement('span')
@@ -164,6 +172,7 @@ function renderField() {
   const el = fieldEl.value
   if (!el) return
 
+  // Do not expose slugs while the editor dictionary is still loading.
   const chipCount = props.modelValue.length
   syncGaps(chipCount)
 
@@ -410,7 +419,7 @@ function convertChipToText(k) {
   if (k < 0 || k >= current.length) return
 
   const slug = current[k]
-  const tag = tags.getBySlug(slug)
+  const tag = tagForSlug(slug)
   const label = tag ? tagLabel(tag, ui.locale) : slug
 
   const before = gaps.value[k] ?? ''

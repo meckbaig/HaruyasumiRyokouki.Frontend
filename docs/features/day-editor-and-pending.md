@@ -112,6 +112,11 @@ the toolbar behind a selection, so spending the tap on a dialog cost this page t
 of looking at a file - and the queue is exactly where a file most needs looking at before
 anything is decided about it.
 
+The media editor remains mounted after a backdrop or Escape dismisses it; it is minimised,
+not destroyed. On the next edit it receives the new media through props and rehydrates the
+form. The first tag captions come directly from each media model, so opening the editor
+does not wait for the dictionary or briefly show slugs.
+
 ## Invariants
 
 1. Save is blocked until the full day edit model has arrived.
