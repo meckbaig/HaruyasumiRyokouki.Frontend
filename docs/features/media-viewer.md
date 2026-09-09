@@ -182,6 +182,29 @@ writes the finished state in `done` and only sets up for it in `change`. A new c
 settles any pending one first; dropping it stranded the strip a frame off centre with the
 file underneath never swapped.
 
+### A swipe that lands while a slide is still turning
+
+The arrow model never lets the strip be grabbed mid-slide: `page()` queues one turn and
+lets the running slide finish. A finger drag cannot queue that way, because a drag is the
+strip itself - so overwriting `dragX` while the CSS transition is still running yanked the
+mid-flight strip back to the pointer, and the previous turn's pending settle then stepped
+the index under the new finger. Rapid flipping read as a slideshow of frames jumping.
+
+So a drag that starts while `turning` is true never takes the strip over (`drag.follows`
+is false); the running slide is left to finish. On release that gesture only decides
+whether to add one more page, and it does so through `page()`, which queues it until the
+current slide has completed - "finish the current animation, then begin the next". A drag
+that starts at rest behaves as before and follows the finger.
+
+### Slides scale to the swipe
+
+`slideOneFrame` takes a duration. A released swipe measures its own speed and shortens the
+slide (`slideMs`), so a fast fling is not left running at full length while the reader is
+already starting the next one; arrows and keys keep `ANIM_MS`. The strip's CSS
+`transition-duration` is set inline from the same value, or the shortened slide would
+still ease over the class's fixed 200ms. The floor is `MIN_SLIDE_MS`, so a flick never
+becomes a snap.
+
 ## Hero flight
 
 Owned entirely by `HeroFlight.vue`. The viewer says what to fly and between which two

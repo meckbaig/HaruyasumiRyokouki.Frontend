@@ -326,6 +326,8 @@ const TAP_WINDOW = 210
 const TAP_SLOP = 40
 const DRAG_SLOP = 8
 const ANIM_MS = 220
+/** Floor for a velocity-shortened slide, so a fast fling is not a snap. */
+const MIN_SLIDE_MS = 70
 /**
  * Share of the frame a sideways drag must cross to turn the page. Short on
  * purpose: an unwanted turn costs one swipe back, a refused one costs the
@@ -349,11 +351,13 @@ const uiVisible = ref(true)
 
 const zoomed = computed(() => scale.value > 1.01)
 
-const stripStyle = computed(() =>
-  dragX.value || dragY.value
+const stripStyle = computed(() => ({
+  ...(dragX.value || dragY.value
     ? { transform: `translate3d(${dragX.value}px, ${dragY.value}px, 0)` }
-    : undefined,
-)
+    : {}),
+  // The running slide's own length, so a fast swipe shortens the turn.
+  transitionDuration: animating.value ? `${stripMs}ms` : undefined,
+}))
 
 /**
  * One scale, measured against the window: 1 fills it, less than 1 clears the
@@ -471,6 +475,8 @@ function zoomTo(next, point) {
 }
 
 let animationTimer = null
+/** How long the strip's current slide runs, read by `stripStyle`. */
+let stripMs = ANIM_MS
 
 /**
  * Runs a change with a transition, then drops back to direct manipulation.
@@ -502,11 +508,23 @@ function withAnimation(change, done, duration = ANIM_MS) {
     return
   }
 
+  stripMs = duration
   animating.value = true
   pendingSettle = done ?? null
   change()
   clearTimeout(animationTimer)
   animationTimer = setTimeout(settleAnimation, duration)
+}
+
+/**
+ * Slide length from release speed: a swipe fast enough to cross the frame in
+ * less than one `ANIM_MS` shortens the turn, so a fast fling is not left
+ * running at full length once the reader is already starting the next.
+ */
+function slideMs(speed, width) {
+  const neutral = width / ANIM_MS
+  const ms = (ANIM_MS * neutral) / Math.max(speed, neutral / 4)
+  return Math.round(Math.min(ANIM_MS, Math.max(MIN_SLIDE_MS, ms)))
 }
 
 /* Wheel zoom holds the transition on a moment after each notch, so discrete
@@ -546,6 +564,9 @@ function beginDrag(clientX, clientY, pointerType, moved = false) {
     time: Date.now(),
     pointerType,
     moved,
+    // True at rest; false when the finger lands on a slide still turning, when
+    // the strip keeps its own animation and only decides an extra page later.
+    follows: !turning,
     // Locked on the first decisive movement, so a page turn never becomes a
     // dismissal halfway through and vice versa.
     axis: null,
@@ -631,6 +652,9 @@ function onPointerMove(event) {
   if (!drag.axis) drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
 
   if (drag.axis === 'x') {
+    // A drag that began on a strip still turning must not yank it - the running
+    // slide is left to finish, and the finger only adds a page on release.
+    if (!drag.follows) return
     // Resist at the ends of the list, so the strip feels bounded.
     const blocked = (dx < 0 && !hasNext.value) || (dx > 0 && !hasPrev.value)
     dragX.value = blocked ? dx * 0.25 : dx
@@ -640,7 +664,7 @@ function onPointerMove(event) {
 }
 
 /** Decides whether a released sideways drag turns the page or springs back. */
-function settleStrip(dx) {
+function settleStrip(dx, duration = ANIM_MS) {
   const { width } = frameSize()
   const direction = dx < 0 ? 1 : -1
   const canGo = direction === 1 ? hasNext.value : hasPrev.value
@@ -653,7 +677,7 @@ function settleStrip(dx) {
   // The same turn an arrow makes: the strip slides a whole frame, the
   // neighbour riding there lands dead centre, and the index changes underneath
   // it so the picture stays exactly where the animation left it.
-  slideOneFrame(direction)
+  slideOneFrame(direction, duration)
 }
 
 /** Whether a released vertical drag dismisses or springs back. Either direction:
@@ -691,7 +715,7 @@ function onPointerUp(event) {
   }
 
   if (!drag) return
-  const { moved, pointerType, axis, time } = drag
+  const { moved, pointerType, axis, time, follows } = drag
   const dx = event.clientX - drag.x
   const dy = event.clientY - drag.y
   drag = null
@@ -699,16 +723,35 @@ function onPointerUp(event) {
   if (moved) {
     suppressClick = true
     if (zoomed.value) return
-    if (axis === 'y') settleDismiss(dy)
-    else if (axis === 'x') settleStrip(dx)
-    else if (
+
+    // The swipe's own speed shortens its slide, so a fast fling is not left
+    // running at full length when the next one is already on its way.
+    const width = frameSize().width
+    const speed = Math.abs(dx) / Math.max(1, Date.now() - time)
+    const duration = slideMs(speed, width)
+
+    if (axis === 'y') {
+      settleDismiss(dy)
+      return
+    }
+
+    const flick =
       pointerType !== 'mouse' &&
       Math.abs(dx) > 40 &&
       Math.abs(dx) > Math.abs(dy) * 1.5 &&
       Date.now() - time < 800
-    ) {
-      // A flick fast enough to outrun the follow threshold still turns the page.
-      settleStrip(dx)
+
+    if (axis === 'x' || flick) {
+      // A gesture that began while a slide was still turning never grabbed the
+      // strip; it only decides whether to add one more page once that slide has
+      // finished. See docs/features/media-viewer.md.
+      if (!follows) {
+        const want = Math.abs(dx) >= width * SWIPE_COMMIT || flick
+        const dir = dx < 0 ? 1 : -1
+        if (want && (dir === 1 ? hasNext.value : hasPrev.value)) page(dir, duration)
+        return
+      }
+      settleStrip(dx, duration)
     }
     return
   }
@@ -908,6 +951,8 @@ function step(delta) {
 let queuedTurn = 0
 /** The frame a queued turn is waiting on, so closing can call it off. */
 let queuedFrame = 0
+/** The queued turn's own slide length, carried with `queuedTurn`. */
+let queuedDur = ANIM_MS
 /**
  * True while a turn's slide is running. **Not `animating`** - a turn only waits
  * for another turn, and the general flag made hiding the chrome swallow the next
@@ -916,7 +961,7 @@ let queuedFrame = 0
 let turning = false
 
 /** Slides the strip one frame along and swaps the file when it lands. */
-function slideOneFrame(delta) {
+function slideOneFrame(delta, duration = ANIM_MS) {
   turning = true
   const { width } = frameSize()
 
@@ -929,16 +974,19 @@ function slideOneFrame(delta) {
 
       if (!queuedTurn) return
       const waiting = queuedTurn
+      const waitingDur = queuedDur
       queuedTurn = 0
+      queuedDur = ANIM_MS
       // A frame, not a tick: the next slide must start from a rest the browser
       // has drawn. See docs/features/media-viewer.md.
       cancelAnimationFrame(queuedFrame)
-      queuedFrame = requestAnimationFrame(() => page(waiting))
+      queuedFrame = requestAnimationFrame(() => page(waiting, waitingDur))
     },
+    duration,
   )
 }
 
-function page(delta) {
+function page(delta, duration = ANIM_MS) {
   const next = props.index + delta
   if (next < 0 || next >= props.items.length) return
 
@@ -953,10 +1001,11 @@ function page(delta) {
     // Waits its own turn; the running slide cannot be cut short. **Only one is
     // remembered**, or a held-down arrow keeps turning after the key comes up.
     queuedTurn = Math.sign(delta)
+    queuedDur = duration
     return
   }
 
-  slideOneFrame(delta)
+  slideOneFrame(delta, duration)
 }
 
 watch(current, () => {
@@ -1395,6 +1444,7 @@ function resetGestures() {
   heroOrigin = null
   originTile = null
   queuedTurn = 0
+  queuedDur = ANIM_MS
   cancelAnimationFrame(queuedFrame)
   queuedFrame = 0
   turning = false
