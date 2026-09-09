@@ -232,31 +232,22 @@ function isCached(url) {
   return probe.complete && probe.naturalWidth > 0
 }
 
-/** The preview was superseded before it was shown, so it swaps without a fade. */
-const instantSwap = ref(false)
-/** The same, for the miniature under it. */
-const groundInstant = ref(false)
-
-/**
- * Marks every layer a ready one stands on as done with. **`instant` is only
- * legitimate before the first paint** - after it, the layer is being taken from
- * a reader who is looking at it and must fade.
+/*
+ * A layer the browser already holds is marked ready before this file's first
+ * paint, so it is never shown twice. Every ready layer stays visible beneath
+ * the one above it, so the layer on top always renders over a real stand-in.
+ * See docs/features/media-viewer.md.
  */
-function settleLayers({ full = false, preview = false, instant = false }) {
+function settleLayers({ full = false, preview = false }) {
   if (full) {
     fullLoaded.value = true
     if (fullScreen.value) inHand.add(fullScreen.value)
-    if (instant) instantSwap.value = true
     stopSpinner()
   }
   if (full || preview) {
     previewLoaded.value = true
-    if (instant) groundInstant.value = true
   }
 }
-
-/** True until this file's first post-flush pass, which is its last chance. */
-let beforeFirstPaint = true
 
 /**
  * Second chance at the same question, once the elements exist: an image held
@@ -266,14 +257,14 @@ function revealIfCached() {
   const full = picture.value
   if (full?.complete && full.naturalWidth) {
     rememberAspect(full)
-    settleLayers({ full: true, instant: beforeFirstPaint })
+    settleLayers({ full: true })
     return
   }
 
   const preview = previewImage.value
   if (preview?.complete && preview.naturalWidth) {
     rememberAspect(preview)
-    settleLayers({ preview: true, instant: beforeFirstPaint })
+    settleLayers({ preview: true })
   }
 }
 
@@ -285,10 +276,6 @@ async function onFullLoaded(event) {
     // Keyed exactly as `settleLayers` and `haveFullSize` key it, or a file would
     // be remembered under a name nothing looks it up by.
     if (fullScreen.value) inHand.add(fullScreen.value)
-    // The opening flight still covers the strip, so the reader has not seen this
-    // file's layers yet: stand the preview down instantly, or its fade runs over
-    // the reveal and shows the lower step for a frame.
-    if (flight.value?.active) instantSwap.value = true
     stopSpinner()
   }
 }
@@ -943,15 +930,11 @@ watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
   previewLoaded.value = false
-  instantSwap.value = false
-  groundInstant.value = false
   // Asked before this file has been rendered even once, so a layer the browser
-  // already holds is never given a frame it would have to be taken back out of.
-  beforeFirstPaint = true
+  // already holds is never given a frame it would have to be shown twice.
   settleLayers({
     full: isCached(fullScreen.value),
     preview: isCached(preview.value),
-    instant: true,
   })
   aspect.value = mediaAspect(current.value)
   tagsExpanded.value = false
@@ -989,7 +972,6 @@ watch(
       })
     }
 
-    beforeFirstPaint = false
   },
   { flush: 'post' },
 )
@@ -1591,14 +1573,15 @@ onBeforeUnmount(() => {
               </div>
 
               <!--
-              Three layers, sharpest at the bottom, each transparent until it is
-              whole and stepping aside once something sharper is. Each fades out
-              and none fades in; every one carries `draggable="false"`.
+              Three layers, sharpest on top: the blurred miniature is the base,
+              the preview settles over it and the full image over that. Each is
+              transparent until it is whole, and once whole it stays beneath the
+              next as a placeholder. Every one carries `draggable="false"`.
               See docs/features/media-viewer.md.
             -->
               <div
                 v-else
-                class="relative flex h-full w-full items-center justify-center"
+                class="relative isolate flex h-full w-full items-center justify-center"
                 :class="animating ? 'transition-transform duration-200' : ''"
                 :style="zoomStyle"
               >
@@ -1608,8 +1591,12 @@ onBeforeUnmount(() => {
                   :alt="label"
                   ref="picture"
                   draggable="false"
-                  class="object-contain"
-                  :class="[fitClass, fullLoaded ? 'opacity-100' : 'opacity-0']"
+                  class="relative z-[30] object-contain"
+                  :class="[
+                    fitClass,
+                    fullLoaded ? 'opacity-100' : 'opacity-0',
+                    'transition-opacity duration-300',
+                  ]"
                   :style="aspectStyle"
                   @load="onFullLoaded"
                   @error="onFullFailed"
@@ -1623,11 +1610,11 @@ onBeforeUnmount(() => {
                   alt=""
                   aria-hidden="true"
                   draggable="false"
-                  class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
+                  class="pointer-events-none absolute left-1/2 top-1/2 z-[20] -translate-x-1/2 -translate-y-1/2 object-contain"
                   :class="[
                     fitClass,
-                    previewLoaded && !fullLoaded ? 'opacity-100' : 'opacity-0',
-                    fullLoaded && !instantSwap ? 'transition-opacity duration-300' : '',
+                    previewLoaded ? 'opacity-100' : 'opacity-0',
+                    'transition-opacity duration-300',
                   ]"
                   :style="aspectStyle"
                   @load="onPreviewLoaded"
@@ -1635,12 +1622,8 @@ onBeforeUnmount(() => {
 
                 <div
                   v-if="miniature"
-                  class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
-                  :class="[
-                    fitClass,
-                    previewLoaded || fullLoaded ? 'opacity-0' : 'opacity-100',
-                    groundInstant ? '' : 'transition-opacity duration-300',
-                  ]"
+                  class="pointer-events-none absolute left-1/2 top-1/2 z-[10] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+                  :class="fitClass"
                   :style="fitBoxStyle"
                   aria-hidden="true"
                 >

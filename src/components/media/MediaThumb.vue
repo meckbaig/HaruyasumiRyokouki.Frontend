@@ -41,6 +41,16 @@ async function onLoaded(event) {
 
 <template>
   <div class="relative aspect-square overflow-hidden bg-edge/40">
+    <!-- Blurred miniature is the permanent base; the sharp preview settles over
+         it and stays on top, so the tile never repaints over an empty frame. -->
+    <img
+      v-if="miniature"
+      :src="miniature"
+      alt=""
+      aria-hidden="true"
+      draggable="false"
+      class="pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover blur-[10px]"
+    />
     <img
       v-if="src && !failed"
       :src="src"
@@ -48,21 +58,10 @@ async function onLoaded(event) {
       loading="lazy"
       decoding="async"
       draggable="false"
-      class="pointer-events-none h-full w-full object-cover"
+      class="pointer-events-none relative h-full w-full object-cover transition-opacity duration-300"
       :class="loaded ? 'opacity-100' : 'opacity-0'"
       @load="onLoaded"
       @error="failed = true"
-    />
-    <!-- Scaled past the blur radius: blur bleeds inwards and leaves the edges
-         semi-transparent, which would let the frame show through. -->
-    <img
-      v-if="miniature"
-      :src="miniature"
-      alt=""
-      aria-hidden="true"
-      draggable="false"
-      class="pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover blur-[10px] transition-opacity duration-300"
-      :class="loaded ? 'opacity-0' : 'opacity-100'"
     />
     <!-- Nothing to show at all: no miniature, and no preview that loads. -->
     <div

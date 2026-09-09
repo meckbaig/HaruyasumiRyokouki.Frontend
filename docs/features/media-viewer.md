@@ -34,7 +34,8 @@ because the pending queue passes edit models whose flat fields do not exist.
 
 ## Image layers
 
-Three sources per file, stacked, each standing in only until something better exists:
+Three sources per file, stacked sharpest on top: the blurred miniature is the permanent
+base and each sharper layer settles over the one beneath it:
 
 | Layer | Source | Purpose |
 | --- | --- | --- |
@@ -43,25 +44,25 @@ Three sources per file, stacked, each standing in only until something better ex
 | full screen | `imageUrls.fullScreen` | Videos have none; they stream instead. |
 
 The rule that makes this hard: **a layer that will never be wanted must never be
-painted**, not painted and then faded out. A sharp picture going soft and clearing again
-is worse than a slower first paint.
+painted**, not painted and then faded out. A layer is transparent until it is whole, and
+once whole it **stays** beneath the one above it instead of stepping down. So the layer on
+top always renders over a real stand-in. That is the point of the arrangement: when the
+browser evicts a full-size bitmap in a long session and must re-decode it, the repaint
+happens over the preview and miniature still under it, never over the black room.
 
-So each layer is asked about *before* the first render:
+A layer the browser already holds is therefore marked ready *before* the first render, so
+it settles in at full opacity from the first frame rather than fading up from the one
+below:
 
 - `isCached(url)` probes a detached `Image` - answers for the memory cache.
 - `revealIfCached()` runs in the `flush: 'post'` watcher, once elements exist - catches
   images held only on disk, which report `complete` before any `load` fires.
-- `settleLayers({ instant })` marks lower layers done. `instant` is only legitimate
-  before the first paint; after it, the layer is being taken from a reader who is looking
-  at it and must fade.
-- `beforeFirstPaint` is the flag that guards that distinction.
+- `settleLayers({ full, preview })` marks those layers ready.
 
-One more moment counts as "before the first paint": while an opening flight runs, the hero
-covers the strip and the reader has not yet seen the layers at all. A full-size image that
-finishes arriving during that flight is therefore still a pre-first-paint settle -
-`onFullLoaded` stands the preview down instantly (`instantSwap`) rather than letting its
-300ms fade run over the handover. The fade would otherwise still be in progress when the
-flight reveals the strip, showing the lower step for a frame at the end of the expansion.
+A layer that arrives later fades up over the solid layer beneath it (each carries a 300ms
+opacity transition), so there is never a moment with nothing underneath. During an opening
+flight the hero covers the strip, so a full-size image finishing there fades up unseen and
+is already solid when the flight reveals the strip.
 
 `revealWhenDecoded()` awaits `image.decode()` before declaring a layer ready. `load` means
 the bytes arrived; without decoding first, the reveal happens during paint and the image
@@ -357,7 +358,7 @@ Rules that live in the markup, each of which looks arbitrary and is not.
 | **Every file lives in the filmstrip, video included.** | Video used to sit in a branch of its own. With no strip on screen there was nothing to slide, so a turn *away* from a video swapped while a turn *towards* it slid. What actually differs is the gestures, and those are turned off per file. |
 | A video cell writes `aspect-ratio` out; a picture does not. | A video has no proportions until its metadata arrives, so `height: auto` would be settled from the 300x150 every `<video>` starts life at. The file states its shape, so the element is given it outright. |
 | The video cell is clipped into the band by the same transform that places a picture there. | Otherwise the controls along its bottom edge sit behind the footer. There is nothing to zoom, so that transform never leaves its resting value. |
-| **Each layer fades out; none fades in.** | A layer fading in over one fading out leaves a moment where neither is solid and the dark room shows between them. Fading only the upper one away means the one beneath is already whole and waiting. |
+| **Each layer stays beneath the one above it; none is stood down.** | The layer on top always paints over a solid stand-in, so there is never a gap to the dark room. A cached layer is marked ready before first paint and settles at once; one that arrives later fades up over the layer below. |
 | A layer is transparent **until it is whole**, not merely until it starts arriving. | A picture still downloading is painted as far as it has got and left blank below - a half-drawn photograph on white. |
 | The miniature is blurred and scaled past the blur inside a box that clips it. | It is a handful of pixels; without the overscan its softened edges fray against the dark. It ships inline, so it is the only thing on screen on the one path where nothing is cached - a shared link opened cold. |
 | Every layer carries `draggable="false"`. | Without it a mouse press starts the browser's own image drag and the pan never receives its moves. |
