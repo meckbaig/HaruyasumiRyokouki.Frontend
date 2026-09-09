@@ -52,6 +52,10 @@ one.
 - Video metadata that arrives after it was paged past no longer leaves detached audio running
 - Gestures work in the space around a player while presses on it go to its own controls
 - Long file names wrap onto two lines instead of truncating in full-screen mode
+- The media edit dialog keeps a static size while its data loads, and the similar-photos panel folds away into a collapsible section with its own scrolling wall
+- The editor's mark and control explanations moved from inline text to hover tooltips
+- Tags show their proper names at once when first edited, instead of their slug for a moment
+- The installed app's system bar takes the color of the theme chosen at install time
 
 ## 1.2.0 - faster filing
 
@@ -109,9 +113,27 @@ tags appearing immediately
 - Tagging starts ready for typing, without an extra tap on the input field 
 - The map reliably zooms to selected locations and keeps the selected point centered
 when switching between full-screen and regular views
-- Paths between locations are shown on both the Day and editor maps 
-- The Map page now explains how to select a date range, with clear From and To 
+- Paths between locations are shown on both the Day and editor maps
+- The Map page now explains how to select a date range, with clear From and To
 markers appearing as the range is chosen
+- The editor sends only what was actually changed on a save, so a bulk edit to set
+  coordinates no longer overwrites other files' text
+- "Approved" in the editor reflects the file's real status, and the pending list
+  updates when a file is saved
+- The save button reads "Translate" when a translation is requested, and the UI
+  locks while the automatic translation runs
+- Files approved through bulk editing leave the pending queue immediately
+- The editor map loads nearby photos' locations when editing several, gives the
+  current photo's location priority, and zooms to the closest-in-date locations
+- The map page's controls wrap instead of running off the screen edge on mobile,
+  and the map opens on the trip's own date range
+- Days inside a picked range on the calendar are marked with a bar under the number
+  instead of a fill, so a finished day no longer looks the same as one merely
+  inside the range
+- Day editor drafts are persisted and restored, with a notice and a discard option
+- Closing a dialog with the cross is now distinct from dismissing it by clicking
+  the empty space or pressing Escape, so a form full of typing is not thrown away
+  by a misplaced click
 
 ## 1.0.0 - similarity search
 

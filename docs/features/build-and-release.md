@@ -93,8 +93,13 @@ Registered in production only; in development the dev server owns the requests.
 
 The number in `package.json` is the whole mechanism.
 
-**A fix.** `npm version patch`, then build and deploy. Nothing else - patches inherit the
-name of the release they follow and need no entry anywhere.
+**A fix.** `npm version patch`, then build and deploy. Patches inherit the name of the
+release they follow and get no section of their own - but a patch that carries a change a
+visitor would notice is folded into the changelog of the minor release it follows, as a
+bullet under that release's section. A patch that only fixes or nudges something invisible
+stays out of the changelog entirely. The changelog is the record of what a visitor sees
+change, not of every commit; a significant change buried in a patch would otherwise be
+lost between the minor release that preceded it and the one that follows.
 
 **A feature.** Order matters, so the tag lands on a commit that already has everything:
 
@@ -137,6 +142,8 @@ heading has to name the tag from the results because there is no dictionary to a
 4. The service worker caches nothing.
 5. Release names are keyed `major.minor`; patches inherit.
 6. The tag goes on the commit that already carries the name and the changelog.
+7. A patch change a visitor would notice is folded into the changelog of the minor
+   release it follows, not left to the git history.
 
 ## Related
 
