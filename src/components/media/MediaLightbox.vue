@@ -285,6 +285,10 @@ async function onFullLoaded(event) {
     // Keyed exactly as `settleLayers` and `haveFullSize` key it, or a file would
     // be remembered under a name nothing looks it up by.
     if (fullScreen.value) inHand.add(fullScreen.value)
+    // The opening flight still covers the strip, so the reader has not seen this
+    // file's layers yet: stand the preview down instantly, or its fade runs over
+    // the reveal and shows the lower step for a frame.
+    if (flight.value?.active) instantSwap.value = true
     stopSpinner()
   }
 }
