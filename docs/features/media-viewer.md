@@ -319,6 +319,13 @@ handover at the end of the flight is exact.
 - **Where it flies back to** (`tileBoxBack`) prefers the remembered `originTile`, even
   off-screen - the reader knows they scrolled. Any other tile must be on screen, or there
   is no destination and the plain fade does the work.
+- **A return flight follows the page if the reader scrolls before it lands.** The
+  destination box is captured in viewport coordinates at close; scroll unlocks ~120ms in
+  and the flight is 260ms, so a reader who scrolls mid-flight would otherwise watch it
+  land beside the tile. The page scrolls on the window alone, so `HeroFlight` translates
+  its content by the live scroll delta (a compositor transform - no layout, no re-raster)
+  to keep the flight pinned to the tile. It is applied below the frame's header clip, so
+  the clip itself stays put under the sticky page header.
 - `[data-lightbox-flying]` is stamped on `<html>` (not the dialog, which is unmounting)
   to suppress the room's own leave animation while a flight is running.
 - Reduced motion cancels the flight entirely; the plain fade does the work.

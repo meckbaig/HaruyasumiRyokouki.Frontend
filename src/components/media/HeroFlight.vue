@@ -25,10 +25,18 @@ const outer = ref(null)
 const wrap = ref(null)
 /** The sharper image fading in over the base during a mid-flight swap. */
 const overlay = ref(null)
+/** Translated by the page's scroll so a return flight tracks its tile. */
+const mover = ref(null)
 /** `{ base, tracks, clipPath, src, overlay }` while a flight is up, null otherwise. */
 const flight = shallowRef(null)
 
 let running = null
+
+/** Cleans the scroll listener a flight leaves behind; null when none is up. */
+let stopScrollFollow = null
+/** Pending scroll-follow frame, so scroll events coalesce to one a frame. */
+let scrollFrame = 0
+let startScrollY = 0
 
 /** True while a flight is on screen; the viewer hides its own strip under it. */
 const active = computed(() => flight.value !== null)
@@ -121,6 +129,32 @@ function stop() {
   running = null
   flight.value = null
   document.documentElement.removeAttribute(FLYING_ATTR)
+  stopScrollFollow?.()
+  stopScrollFollow = null
+}
+
+/** Pins a flight to its tile while the reader scrolls before it lands. The tile
+ * box is captured at launch; the page scrolls on the window alone, so translating
+ * the flight content by the scroll delta (a transform only, no layout) keeps it
+ * glued to the tile until the handover. */
+function followScroll() {
+  startScrollY = window.scrollY
+  const onScroll = () => {
+    if (scrollFrame) return
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = 0
+      const element = mover.value
+      if (element) {
+        element.style.transform = `translate3d(0, ${startScrollY - window.scrollY}px, 0)`
+      }
+    })
+  }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  stopScrollFollow = () => {
+    window.removeEventListener('scroll', onScroll)
+    if (scrollFrame) cancelAnimationFrame(scrollFrame)
+    scrollFrame = 0
+  }
 }
 
 /**
@@ -143,6 +177,7 @@ async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null 
   flight.value = { base, tracks, clipPath: clipFor(insets), src }
   // Before the await: the room begins leaving in this same tick.
   document.documentElement.setAttribute(FLYING_ATTR, '')
+  followScroll()
 
   await nextTick()
   if (!flight.value || !outer.value || !wrap.value) {
@@ -218,43 +253,48 @@ defineExpose({ active, fly, setSource, cancel: stop })
       class="pointer-events-none fixed inset-0 z-[2500]"
       :style="flight.clipPath ? { clipPath: flight.clipPath } : undefined"
     >
-      <div
-        ref="outer"
-        class="pointer-events-none fixed overflow-hidden will-change-transform"
-        :style="{
-          left: `${flight.base.left}px`,
-          top: `${flight.base.top}px`,
-          width: `${flight.base.width}px`,
-          height: `${flight.base.height}px`,
-          transform: flight.tracks.window[0].transform,
-          borderRadius: flight.tracks.radius[0].borderRadius,
-        }"
-      >
-        <!-- The counter transform lives on this wrapper so every image inside
-             rides it together; a second layer added mid-flight would otherwise
-             drift out of register with the window. -->
+      <!-- The mover is translated by the page's scroll so the flight follows its
+           tile. It sits under the frame's clip, which must stay put in the
+           viewport under the sticky page header. -->
+      <div ref="mover" class="absolute inset-0 will-change-transform">
         <div
-          ref="wrap"
-          class="relative h-full w-full will-change-transform"
-          :style="{ transform: flight.tracks.counter[0].transform }"
+          ref="outer"
+          class="pointer-events-none fixed overflow-hidden will-change-transform"
+          :style="{
+            left: `${flight.base.left}px`,
+            top: `${flight.base.top}px`,
+            width: `${flight.base.width}px`,
+            height: `${flight.base.height}px`,
+            transform: flight.tracks.window[0].transform,
+            borderRadius: flight.tracks.radius[0].borderRadius,
+          }"
         >
-          <img
-            :src="flight.src"
-            alt=""
-            aria-hidden="true"
-            draggable="false"
-            class="h-full w-full object-contain"
-          />
-          <img
-            v-if="flight.overlay"
-            ref="overlay"
-            :src="flight.overlay"
-            alt=""
-            aria-hidden="true"
-            draggable="false"
-            class="pointer-events-none absolute inset-0 h-full w-full object-contain"
-            style="opacity: 0"
-          />
+          <!-- The counter transform lives on this wrapper so every image inside
+               rides it together; a second layer added mid-flight would otherwise
+               drift out of register with the window. -->
+          <div
+            ref="wrap"
+            class="relative h-full w-full will-change-transform"
+            :style="{ transform: flight.tracks.counter[0].transform }"
+          >
+            <img
+              :src="flight.src"
+              alt=""
+              aria-hidden="true"
+              draggable="false"
+              class="h-full w-full object-contain"
+            />
+            <img
+              v-if="flight.overlay"
+              ref="overlay"
+              :src="flight.overlay"
+              alt=""
+              aria-hidden="true"
+              draggable="false"
+              class="pointer-events-none absolute inset-0 h-full w-full object-contain"
+              style="opacity: 0"
+            />
+          </div>
         </div>
       </div>
     </div>
