@@ -851,13 +851,14 @@ function pictureBox() {
 }
 
 /**
- * The sharpest image of a file the browser can paint without asking for it. The
- * flight ends at full size, so a stand-in flown there arrives visibly soft.
+ * The sharpest image the browser can paint right now. A stale `inHand` record that
+ * the browser has evicted would fly empty; the preview is always present here and
+ * the full is overlaid the moment it decodes.
  */
 function heroSource(item) {
   const full = fullScreenSrc(item)
-  if (!full) return stripSrc(item)
-  return haveFullSize(item) || isCached(full) ? full : stripSrc(item)
+  if (full && isCached(full)) return full
+  return previewSrc(item) || miniatureSrc(item)
 }
 
 /*
@@ -1630,7 +1631,7 @@ onBeforeUnmount(() => {
                   :class="[
                     fitClass,
                     fullLoaded ? 'opacity-100' : 'opacity-0',
-                    'transition-opacity duration-300',
+                    flight?.active ? '' : 'transition-opacity duration-300',
                   ]"
                   :style="aspectStyle"
                   @load="onFullLoaded"

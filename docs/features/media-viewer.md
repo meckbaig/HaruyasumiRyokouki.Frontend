@@ -59,10 +59,11 @@ below:
   images held only on disk, which report `complete` before any `load` fires.
 - `settleLayers({ full, preview })` marks those layers ready.
 
-A layer that arrives later fades up over the solid layer beneath it (each carries a 300ms
-opacity transition), so there is never a moment with nothing underneath. During an opening
-flight the hero covers the strip, so a full-size image finishing there fades up unseen and
-is already solid when the flight reveals the strip.
+A layer that arrives later fades up over the solid layer beneath it, so there is never a
+moment with nothing underneath. The full layer's transition is suppressed while the opening
+flight hides the strip (`flight?.active`): a full that arrives then is already solid when
+the strip is revealed, so the reader never sees a preview-to-full redo for a file that
+loaded during the flight. One that arrives while the reader is watching still fades in.
 
 `revealWhenDecoded()` awaits `image.decode()` before declaring a layer ready. `load` means
 the bytes arrived; without decoding first, the reveal happens during paint and the image
@@ -304,8 +305,10 @@ handover at the end of the flight is exact.
 
 ### The rest
 
-- The source is `heroSource(item)`: the full-size image when it is already in hand or
-  cached, otherwise the preview. A stand-in flown to full size arrives visibly soft.
+- The source is `heroSource(item)`: the full-size image only when the browser still holds
+  it in memory (`isCached`). A stale `inHand` record cannot know the browser evicted the
+  bitmap, and a stale full would fly empty; the preview is always present here and the full
+  is overlaid the moment it decodes. A stand-in flown to full size arrives visibly soft.
 - **The source is swapped mid-flight, by a fade.** A watcher on `fullLoaded` swaps in the
   real file the moment it lands, so the last frames of the expansion are already at full
   resolution. Without it, a 400px preview finishes its journey filling a 4K display, and
