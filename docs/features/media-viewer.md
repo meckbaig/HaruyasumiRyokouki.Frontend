@@ -79,6 +79,15 @@ already looked at slides past *sharp* as a filmstrip neighbour. It is a record r
 a probe because probing an uncached URL issues a request - acceptable for the file being
 opened, not for two neighbours on every page turn.
 
+The strip mounts only the two neighbours, and the page underneath loads its thumbnails
+lazily. On a long day a reader who starts at the first file and flips forward outruns the
+page, turning to files whose preview was never fetched. So each page turn **warms** the
+previews of the next two files with a detached `Image` - an off-DOM fetch that fills the
+browser cache but paints nothing. The `Set` of warmed URLs makes a repeated turn cheap, and
+the warmed file settles in the moment it is reached instead of loading mid-slide. Previews
+only, never full-size: the full image still fetches on arrival, and the strip's own
+neighbour `<img>` already fetches the file one turn ahead.
+
 ## Fitting: where the picture goes
 
 The cell is the whole window, so scale 1 means "as large as the window allows". The two

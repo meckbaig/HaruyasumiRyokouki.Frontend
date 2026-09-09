@@ -64,6 +64,38 @@ const nextItem = computed(() => (hasNext.value ? props.items[props.index + 1] : 
    See docs/features/media-viewer.md. */
 const inHand = new Set()
 
+/*
+  How far ahead to warm. The strip mounts only the two neighbours, and the page
+  underneath loads its thumbnails lazily, so a file further down a long day has
+  no preview cached. Fetch the next few now, not when the reader turns to one.
+  See docs/features/media-viewer.md.
+*/
+const PREVIEW_WARM_AHEAD = 5
+
+/** Preview URLs this session already asked to be fetched ahead of need. */
+const warmedPreviews = new Set()
+
+/**
+ * Fetches the previews of the next few files into the browser cache, off-DOM,
+ * so the file the reader is about to turn to settles in instead of loading
+ * while the strip is sliding.
+ */
+function warmPreviews() {
+  if (!open.value) return
+  const last = Math.min(props.items.length, props.index + PREVIEW_WARM_AHEAD + 1)
+  for (let i = props.index + 1; i < last; i += 1) {
+    const item = props.items[i]
+    if (!item) continue
+    const url = previewSrc(item)
+    if (!url || warmedPreviews.has(url)) continue
+    warmedPreviews.add(url)
+    // No paint and no layout: a detached Image only fills the cache, which is
+    // what the layers and the strip read when the file arrives.
+    const image = new Image()
+    image.src = url
+  }
+}
+
 /** Whether this file's full-size image can be drawn with no request at all. */
 function haveFullSize(item) {
   const full = fullScreenSrc(item)
@@ -941,6 +973,9 @@ watch(current, () => {
   descriptionExpanded.value = false
   resetZoom()
   armSpinner()
+  // Turned to a file: fetch the previews just ahead of it now, so a reader
+  // flipping down a long, lazily-loaded day is not left waiting on one.
+  warmPreviews()
 })
 
 /**
