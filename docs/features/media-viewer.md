@@ -56,6 +56,13 @@ So each layer is asked about *before* the first render:
   at it and must fade.
 - `beforeFirstPaint` is the flag that guards that distinction.
 
+One more moment counts as "before the first paint": while an opening flight runs, the hero
+covers the strip and the reader has not yet seen the layers at all. A full-size image that
+finishes arriving during that flight is therefore still a pre-first-paint settle -
+`onFullLoaded` stands the preview down instantly (`instantSwap`) rather than letting its
+300ms fade run over the handover. The fade would otherwise still be in progress when the
+flight reveals the strip, showing the lower step for a frame at the end of the expansion.
+
 `revealWhenDecoded()` awaits `image.decode()` before declaring a layer ready. `load` means
 the bytes arrived; without decoding first, the reveal happens during paint and the image
 appears in bands.
@@ -196,7 +203,11 @@ image undistorted, hence a pair:
 | Element | Role | At the tile end |
 | --- | --- | --- |
 | outer `div` | the window, `overflow: hidden` | `translate(dx, dy) scale(sx, sy)` |
-| inner `img` | the whole picture | `scale(k/sx, k/sy)` |
+| inner wrapper | the whole picture, one or two stacked layers | `scale(k/sx, k/sy)` |
+
+The counter transform sits on a wrapper holding the image layers rather than on a single
+`img`, so a sharper image added mid-flight (the fade below) rides the same transform and
+never drifts out of register with the window.
 
 with `sx = tileW/baseW`, `sy = tileH/baseH`, `k = max(sx, sy)`. The image's net scale is
 `(k, k)` - even, undistorted - while the window is the tile's rectangle. That is exactly
@@ -285,13 +296,15 @@ handover at the end of the flight is exact.
 
 - The source is `heroSource(item)`: the full-size image when it is already in hand or
   cached, otherwise the preview. A stand-in flown to full size arrives visibly soft.
-- **The source is swapped mid-flight, on purpose.** A watcher on `fullLoaded` replaces it
-  the moment the real file lands, so the last frames of the expansion are already at full
+- **The source is swapped mid-flight, by a fade.** A watcher on `fullLoaded` swaps in the
+  real file the moment it lands, so the last frames of the expansion are already at full
   resolution. Without it, a 400px preview finishes its journey filling a 4K display, and
   the softness is glaring at exactly the moment the picture is largest and still. Do not
-  remove this to save a decode. `setSource` decodes off-DOM first, so the swap costs one
-  clean frame; because the element's layout box never changes, it no longer disturbs the
-  animation at all.
+  remove this to save a decode. The swap lands at the slow, large end of the flight, where
+  a hard cut is plainly visible, so `setSource` decodes the file off-DOM and fades it in
+  over its stand-in rather than snapping. The two layers sit in the shared counter wrapper,
+  so the fade changes only the resolution in place, never the framing; a swap too late to
+  finish is cut cleanly by the handover, which already holds the full image.
 - The crop resolves itself: a tile shows a square `object-fit: cover` crop, and the
   destination box has the file's own proportions, where cover and contain coincide. So
   the crop opens out with nothing animating it.

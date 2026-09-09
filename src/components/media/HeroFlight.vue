@@ -16,11 +16,16 @@ const CURVE = { x1: 0.2, y1: 0.8, x2: 0.2, y2: 1 }
 const EASING = `cubic-bezier(${CURVE.x1}, ${CURVE.y1}, ${CURVE.x2}, ${CURVE.y2})`
 /** Steps for the sampled tracks; see `buildTracks`. */
 const SAMPLES = 48
+/** How long a mid-flight preview->full swap fades in. */
+const FADE_MS = 180
 
 const frame = ref(null)
 const outer = ref(null)
-const inner = ref(null)
-/** `{ base, tracks, clipPath, src }` while a flight is up, null otherwise. */
+/** Rides the counter transform; holds the base image and any fading overlay. */
+const wrap = ref(null)
+/** The sharper image fading in over the base during a mid-flight swap. */
+const overlay = ref(null)
+/** `{ base, tracks, clipPath, src, overlay }` while a flight is up, null otherwise. */
 const flight = shallowRef(null)
 
 let running = null
@@ -140,7 +145,7 @@ async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null 
   document.documentElement.setAttribute(FLYING_ATTR, '')
 
   await nextTick()
-  if (!flight.value || !outer.value || !inner.value) {
+  if (!flight.value || !outer.value || !wrap.value) {
     stop()
     return
   }
@@ -153,15 +158,22 @@ async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null 
   running = [
     travel,
     outer.value.animate(tracks.radius, sampled),
-    inner.value.animate(tracks.counter, sampled),
+    wrap.value.animate(tracks.counter, sampled),
   ]
   travel.onfinish = stop
 }
 
-/** Swaps in a sharper file mid-flight, decoded off-DOM so it costs one frame. */
+/**
+ * Swaps in a sharper file mid-flight by fading it in over its stand-in. The
+ * swap lands at the slow, large end of the flight, where a hard cut is plainly
+ * visible, so a fade reads far better than the old single-frame exchange.
+ */
 async function setSource(next) {
-  if (!next || !flight.value || next === flight.value.src) return
+  if (!next || !flight.value) return
+  if (next === flight.value.src || next === flight.value.overlay) return
 
+  // Decoded off-DOM first, or the fade would start before the bytes are pixels
+  // and the arriving image would appear in bands as it fades in.
   const probe = new Image()
   probe.src = next
   if (typeof probe.decode === 'function') {
@@ -173,7 +185,22 @@ async function setSource(next) {
     }
   }
 
-  if (flight.value) flight.value = { ...flight.value, src: next }
+  if (!flight.value) return
+
+  // The base keeps the stand-in beneath; the sharper file fades in on top. Both
+  // ride the same counter transform, so the fade changes resolution in place,
+  // never the framing. The overlay rides the flight and is torn down with it.
+  flight.value = { ...flight.value, overlay: next }
+  await nextTick()
+  const element = overlay.value
+  if (!element || !flight.value) return
+
+  const fade = element.animate([{ opacity: 0 }, { opacity: 1 }], {
+    duration: FADE_MS,
+    easing: 'ease-out',
+    fill: 'forwards',
+  })
+  running = [...(running ?? []), fade]
 }
 
 onBeforeUnmount(stop)
@@ -203,15 +230,32 @@ defineExpose({ active, fly, setSource, cancel: stop })
           borderRadius: flight.tracks.radius[0].borderRadius,
         }"
       >
-        <img
-          ref="inner"
-          :src="flight.src"
-          alt=""
-          aria-hidden="true"
-          draggable="false"
-          class="h-full w-full object-contain will-change-transform"
+        <!-- The counter transform lives on this wrapper so every image inside
+             rides it together; a second layer added mid-flight would otherwise
+             drift out of register with the window. -->
+        <div
+          ref="wrap"
+          class="relative h-full w-full will-change-transform"
           :style="{ transform: flight.tracks.counter[0].transform }"
-        />
+        >
+          <img
+            :src="flight.src"
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            class="h-full w-full object-contain"
+          />
+          <img
+            v-if="flight.overlay"
+            ref="overlay"
+            :src="flight.overlay"
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            class="pointer-events-none absolute inset-0 h-full w-full object-contain"
+            style="opacity: 0"
+          />
+        </div>
       </div>
     </div>
   </Teleport>
