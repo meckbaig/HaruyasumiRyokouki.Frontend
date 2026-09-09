@@ -4,6 +4,26 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.4.0 - a steadier viewer
+
+The viewer's picture is no longer a single image that swaps, but a stack that
+keeps every layer it has already shown. The blurred miniature stays as the base,
+the preview settles over it and the full-size image over that, and none of them
+steps down when something sharper arrives. So the layer on top always paints over
+a real stand-in, never over the dark room - which matters in a long session, when
+the browser evicts a full-size bitmap and has to re-decode it while the reader is
+looking.
+
+The opening flight is steadier too. A sharper image that finishes loading while
+the picture is flying in now fades up over its stand-in instead of snapping in,
+and a return flight follows the page if the reader scrolls before it lands, so it
+comes to rest on the tile it left rather than beside it.
+
+- Each image layer stays beneath the one above it, so the top layer always renders over a real stand-in
+- A full-size image that finishes loading during the opening flight fades in over its stand-in instead of snapping
+- A return flight follows the page if the reader scrolls before it lands, landing on the tile it left
+- A layer the browser already holds settles at full sharpness from the first frame instead of fading up
+
 ## 1.3.0 - a lighter viewer
 
 The viewer's open and close animations now run on a dedicated element instead of re-rendering
