@@ -4,6 +4,30 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.5.0 - a livelier search
+
+The search page stopped drawing boxes around what it found. A framed photograph
+reads as a control panel rather than a wall, so a matched file is now just a
+photograph, and what matched is said by the remainder instead: the files pulled
+in by "show the rest of this day" sit behind a dim that lifts on the one tile
+the cursor is over. The dim follows the theme - lighter under a light scheme,
+deeper under a dark one - because a photograph fades more against light paper.
+
+The walls also move now. Tiles arrive one after another on the day page and in
+each search-result group, the way they already did on the pending queue, and the
+"show the rest" button is the last step of that cascade. Collapsing folds the
+block shut rather than dropping it, so the button below is not jumped over. On a
+day, the note is drawn downwards from the top as it arrives, without moving the
+grid beneath it.
+
+- Search results are no longer outlined; matched files render like any other photograph
+- The rest of a day is dimmed behind what matched, and the dim lifts on the tile under the cursor
+- The dim follows the theme scheme: 0.8 under light, 0.6 under dark
+- Tiles arrive one after another on the day page and in each search-result group
+- The "show the rest" button arrives as the last step of that cascade
+- Collapsing the rest of a day folds the block shut instead of dropping it
+- A day's note is drawn downwards from the top as it arrives, without moving the grid below
+
 ## 1.4.0 - a steadier viewer
 
 The viewer's picture is no longer a single image that swaps, but a stack that
