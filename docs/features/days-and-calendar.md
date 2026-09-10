@@ -58,6 +58,13 @@ Watches that must exist:
 - `editor.lastDelete` → reload. The selection toolbar is mounted app-wide and cannot emit
   to the page below it.
 
+### The note arriving
+
+The note wipes in from the top (`note-reveal`, keyframes `note-in` in `main.css`). It
+animates only `clip-path` and opacity, so the paragraph occupies its full height from the
+first frame and the grid below is never moved by the animation - the skeleton already
+reserved the space while the day was loading.
+
 ### Answering a `?i=` link
 
 The watcher on `[media, mediaLink.link]` resolves the linked file against **this day's**

@@ -120,7 +120,7 @@ light palette, which doubles as the pre-JS default.
   broken page.
 - **Reusable classes** live in `main.css` `@layer components`: `.field-input`,
   `.field-label`, `.field-hint`, `.btn-primary`, `.btn-ghost`, `.btn-danger`,
-  `.fit-media`, `.cascade-item`. Use them instead of re-spelling Tailwind.
+  `.fit-media`, `.cascade-item`, `.dim-tile`. Use them instead of re-spelling Tailwind.
 - Named transitions (`page-*`, `lightbox-*`, `modal-*`, `reveal*`, `soft-*`, `map-full-*`)
   are defined in `main.css` below the component layer.
 - The native scrollbar is suppressed and `AppScrollbar` draws one over the page. A native

@@ -62,7 +62,7 @@ The API returns every result in one response by design, so throttling happens he
 | --- | --- |
 | `chunkSize` (60) | Tiles revealed at a time. Only `visibleCount` are ever in the DOM. |
 | `autoReveal` | Whether the sentinel reveals the next chunk on its own. |
-| `cascade` | Stagger arriving tiles. For a page that is nothing but a grid; where the grid is one section among many, the page's own arrival already covers it. |
+| `cascade` | Stagger arriving tiles, one after another. Used by the pending queue, the day page and each search-result group. |
 
 `autoReveal` **must be false where the grid is one section among several.** On the pending
 screen the media queue sits above the day queue; with a few thousand files waiting, the
@@ -90,8 +90,8 @@ sentinel is actually visible.
 
 | Prop | Purpose |
 | --- | --- |
-| `variant` | `matched` (dark ring) / `expanded` (muted ring) - search-result outlines. |
 | `highlighted` | Singled out by a link. Draws the **same** ring as a selection: both mean "this one, out of all of these", and selection is a transient editor state, so the two are never on screen for the same reason at once. |
+| `dimmed` | Shows the tile behind a dim, lifted on hover - the rest of a day behind what search matched. The value follows the theme scheme (0.8 light, 0.6 dark). |
 | `showDate` | Stamps the day. For the pending queue, where files arrive from all over the trip with nothing else to place them by. |
 | `showTime` | Stamps the clock **on approach**. Where the date is already established by the page or a group heading, the clock is the useful half - wanted often enough to offer, rarely enough not to print across every photograph. |
 | `touchControls` | Keeps pencil and star visible without a cursor. Required on the queue (the whole page is work, and on a phone an invisible control is findable only by its author); wrong on a day or a set of results (those walls are photographs first). |

@@ -8,21 +8,18 @@ import { useTilePaint } from '@/composables/useTilePaint'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
-  variant: { type: String, default: 'normal' },
   editable: { type: Boolean, default: false },
   /** Id of the file a link singled out, outlined wherever it sits in the list. */
   highlightedId: { type: Number, default: null },
+  /** Dims every tile, lifting the dim on the one the cursor is over. */
+  dimmed: { type: Boolean, default: false },
   /** Stamps each tile with the day its file was taken; see MediaTile. */
   showDate: { type: Boolean, default: false },
   /** Shows the clock time on approach; see MediaTile. */
   showTime: { type: Boolean, default: false },
   /** Keeps the pencil and the star on show without a cursor; see MediaTile. */
   touchControls: { type: Boolean, default: false },
-  /**
-   * Lets the tiles arrive one after another instead of all at once. For a page
-   * that is nothing but a grid; where the grid is one section among many, the
-   * page's own arrival already covers it.
-   */
+  /** Lets the tiles arrive one after another instead of all at once. */
   cascade: { type: Boolean, default: false },
   chunkSize: { type: Number, default: 60 },
   /**
@@ -152,7 +149,7 @@ onBeforeUnmount(() => {
         :class="cascade ? 'cascade-item' : ''"
         :style="cascade ? cascadeDelay(i) : undefined"
         :media="media"
-        :variant="variant"
+        :dimmed="dimmed"
         :editable="editable"
         :show-date="showDate"
         :show-time="showTime"

@@ -58,6 +58,20 @@ both places.
 
 `restOfDay(fullDay, matchedMedia)` subtracts by id, for "show the rest of this day".
 
+## Showing the rest of a day
+
+Matched files carry **no outline of their own** - a framed photograph reads as a control
+panel rather than a wall. What matched is said by the remainder instead: the files pulled
+in by "show the rest" are dimmed, so the matched ones stay ahead without anything being
+drawn around them. The dim lifts on the one tile the cursor is over, not on the whole set,
+and it follows the theme's scheme - 0.8 light, 0.6 dark - because a photograph fades more
+against light paper and needs less taken away there for the same contrast.
+
+Both grids arrive in the same cascade as the pending queue, tiles one after another, and
+the "show the rest" button is the last step of that cascade. Collapsing folds the block
+shut rather than dropping it, so the button below is not jumped over. See
+[media-grid-and-selection.md](media-grid-and-selection.md).
+
 ## The cache
 
 Keyed by `locale::query` or `locale::#tag`. Locale is part of the key because the same

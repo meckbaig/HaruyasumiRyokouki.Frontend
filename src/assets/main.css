@@ -151,6 +151,18 @@
     }
   }
 
+  /*
+    The rest of a day, behind what search matched: dimmed, and lifted on hover.
+    The value follows the theme's scheme and is written by stores/theme.js.
+  */
+  .dim-tile {
+    opacity: var(--rest-dim, 0.8);
+  }
+
+  .dim-tile:hover {
+    opacity: 1;
+  }
+
   /* Buttons keep their label on one line: a row wraps between its buttons, never
      inside one. See docs/features/i18n-and-theming.md. */
   .btn-primary {
@@ -793,6 +805,28 @@
 .cascade-item {
   animation: cascade-in 300ms ease-out both;
   animation-delay: var(--cascade-delay, 0ms);
+}
+
+/*
+  A day's note arriving: a wipe from the top so the text is drawn downwards.
+  Only clip and opacity move - the box holds its full height from the first
+  frame, so the grid below is never pushed by it. See docs/features/days-and-calendar.md.
+  The end state is spelled out: `clip-path: none` is not interpolable, so a
+  keyframe that ended at the computed value would jump instead of wipe.
+*/
+@keyframes note-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.note-reveal {
+  animation: note-in 300ms ease-out both;
 }
 
 @keyframes spinner-rotate {

@@ -129,8 +129,8 @@ Used by both edit dialogs for their "loading the full model" notices.
 the last waiting several seconds for an effect meant to last a moment, and everything past
 the fold is being scrolled to anyway.
 
-`cascade` is for a page that is nothing but a grid; where the grid is one section among
-many, the page's own arrival already covers it.
+`cascade` is used by the pending queue, the day page and each search-result group, so the
+tiles of a wall arrive one after another rather than all at once.
 
 ## Page transitions
 

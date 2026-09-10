@@ -328,11 +328,11 @@ function onNoteSaved() {
             </div>
             <p
               v-else-if="day?.note"
-              class="whitespace-pre-wrap text-sm leading-relaxed text-ink-soft"
+              class="note-reveal whitespace-pre-wrap text-sm leading-relaxed text-ink-soft"
             >
               {{ day.note }}
             </p>
-            <p v-else class="text-sm text-ink-faint">{{ t('day.noNote') }}</p>
+            <p v-else class="note-reveal text-sm text-ink-faint">{{ t('day.noNote') }}</p>
           </div>
         </Transition>
       </section>
@@ -350,6 +350,7 @@ function onNoteSaved() {
             v-else-if="media.length"
             key="grid"
             :items="media"
+            cascade
             show-time
             :editable="auth.isEditor"
             :highlighted-id="highlightedId"

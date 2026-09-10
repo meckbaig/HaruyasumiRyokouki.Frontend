@@ -14,12 +14,8 @@ import { useUiStore } from '@/stores/ui'
 
 const props = defineProps({
   media: { type: Object, required: true },
-  /**
-   * `matched` and `expanded` are the search-result outlines: a dark border for
-   * files that actually matched, a muted one for the rest of the day pulled in
-   * by "show more".
-   */
-  variant: { type: String, default: 'normal' },
+  /** Dimmed until pointed at: the rest of a day, behind what search matched. */
+  dimmed: { type: Boolean, default: false },
   editable: { type: Boolean, default: false },
   /** Singled out by a link (see composables/useMediaLink). */
   highlighted: { type: Boolean, default: false },
@@ -68,8 +64,6 @@ const outlineClass = computed(() => {
   if (selected.value || props.highlighted) {
     return 'ring-2 ring-accent ring-offset-2 ring-offset-paper'
   }
-  if (props.variant === 'matched') return 'ring-2 ring-ink'
-  if (props.variant === 'expanded') return 'ring-1 ring-ink-faint/60'
   return 'ring-1 ring-edge'
 })
 
@@ -184,7 +178,12 @@ function activate() {
 </script>
 
 <template>
-  <div ref="root" class="group relative" :data-media-id="media.id">
+  <div
+    ref="root"
+    class="group relative transition-opacity"
+    :class="dimmed ? 'dim-tile' : ''"
+    :data-media-id="media.id"
+  >
     <!-- `touch-pan-y`, not `touch-none`: the browser must keep handling vertical
          scrolling, or a finger landing on a tile pins the page. The paint
          gesture only needs the long press and the horizontal axis. -->

@@ -41,6 +41,9 @@ function apply(theme) {
   }
   // Native controls and scrollbars follow the theme's light/dark nature.
   root.style.colorScheme = theme.scheme ?? 'light'
+  // The dim over the rest of a day in search. A photograph fades more against
+  // light paper than against dark, so each scheme needs its own value.
+  root.style.setProperty('--rest-dim', theme.scheme === 'dark' ? '0.6' : '0.8')
   // Kept as a styling/debug hook even though colours ride on the inline vars.
   root.setAttribute('data-theme', theme.id)
 

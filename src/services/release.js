@@ -4,6 +4,7 @@
  * release it follows. See docs/features/build-and-release.md.
  */
 const NAMES = {
+  '1.5': 'a livelier search',
   '1.4': 'a steadier viewer',
   '1.3': 'a lighter viewer',
   '1.2': 'faster filing',

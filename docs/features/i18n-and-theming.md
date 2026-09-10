@@ -75,6 +75,10 @@ stylesheet defaults, so every Tailwind `var(--color-*)` utility re-themes at onc
 Tokens the previous theme set and this one does not are **removed**, not left standing -
 some are optional, and a leftover would quietly apply the old theme's colour to the new one.
 
+`--rest-dim` is the exception, and is **derived from `scheme` rather than listed per
+theme**: the dim over the rest of a day behind search results, 0.8 under a light scheme and
+0.6 under a dark one. See [search.md](search.md).
+
 `system` is special: no palette, follows `prefers-color-scheme`, resolving to the `light` or
 `dark` entry at runtime.
 
@@ -129,7 +133,7 @@ lightbox reads the same attribute before deciding whether to run a keyframe.
 In `main.css` `@layer components`. Use them instead of re-spelling Tailwind:
 
 `.field-label` · `.field-input` · `.field-hint` · `.btn-primary` · `.btn-ghost` ·
-`.btn-danger` · `.fit-media` · `.cascade-item`
+`.btn-danger` · `.fit-media` · `.cascade-item` · `.dim-tile`
 
 Named transitions live below that layer: `page-{up,forward,back}`, `lightbox-*`, `modal-*`,
 `reveal*`, `soft-*`, `map-full-*`.

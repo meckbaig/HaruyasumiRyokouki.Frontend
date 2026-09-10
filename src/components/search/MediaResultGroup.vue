@@ -6,6 +6,7 @@ import { useDaysStore } from '@/stores/days'
 import { useUiStore } from '@/stores/ui'
 import { restOfDay } from '@/services/searchResults'
 import { formatLongDate } from '@/services/dates'
+import { cascadeDelay } from '@/services/cascade'
 
 const props = defineProps({
   /** One entry of `splitSearchResults().mediaDays`. */
@@ -78,10 +79,11 @@ function openAt(media) {
       </span>
     </header>
 
-    <!-- Matched files keep the dark outline; the rest of the day is muted. -->
+    <!-- A matched file is not outlined: it is a photograph like any other. The
+         rest of the day is dimmed instead, so what matched stays ahead. -->
     <MediaGrid
       :items="group.matched"
-      variant="matched"
+      cascade
       show-time
       :editable="editable"
       :highlighted-id="highlightedId"
@@ -90,22 +92,29 @@ function openAt(media) {
       @context="emit('context', $event)"
     />
 
-    <div v-if="expanded && rest.length" class="mt-2">
-      <MediaGrid
-        :items="rest"
-        variant="expanded"
-        show-time
-        :editable="editable"
-        :highlighted-id="highlightedId"
-        @open="openAt"
-        @edit="emit('edit', $event)"
-        @context="emit('context', $event)"
-      />
-    </div>
+    <!-- Folds open as it arrives and folds shut as it is put away, so the button
+         below it is never jumped over. -->
+    <Transition name="reveal">
+      <div v-if="expanded && rest.length" class="reveal mt-2">
+        <MediaGrid
+          :items="rest"
+          cascade
+          dimmed
+          show-time
+          :editable="editable"
+          :highlighted-id="highlightedId"
+          @open="openAt"
+          @edit="emit('edit', $event)"
+          @context="emit('context', $event)"
+        />
+      </div>
+    </Transition>
 
+    <!-- Arrives after the tiles it belongs to, in the same cascade. -->
     <button
       type="button"
-      class="mt-3 text-xs text-ink-faint underline underline-offset-4 transition hover:text-ink"
+      class="cascade-item mt-3 text-xs text-ink-faint underline underline-offset-4 transition hover:text-ink"
+      :style="cascadeDelay(group.matched.length)"
       :disabled="loading"
       @click="toggle"
     >
