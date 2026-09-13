@@ -4,6 +4,33 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.6.0 - notes that point at things
+
+A day's note and a photograph's description are no longer plain text. They carry a
+small markup of their own: a link with a name, an address pasted bare, and a
+reference to a file of the page by its id. Pointing at a reference opens a card with
+the picture, its title, its description and the time it was taken, and clicking it
+brings that file into view and rings it, so it is clear which one was meant.
+
+From there the file opens full screen and comes back. An arrow beside the close
+button reverses the whole move, scrolling to the exact line it was followed from and
+lighting it, and the browser's own Back does the same, because that step is recorded
+in the history rather than in the address.
+
+While writing, the same markup is highlighted inside the field itself and the field
+opens at the height its text needs. The media button writes a reference whose id can
+be filled in by clicking the file in the grid below instead of typing it.
+
+- Notes and descriptions may refer to a file of the page by its id, with a card showing its picture, title, description and time
+- An address in a note becomes a link, labelled by its site and the last part of its path
+- A link can be given a name of its own
+- Clicking a reference brings the file into view and singles it out
+- Opening a referenced file records a step in history, so the browser's Back returns to the line it was followed from
+- The viewer gains an arrow back to the text, beside the close button
+- The editor highlights the markup inside the note and description fields
+- The media button fills its reference's id from a click on a file in the grid
+- Note and description fields open at the height their text needs
+
 ## 1.5.0 - a livelier search
 
 The search page stopped drawing boxes around what it found. A framed photograph
