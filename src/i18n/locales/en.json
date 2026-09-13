@@ -99,6 +99,17 @@
     "label": "Language",
     "fallbackNotice": "No translation for the selected language - showing the original."
   },
+  "richText": {
+    "insertMedia": "Media",
+    "insertMediaHint": "Insert a reference to a file of this page by its ID: [media=ID]Caption[/media]",
+    "insertLink": "Link",
+    "insertLinkHint": "Insert a named link: [url=address]Caption[/url]",
+    "pickMediaHint": "Pick a file in the grid below and its ID takes the placeholder. Typing cancels this.",
+    "mediaMissing": "Media not found",
+    "mediaMissingHint": "There is no file with this ID here - it was deleted or the ID is wrong.",
+    "openMedia": "Open full screen",
+    "returnToText": "Back to the text"
+  },
   "theme": {
     "label": "Theme"
   },

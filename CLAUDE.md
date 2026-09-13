@@ -24,6 +24,7 @@ Documentation lives in [docs/](docs/) and is written for you.
 | Maps, coordinate picker | [maps.md](docs/features/maps.md) |
 | Media edit dialog | [media-editor.md](docs/features/media-editor.md) |
 | Day notes, pending queue | [day-editor-and-pending.md](docs/features/day-editor-and-pending.md) |
+| Rich text in notes, media references, hover cards | [rich-text-and-links.md](docs/features/rich-text-and-links.md) |
 | Links, sharing, previews | [sharing-and-links.md](docs/features/sharing-and-links.md) |
 | Locales, themes, motion, CSS | [i18n-and-theming.md](docs/features/i18n-and-theming.md) |
 | Installed-app theming, status bar, install manifest | [install-and-theming.md](docs/features/install-and-theming.md) |

@@ -898,3 +898,127 @@
     animation-iteration-count: infinite !important;
   }
 }
+
+/*
+  Rich text: the markup a day note or a media description may carry. A chip and
+  a link are the only inline controls built from stored text, so they get names
+  of their own. See docs/features/rich-text-and-links.md.
+*/
+.rich-link,
+.rich-media {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rich-link:hover,
+.rich-media:hover {
+  text-decoration-thickness: 2px;
+}
+
+.rich-media {
+  font-weight: 500;
+}
+
+/* A reference to a file that is not on this page: marked, and plainly broken. */
+.rich-media-missing {
+  color: var(--color-ink-faint);
+  text-decoration-style: dotted;
+}
+
+/* Inside the dark room the accent travels with the lightbox's own lifted one. */
+.lightbox .rich-link,
+.lightbox .rich-media {
+  color: var(--lb-accent);
+}
+
+/* Placed in document coordinates on purpose, so it scrolls with the page. */
+.media-hover-card {
+  position: absolute;
+  z-index: 2600;
+  width: 24rem;
+  max-width: calc(100vw - 1rem);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-edge);
+  background-color: var(--color-paper-raised);
+  padding: 0.625rem;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+}
+
+/* Lit on return from the viewer and removed by the service. No animation, so
+   it survives reduced motion. */
+.text-anchor-flash {
+  background-color: var(--color-accent-soft);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px var(--color-accent-soft);
+}
+
+/*
+  The markup-aware field: a textarea with the highlighted copy painted behind it.
+  The textarea's own text is transparent and its caret is not, so what the reader
+  sees is the layer underneath. The two must share every metric, or the highlight
+  drifts away from the words. See docs/features/rich-text-and-links.md.
+*/
+.rich-editor {
+  position: relative;
+  border: 1px solid var(--color-edge);
+  border-radius: 0.375rem;
+  background-color: var(--color-paper-raised);
+}
+
+.rich-editor:focus-within {
+  border-color: var(--color-ink-faint);
+}
+
+.rich-editor-layer,
+.rich-editor-input {
+  margin: 0;
+  border: 0;
+  background: transparent;
+  padding: 0.5rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  /* Reserved on both layers, or a scrollbar would narrow one of them and the
+     two would wrap their lines differently. */
+  scrollbar-gutter: stable;
+}
+
+.rich-editor-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--color-ink);
+  pointer-events: none;
+}
+
+.rich-editor-input {
+  display: block;
+  position: relative;
+  width: 100%;
+  color: transparent;
+  caret-color: var(--color-ink);
+  resize: vertical;
+}
+
+/* The wrapper's border already says the field has focus; the global
+   focus-visible ring reads as a selection around the whole field. */
+.rich-editor-input:focus,
+.rich-editor-input:focus-visible {
+  outline: none;
+}
+
+/* Must let the highlighted layer show through, or a selection paints over the
+   very text it is selecting. */
+.rich-editor-input::selection {
+  background-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.rich-editor-token {
+  color: var(--color-accent);
+  background-color: var(--color-accent-soft);
+  border-radius: 3px;
+}

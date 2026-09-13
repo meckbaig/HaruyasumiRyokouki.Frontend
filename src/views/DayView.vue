@@ -11,6 +11,7 @@ import ShareButton from '@/components/common/ShareButton.vue'
 import SkeletonGrid from '@/components/common/SkeletonGrid.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import RichText from '@/components/common/RichText.vue'
 import MediaEditDialog from '@/components/editor/MediaEditDialog.vue'
 import DayEditForm from '@/components/editor/DayEditForm.vue'
 import { deleteMedia } from '@/api/media'
@@ -25,6 +26,15 @@ import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
 import { routeFromMedia } from '@/composables/useTripMedia'
 import { hasOverlay } from '@/services/overlayStack'
+import {
+  useTextAnchor,
+  setTextAnchor,
+  clearTextAnchor,
+  mirrorTextAnchor,
+  returnToTextAnchor,
+  anchorSelector,
+} from '@/services/textAnchor'
+import { resolvePick } from '@/services/mediaPick'
 
 const props = defineProps({
   date: { type: String, required: true },
@@ -46,6 +56,62 @@ const editing = ref(null)
 const editingNote = ref(false)
 /** `{ media, x, y }` of the file right-clicked in the grid. */
 const contextTarget = ref(null)
+
+/*
+  The note's own references. A click brings the file's tile into view and singles
+  it out; the card's thumbnail opens it full screen. Either way the reference is
+  remembered so the viewer can offer a way back - but only while the line is out
+  of sight, since returning to something already on screen moves nothing.
+  See docs/features/rich-text-and-links.md.
+*/
+const textAnchor = useTextAnchor()
+const hasTextAnchor = computed(() => Boolean(textAnchor.value))
+/** The reference just followed, not yet matched with a file being opened. */
+let pendingReference = null
+
+function referenceRect(reference) {
+  return document.querySelector(anchorSelector(reference))?.getBoundingClientRect() ?? null
+}
+
+/** A way back is worth keeping only when the text is off screen already. */
+function rememberReference(reference) {
+  const rect = referenceRect(reference)
+  if (!rect || (rect.bottom > 0 && rect.top < window.innerHeight)) {
+    clearTextAnchor()
+    return
+  }
+  setTextAnchor(reference)
+}
+
+function activateNoteMedia(reference) {
+  pendingReference = reference
+  // `?i=` singles the tile out, so the reader can see which one was meant.
+  mediaLink.write(reference.mediaId, false)
+  scrollToMedia(reference.mediaId)
+}
+
+function openNoteMedia(reference) {
+  pendingReference = reference
+  const index = media.value.findIndex((item) => item.id === reference.mediaId)
+  if (index >= 0) lightboxIndex.value = index
+}
+
+/** A tile press. While a reference is being picked the id goes to the field. */
+function onGridOpen(item) {
+  if (resolvePick(item?.id)) return
+  const index = media.value.indexOf(item)
+  if (index >= 0) lightboxIndex.value = index
+}
+
+/**
+ * The browser's own Back and Forward. A step onto an entry that does not ask for
+ * the viewer closes it; one back to the text lights the reference as well.
+ */
+function onPopState() {
+  const wanted = new URLSearchParams(window.location.search).get('o') === '1'
+  if (!wanted && lightboxIndex.value != null) lightboxIndex.value = null
+  if (textAnchor.value) returnToTextAnchor()
+}
 
 // Persisted preference: some visitors find the day map distracting, so it can be
 // hidden by default. When on, the map starts collapsed and a show/hide button
@@ -109,6 +175,9 @@ watch(
     mapShown.value = !mapHiddenByDefault.value
     // Another day carries its own link, or none at all.
     answered = undefined
+    // The anchor named an element of the note just left.
+    clearTextAnchor()
+    pendingReference = null
   },
 )
 
@@ -159,10 +228,30 @@ watch(
 // Files deleted through the app-level toolbar; the page cannot hear its events.
 watch(() => editor.lastDelete, () => load(true))
 
-watch(lightboxIndex, (index) => {
+/**
+ * A file followed from the note gets a history entry of its own, so the browser's
+ * Back returns to the text. Anything else replaces: paging must not bury the page
+ * under one entry per picture. See docs/features/rich-text-and-links.md.
+ */
+watch(lightboxIndex, async (index, previous) => {
   const opened = index == null ? null : media.value[index]
-  if (opened) mediaLink.write(opened.id, true)
-  else mediaLink.clear()
+
+  if (!opened) {
+    mediaLink.clear()
+    clearTextAnchor()
+    pendingReference = null
+    return
+  }
+
+  if (previous == null && pendingReference) rememberReference(pendingReference)
+  pendingReference = null
+
+  if (hasTextAnchor.value) {
+    await mediaLink.push(opened.id, true)
+    mirrorTextAnchor()
+  } else {
+    mediaLink.write(opened.id, true)
+  }
 })
 
 /**
@@ -187,6 +276,9 @@ function onKeydown(event) {
 
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
+onMounted(() => window.addEventListener('popstate', onPopState))
+onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
+onBeforeUnmount(() => clearTextAnchor())
 
 /**
  * Touch equivalent of the arrow keys. Suspended under an overlay and during a
@@ -326,11 +418,20 @@ function onNoteSaved() {
               <div class="h-4 w-full animate-pulse rounded bg-edge/60" />
               <div class="h-4 w-5/6 animate-pulse rounded bg-edge/60" />
             </div>
+            <!-- The note is markup: links, and files referenced by id. The
+                 reference records where it was, so the viewer can offer a way
+                 back. See docs/features/rich-text-and-links.md. -->
             <p
               v-else-if="day?.note"
               class="note-reveal whitespace-pre-wrap text-sm leading-relaxed text-ink-soft"
             >
-              {{ day.note }}
+              <RichText
+                :text="day.note"
+                :media="media"
+                anchorable
+                @media-activate="activateNoteMedia"
+                @media-open="openNoteMedia"
+              />
             </p>
             <p v-else class="note-reveal text-sm text-ink-faint">{{ t('day.noNote') }}</p>
           </div>
@@ -354,7 +455,7 @@ function onNoteSaved() {
             show-time
             :editable="auth.isEditor"
             :highlighted-id="highlightedId"
-            @open="lightboxIndex = media.indexOf($event)"
+            @open="onGridOpen"
             @edit="editing = $event"
             @context="contextTarget = $event"
           />
@@ -433,7 +534,12 @@ function onNoteSaved() {
     </template>
 
     <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
-    <MediaLightbox v-model:index="lightboxIndex" :items="media" />
+    <MediaLightbox
+      v-model:index="lightboxIndex"
+      :items="media"
+      :can-return-to-text="hasTextAnchor"
+      @return="returnToTextAnchor"
+    />
     <MediaEditDialog
       :open="Boolean(editing)"
       :media="editing"

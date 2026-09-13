@@ -101,14 +101,22 @@ stays out of the changelog entirely. The changelog is the record of what a visit
 change, not of every commit; a significant change buried in a patch would otherwise be
 lost between the minor release that preceded it and the one that follows.
 
-**A feature.** Order matters, so the tag lands on a commit that already has everything:
+**A feature.** Two commits, and in this order - the work first, then the release that names
+it - so the tag lands on a commit that already has everything:
 
-1. `npm version minor --no-git-tag-version`
-2. Add the name to `NAMES` in `src/services/release.js`, keyed `major.minor`
-3. Add a section at the top of `CHANGELOG.md`
-4. `git commit -m "Release 1.3.0 - release name"`
-5. `git tag v1.3.0`
-6. Build and deploy
+1. Commit the work itself: a summary line, a blank line, then one bullet per change.
+2. `npm version minor --no-git-tag-version`
+3. Add the name to `NAMES` in `src/services/release.js`, keyed `major.minor`
+4. Add a section at the top of `CHANGELOG.md`
+5. `git commit -m "Release 1.3.0 - release name"`
+6. `git tag v1.3.0`
+7. Build and deploy
+
+The release commit carries **only** the version bump, the name and the changelog. Mixing a
+change into it leaves the history unable to say what the release was named for, and the tag
+pointing at a commit whose diff is mostly the feature it follows. `npm version` (without
+`--no-git-tag-version`) insists on a clean tree and wants to make both commits at once, which
+is why the work is committed before it is run.
 
 **A rework.** The same, plus a line in `STAGES` if the new generation should say what it is,
 and `npm version major`.
@@ -144,6 +152,8 @@ heading has to name the tag from the results because there is no dictionary to a
 6. The tag goes on the commit that already carries the name and the changelog.
 7. A patch change a visitor would notice is folded into the changelog of the minor
    release it follows, not left to the git history.
+8. The work is committed **before** the release commit; the release commit adds only the
+   version, the name and the changelog.
 
 ## Related
 

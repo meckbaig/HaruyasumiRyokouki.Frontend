@@ -99,6 +99,17 @@
     "label": "言語",
     "fallbackNotice": "選択した言語の翻訳がないため、原文を表示しています。"
   },
+  "richText": {
+    "insertMedia": "メディア",
+    "insertMediaHint": "このページのファイルをIDで参照します: [media=ID]キャプション[/media]",
+    "insertLink": "リンク",
+    "insertLinkHint": "名前付きのリンクを挿入します: [url=アドレス]キャプション[/url]",
+    "pickMediaHint": "下のグリッドでファイルを選ぶと、そのIDが入ります。入力すると取り消されます。",
+    "mediaMissing": "メディアが見つかりません",
+    "mediaMissingHint": "このIDのファイルはありません。削除されたか、指定が誤っています。",
+    "openMedia": "全画面で開く",
+    "returnToText": "本文に戻る"
+  },
   "theme": {
     "label": "テーマ"
   },

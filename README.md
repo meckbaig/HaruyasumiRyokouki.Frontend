@@ -87,6 +87,11 @@ system's reduce-motion setting is honoured by default, with an opt-back-in for e
 **Deep links.** A link can point at one photograph inside a day or a set of results, and
 optionally open it full screen. Unresolvable links degrade to the plain page.
 
+**Notes that point at things.** A note or a description may name a file of the page by its
+id or carry a link with a name of its own; bare addresses become links too. Pointing at a
+file shows a card with its thumbnail and title, clicking it brings the tile into view, and
+the viewer offers a way back to the exact line it was followed from.
+
 **Editing.** Signed in, the same pages become the editing surface: press-and-drag selection
 across tiles, a bulk editor that only writes what was actually changed, optional machine
 translation to review before saving, local drafts of day notes, and a queue of everything
@@ -122,6 +127,7 @@ still waiting to be filed.
 | Maps, pins, coordinate picker | `src/services/leaflet.js` | [maps.md](docs/features/maps.md) |
 | Media editing, bulk saves, translation | `src/components/editor/MediaEditDialog.vue` | [media-editor.md](docs/features/media-editor.md) |
 | Day notes, drafts, pending queue | `src/components/editor/DayEditForm.vue` | [day-editor-and-pending.md](docs/features/day-editor-and-pending.md) |
+| Rich text in notes, media references, hover cards | `src/components/common/RichText.vue` | [rich-text-and-links.md](docs/features/rich-text-and-links.md) |
 | Links, sharing, localised previews | `src/composables/useMediaLink.js` | [sharing-and-links.md](docs/features/sharing-and-links.md) |
 | Locales, themes, motion, CSS conventions | `src/theme/themes.js` | [i18n-and-theming.md](docs/features/i18n-and-theming.md) |
 | Installed-app theming, status bar, install manifest | `src/composables/useInstallManifest.js` | [install-and-theming.md](docs/features/install-and-theming.md) |

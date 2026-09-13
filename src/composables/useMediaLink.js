@@ -44,7 +44,9 @@ export function withMediaLink(query, id, open = false) {
 
 /**
  * Reads and writes the pair for the current route. Writes **replace**, never
- * push. See docs/features/sharing-and-links.md.
+ * push - except `push`, used when opening a file from a media reference, which
+ * is a place of its own so the browser's Back can return to the text.
+ * See docs/features/sharing-and-links.md.
  *
  * @param {{ suspended?: () => boolean }} [options] holds dismissal off while the
  *   viewer is open - the outline is behind it.
@@ -62,7 +64,17 @@ export function useMediaLink({ suspended = () => false } = {}) {
     if (query[MEDIA_PARAM] === route.query[MEDIA_PARAM] && query[OPEN_PARAM] === route.query[OPEN_PARAM]) {
       return
     }
-    router.replace({ path: route.path, query, hash: route.hash })
+    return router.replace({ path: route.path, query, hash: route.hash })
+  }
+
+  /**
+   * Adds an entry rather than replacing one. Only for opening a file that was
+   * followed from the text: paging would otherwise bury the page under a history
+   * entry per picture.
+   */
+  function push(id, open = true) {
+    const query = withMediaLink(route.query, id, open)
+    return router.push({ path: route.path, query, hash: route.hash })
   }
 
   function clear() {
@@ -82,5 +94,5 @@ export function useMediaLink({ suspended = () => false } = {}) {
   onMounted(() => document.addEventListener('pointerdown', dismiss))
   onBeforeUnmount(() => document.removeEventListener('pointerdown', dismiss))
 
-  return { link, write, clear }
+  return { link, write, push, clear }
 }

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import LanguageTabs from './LanguageTabs.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
 import MediaThumb from '@/components/media/MediaThumb.vue'
+import RichTextArea from '@/components/common/RichTextArea.vue'
 import { markOpenedFrom } from '@/services/openedFrom'
 import { saveDay, fetchDayEdit } from '@/api/days'
 import { useUiStore } from '@/stores/ui'
@@ -11,6 +12,9 @@ import { useDaysStore } from '@/stores/days'
 import { SUPPORTED_LOCALES } from '@/i18n'
 import { cascadeDelay } from '@/services/cascade'
 import { useDelayed } from '@/composables/useDelayed'
+import { insertTemplate } from '@/composables/useTemplateInsert'
+import { mediaTemplate, urlTemplate } from '@/services/richText'
+import { startPick, cancelPick, picking } from '@/services/mediaPick'
 import { readDraft, writeDraft, clearDraft, sameNotes } from '@/services/dayDrafts'
 
 const props = defineProps({
@@ -50,6 +54,49 @@ const thumbs = ref([])
  * the difference between naming a day and describing it.
  */
 const lightboxIndex = ref(null)
+/** The note field of the active language, for the template buttons. */
+const noteEditor = ref(null)
+/** The placeholder a click on a tile is meant to replace. */
+let pendingRange = null
+
+function noteElement() {
+  return noteEditor.value?.element ?? null
+}
+
+function addMediaTemplate() {
+  const element = noteElement()
+  if (!element) return
+  // The placeholder is left selected and remembered: the reader may fill it by
+  // clicking the file in the grid rather than typing its id.
+  pendingRange = insertTemplate(element, mediaTemplate)
+  startPick(applyPickedMedia)
+}
+
+function addUrlTemplate() {
+  insertTemplate(noteElement(), urlTemplate)
+}
+
+/** A tile was clicked: its id takes the placeholder's place. */
+function applyPickedMedia(id) {
+  const element = noteElement()
+  if (!element || !pendingRange) return
+
+  const [start, end] = pendingRange
+  const value = element.value
+  element.value = value.slice(0, start) + id + value.slice(end)
+  const caret = start + String(id).length
+  element.focus()
+  element.setSelectionRange(caret, caret)
+  element.dispatchEvent(new Event('input', { bubbles: true }))
+  pendingRange = null
+}
+
+/** Typing takes the offer back: the field is no longer waiting for a click. */
+function onNoteInput() {
+  if (!picking.value) return
+  cancelPick()
+  pendingRange = null
+}
 
 function openThumb(event, index) {
   markOpenedFrom(event.currentTarget)
@@ -144,6 +191,7 @@ draftTimer = setInterval(syncDraft, DRAFT_EVERY_MS)
 onBeforeUnmount(() => {
   clearInterval(draftTimer)
   window.removeEventListener('beforeunload', onUnload)
+  cancelPick()
   syncDraft()
 })
 
@@ -312,15 +360,46 @@ async function save() {
     />
 
     <div class="cascade-item" :style="cascadeDelay(2)">
-      <label class="field-label" :for="`day-note-${date}`">{{ t('editor.note') }}</label>
-      <textarea
+      <!-- The buttons sit level with the label, not under the field. -->
+      <div class="flex items-center justify-between gap-2">
+        <label class="field-label !mb-0" :for="`day-note-${date}`">
+          {{ t('editor.note') }}
+        </label>
+        <div class="flex gap-1">
+          <button
+            type="button"
+            class="btn-ghost !px-2 !py-1 !text-xs"
+            :class="picking ? 'border-accent text-accent' : ''"
+            :title="t('richText.insertMediaHint')"
+            :disabled="loading"
+            @click="addMediaTemplate"
+          >
+            {{ t('richText.insertMedia') }}
+          </button>
+          <button
+            type="button"
+            class="btn-ghost !px-2 !py-1 !text-xs"
+            :title="t('richText.insertLinkHint')"
+            :disabled="loading"
+            @click="addUrlTemplate"
+          >
+            {{ t('richText.insertLink') }}
+          </button>
+        </div>
+      </div>
+      <!-- Markup is highlighted inside the field, so a reference is not lost
+           among a paragraph. See docs/features/rich-text-and-links.md. -->
+      <RichTextArea
+        ref="noteEditor"
         :id="`day-note-${date}`"
         v-model="active.note"
-        rows="10"
-        class="field-input"
+        :rows="10"
         :disabled="loading"
+        class="mt-1"
+        @input="onNoteInput"
       />
-      <p v-if="showLoading" class="field-hint">{{ t('common.loading') }}</p>
+      <p v-if="picking" class="field-hint text-accent">{{ t('richText.pickMediaHint') }}</p>
+      <p v-else-if="showLoading" class="field-hint">{{ t('common.loading') }}</p>
     </div>
 
     <label

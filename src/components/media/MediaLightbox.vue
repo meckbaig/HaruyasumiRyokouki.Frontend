@@ -27,14 +27,20 @@ import { chromeInsets } from '@/services/pageChrome'
 import HeroFlight from './HeroFlight.vue'
 import { boxOf, isOnScreen, tilesFor, tileFor } from '@/services/mediaTiles'
 import TagChip from './TagChip.vue'
+import RichText from '@/components/common/RichText.vue'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
   /** Index of the open file, or null when the lightbox is closed. */
   index: { type: Number, default: null },
+  /**
+   * Whether a media reference in the text recorded a place to go back to. On
+   * for a day note, off everywhere else. See docs/features/rich-text-and-links.md.
+   */
+  canReturnToText: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:index', 'close'])
+const emit = defineEmits(['update:index', 'close', 'return'])
 
 const { t } = useI18n()
 const route = useRoute()
@@ -937,6 +943,22 @@ function close({ fly = true } = {}) {
   emit('close')
 }
 
+/**
+ * The way back to the note a reference was followed from. Offered on **any**
+ * file: the anchor names a place in the text, not the picture it opened, so
+ * paging away does not lose it. See docs/features/rich-text-and-links.md.
+ */
+function returnToText() {
+  close()
+  emit('return')
+}
+
+/** A reference inside the description: show that file instead. */
+function openFromCaption(reference) {
+  const index = props.items.findIndex((item) => item.id === reference?.mediaId)
+  if (index >= 0) emit('update:index', index)
+}
+
 function step(delta) {
   const next = props.index + delta
   if (next < 0 || next >= props.items.length) return
@@ -1820,27 +1842,60 @@ onBeforeUnmount(() => {
                 ]"
                 @click="toggleDescription"
               >
-                {{ caption }}
+                <RichText
+                  :text="caption"
+                  :media="items"
+                  @media-activate="openFromCaption"
+                  @media-open="openFromCaption"
+                />
               </p>
             </div>
 
-            <button
-              type="button"
-              class="lightbox-icon shrink-0 rounded-full p-2"
-              :aria-label="t('media.close')"
-              @click="close"
-            >
-              <svg
-                class="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                aria-hidden="true"
+            <div class="flex shrink-0 items-center gap-1">
+              <!-- Left of the cross, and kept there while paging: the way back is
+                   to the text, whatever file is on screen now. -->
+              <button
+                v-if="canReturnToText"
+                type="button"
+                class="lightbox-icon shrink-0 rounded-full p-2"
+                :title="t('richText.returnToText')"
+                :aria-label="t('richText.returnToText')"
+                @click="returnToText"
               >
-                <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
-              </svg>
-            </button>
+                <svg
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10 16.5V5m0 0-4.5 4.5M10 5l4.5 4.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                class="lightbox-icon shrink-0 rounded-full p-2"
+                :aria-label="t('media.close')"
+                @click="close"
+              >
+                <svg
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="m5 5 10 10M15 5 5 15" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Positioned against the window, not laid out between the bars, and

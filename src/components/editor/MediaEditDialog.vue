@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import LanguageTabs from './LanguageTabs.vue'
 import TagPicker from './TagPicker.vue'
+import RichTextArea from '@/components/common/RichTextArea.vue'
 import TriStateCheck from './TriStateCheck.vue'
 import SimilarMediaPanel from './SimilarMediaPanel.vue'
 // Lazy so Leaflet is not pulled into the main bundle - this dialog is mounted
@@ -18,6 +19,8 @@ import { applySavedMedia } from '@/services/mediaEdits'
 import { SUPPORTED_LOCALES } from '@/i18n'
 import { addDays, parseIsoDate, toIsoDate } from '@/services/dates'
 import { useDelayed } from '@/composables/useDelayed'
+import { insertTemplate } from '@/composables/useTemplateInsert'
+import { mediaTemplate, urlTemplate } from '@/services/richText'
 import { isPrivate } from '@/services/privacy'
 
 const props = defineProps({
@@ -76,6 +79,8 @@ const baseline = reactive({})
 const rowIds = reactive({})
 const activeLang = ref(ui.locale)
 const titleInputRef = ref(null)
+/** The description field of the active language, for the template buttons. */
+const descriptionEditor = ref(null)
 const coords = ref(null)
 const coordsTouched = ref(false)
 /*
@@ -169,6 +174,16 @@ function discardCard() {
 
 const active = computed(() => form[activeLang.value] ?? { title: '', description: '' })
 const thumbs = computed(() => editList.value)
+
+/* Templates for the description's markup: a file of this page, and a named
+   link. See docs/features/rich-text-and-links.md. */
+function addMediaTemplate() {
+  insertTemplate(descriptionEditor.value?.element, mediaTemplate)
+}
+
+function addUrlTemplate() {
+  insertTemplate(descriptionEditor.value?.element, urlTemplate)
+}
 
 /**
  * Where the files being edited already sit. Only for a selection: one file has a
@@ -628,12 +643,36 @@ async function save() {
         </div>
 
         <div>
-          <label class="field-label" for="media-description">{{ t('editor.description') }}</label>
-          <textarea
+          <!-- The buttons sit level with the label, not under the field. -->
+          <div class="flex items-center justify-between gap-2">
+            <label class="field-label !mb-0" for="media-description">
+              {{ t('editor.description') }}
+            </label>
+            <div class="flex gap-1">
+              <button
+                type="button"
+                class="btn-ghost !px-2 !py-1 !text-xs"
+                :title="t('richText.insertMediaHint')"
+                @click="addMediaTemplate"
+              >
+                {{ t('richText.insertMedia') }}
+              </button>
+              <button
+                type="button"
+                class="btn-ghost !px-2 !py-1 !text-xs"
+                :title="t('richText.insertLinkHint')"
+                @click="addUrlTemplate"
+              >
+                {{ t('richText.insertLink') }}
+              </button>
+            </div>
+          </div>
+          <RichTextArea
+            ref="descriptionEditor"
             id="media-description"
             v-model="active.description"
-            rows="4"
-            class="field-input"
+            :rows="4"
+            class="mt-1"
           />
         </div>
 
