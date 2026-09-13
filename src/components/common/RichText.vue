@@ -127,16 +127,18 @@ onBeforeUnmount(cancelClose)
     </template>
 
     <Teleport to="body">
-      <MediaHoverCard
-        v-if="hover"
-        :media="hover.part.media"
-        :label="labelFor(hover.part)"
-        :anchor-rect="hover.rect"
-        @enter="cancelClose"
-        @leave="scheduleClose"
-        @close="closeHover"
-        @open="open(hover.part)"
-      />
+      <Transition name="hover-card">
+        <MediaHoverCard
+          v-if="hover"
+          :media="hover.part.media"
+          :label="labelFor(hover.part)"
+          :anchor-rect="hover.rect"
+          @enter="cancelClose"
+          @leave="scheduleClose"
+          @close="closeHover"
+          @open="open(hover.part)"
+        />
+      </Transition>
     </Teleport>
   </span>
 </template>

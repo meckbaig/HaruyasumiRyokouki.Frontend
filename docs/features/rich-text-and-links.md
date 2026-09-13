@@ -54,6 +54,9 @@ this way; only media references have a card.
 - **The card is placed in document coordinates and lives on `<body>`.** Scroll offsets are
   added to the chip's viewport rectangle, so the card scrolls with the page instead of
   hanging over it. It flips to the left of the chip when the right would run off screen.
+- **The card fades in and out.** A `Transition` named `hover-card` wraps it. It is a hint,
+  not a dialog, so it only fades - no rise, no drift. The leaving card stops answering the
+  pointer at once, so it cannot swallow the hand on the way back to the chip.
 - **A 500ms timeout lets the pointer cross the gap.** Leaving the chip starts a timer;
   entering the card cancels it; leaving the card starts it again. This replaces an arrow
   drawn between the two.

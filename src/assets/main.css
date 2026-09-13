@@ -945,6 +945,32 @@
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
 }
 
+/*
+  The card arriving and leaving. It is a hint, not a dialog, so it only fades -
+  no rise, no drift. The leaving card stops answering the pointer at once, so
+  it cannot swallow the hand on the way back to the chip.
+*/
+@keyframes hover-card-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes hover-card-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.hover-card-enter-active {
+  animation: hover-card-in 140ms ease-out;
+}
+
+.hover-card-leave-active {
+  animation: hover-card-out 100ms ease-in both;
+  pointer-events: none;
+}
+
 /* Lit on return from the viewer and removed by the service. No animation, so
    it survives reduced motion. */
 .text-anchor-flash {
