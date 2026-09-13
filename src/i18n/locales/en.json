@@ -108,6 +108,7 @@
     "mediaMissing": "Media not found",
     "mediaMissingHint": "There is no file with this ID here - it was deleted or the ID is wrong.",
     "openMedia": "Open full screen",
+    "gotoMedia": "Go to media",
     "returnToText": "Back to the text"
   },
   "theme": {

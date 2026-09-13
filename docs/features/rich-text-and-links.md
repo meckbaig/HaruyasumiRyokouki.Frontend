@@ -11,7 +11,7 @@ the viewer to the text.
 | --- | --- |
 | `src/services/richText.js` | `parseRichText` (tokens with `raw`), `linkLabel`, editor template builders. |
 | `src/components/common/RichText.vue` | Token renderer and hover card owner; emits references upward. |
-| `src/components/common/MediaHoverCard.vue` | The card: thumbnail, title, description, time, cross. |
+| `src/components/common/MediaHoverCard.vue` | The card: thumbnail, title, description, time, go-to-media button, cross. |
 | `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it. |
 | `src/services/textAnchor.js` | The remembered reference, `anchorSelector`, `mirrorTextAnchor`, `returnToTextAnchor`. |
 | `src/services/mediaPick.js` | The fleeting mode where a tile click fills a media template. |
@@ -45,9 +45,10 @@ and the editor's highlight layer is guaranteed to show the same characters as th
 
 ## The hover card
 
-Pointing at a chip shows the card to its right: a 160px square thumbnail on the left with
-the clock stamped onto its bottom corner the way a day's tiles stamp theirs, and the title
-and description on the right. **The date is deliberately absent** - the card is only ever
+Pointing at a chip shows the card to its right, and so does a tap on a touch screen: a 160px
+square thumbnail on the left with the clock stamped onto its bottom corner the way a day's
+tiles stamp theirs, and the title and description on the right. **The date is deliberately
+absent** - the card is only ever
 shown over a day page, so the day is a fact the reader already has. Links are not chipped
 this way; only media references have a card.
 
@@ -61,13 +62,26 @@ this way; only media references have a card.
   entering the card cancels it; leaving the card starts it again. This replaces an arrow
   drawn between the two.
 - **A cross closes it by hand**, in case the timeout runs while the pointer is away.
+- **A mouse hovers; a touch taps.** A touch reports an enter and a focus too, and answering
+  either put the card under the finger, where the click a browser invents from the tap then
+  landed on the card's own picture. So the card opens on a mouse's enter or on a keyboard
+  focus, and on a touch screen it opens from the tap's click. The timeout is a mouse's as
+  well: a tapped card has nothing hovering to keep it open, so it goes on a press anywhere
+  outside it, or on the cross.
+- **A tapped card swallows the click from before it was open.** A card shown by a touch
+  answers nothing for `GHOST_CLICK_MS` (`services/ghostClick.js`), the same window the grid
+  and the viewer use for that invented click.
+- **The card carries a way to the file's tile.** It makes the action a mouse click on the
+  text makes, offered on a touch screen where the tap shows this card instead, and left on a
+  mouse where it repeats what the text already does.
 - **A missing file still opens a card.** The id did not resolve against the page's list, so
   the card says so and shows the reference's own text.
 
 ## The way back
 
-A chip click singles the file out with `?i=<id>` and scrolls to its tile; the thumbnail in
-the card opens it full screen. `RichText` only reports what was followed - it emits
+A mouse click on a chip singles the file out with `?i=<id>` and scrolls to its tile; the
+thumbnail in the card opens it full screen. On a touch screen the tap shows the card, and
+the card's own button singles the file out. `RichText` only reports what was followed - it emits
 `{ mediaId, index }` with `index` the occurrence, since one file may be referenced more than
 once - and the page decides what to do with it.
 
@@ -129,6 +143,12 @@ mirror exists so the browser's own Back sees it.
 8. A tile click while picking must not open the viewer.
 9. The viewer closes on any step onto an entry without `o=1`, anchor or not.
 10. A selection in the editor field must stay translucent.
+11. A hover belongs to a mouse: a touch enter or focus must not open the card, or the click
+    the tap invents lands on the card's own picture.
+12. A tapped card is dismissed by a press outside it or the cross, never by the hover
+    timeout.
+13. A mouse click on a reference follows it to its tile; a tap shows the card, whose own
+    button follows it instead.
 
 ## Related
 

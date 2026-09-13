@@ -108,6 +108,7 @@
     "mediaMissing": "メディアが見つかりません",
     "mediaMissingHint": "このIDのファイルはありません。削除されたか、指定が誤っています。",
     "openMedia": "全画面で開く",
+    "gotoMedia": "メディアへ移動",
     "returnToText": "本文に戻る"
   },
   "theme": {

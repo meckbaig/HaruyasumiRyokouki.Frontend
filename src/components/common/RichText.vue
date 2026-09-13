@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaHoverCard from './MediaHoverCard.vue'
 import { parseRichText, linkLabel } from '@/services/richText'
@@ -31,7 +31,18 @@ const { t } = useI18n()
 const CLOSE_DELAY = 250
 
 const hover = ref(null)
+/** The card's own root, so a press outside it can be told from one on it. */
+const cardRoot = ref(null)
 let closeTimer = null
+/** True while a card shown by a tap listens for a press anywhere to put it away. */
+let dismissOn = false
+/**
+ * The pointer behind the last press. A tap focuses a reference as well as
+ * clicking it, and a tap is not a hover - so the card waits for the click
+ * rather than appearing under the finger.
+ * See docs/features/rich-text-and-links.md.
+ */
+let pointerIsTouch = false
 
 const byId = computed(() => new Map(props.media.map((item) => [item.id, item])))
 
@@ -53,9 +64,11 @@ function labelFor(part) {
   return part.label || part.media?.title || part.media?.fileName || t('richText.mediaMissing')
 }
 
-function openHover(part, event) {
-  cancelClose()
-  hover.value = { part, rect: event.currentTarget.getBoundingClientRect() }
+function cancelClose() {
+  if (closeTimer) {
+    clearTimeout(closeTimer)
+    closeTimer = null
+  }
 }
 
 function scheduleClose() {
@@ -66,17 +79,77 @@ function scheduleClose() {
   }, CLOSE_DELAY)
 }
 
-function cancelClose() {
-  if (closeTimer) {
-    clearTimeout(closeTimer)
-    closeTimer = null
-  }
-}
-
 function closeHover() {
   cancelClose()
   hover.value = null
 }
+
+/** `byTouch` marks a card shown by a tap, which no pointer is hovering to keep. */
+function openCard(part, rect, byTouch = false) {
+  cancelClose()
+  hover.value = { part, rect, byTouch }
+}
+
+/*
+  A hover belongs to a mouse alone. A touch reports an enter and a focus too,
+  and answering either would put the card under the finger before its click
+  arrives - which then lands on the card's own picture.
+  See docs/features/rich-text-and-links.md.
+*/
+function onEnter(part, event) {
+  if (event.pointerType !== 'mouse') return
+  openCard(part, event.currentTarget.getBoundingClientRect())
+}
+
+function onLeave(event) {
+  if (event.pointerType !== 'mouse') return
+  scheduleClose()
+}
+
+function onFocus(part, event) {
+  if (pointerIsTouch) return
+  openCard(part, event.currentTarget.getBoundingClientRect())
+}
+
+function onBlur() {
+  if (pointerIsTouch) return
+  scheduleClose()
+}
+
+function onChipPointerDown(event) {
+  pointerIsTouch = event.pointerType !== 'mouse'
+}
+
+/** The pointer is a mouse's; a card shown by a tap dismisses by hand instead. */
+function onCardEnter() {
+  if (hover.value?.byTouch) return
+  cancelClose()
+}
+
+function onCardLeave() {
+  if (hover.value?.byTouch) return
+  scheduleClose()
+}
+
+/*
+  A press anywhere puts a tapped card away, and the cross does the same. A press
+  on a reference never reaches here - the reference stops it, since a tap on one
+  is that reference's own toggle.
+  See docs/features/rich-text-and-links.md.
+*/
+function onDocumentPointerDown(event) {
+  if (cardRoot.value?.$el?.contains(event.target)) return
+  closeHover()
+}
+
+function setDismissOn(next) {
+  if (next === dismissOn) return
+  dismissOn = next
+  if (next) document.addEventListener('pointerdown', onDocumentPointerDown)
+  else document.removeEventListener('pointerdown', onDocumentPointerDown)
+}
+
+watch(hover, (value) => setDismissOn(Boolean(value?.byTouch)))
 
 /** The reference, named by file and by which mention of it was followed. */
 function reference(part) {
@@ -94,7 +167,27 @@ function open(part) {
   closeHover()
 }
 
-onBeforeUnmount(cancelClose)
+/*
+  A mouse click follows the reference to its tile. A tap has no hover to show
+  the card, so it shows the card instead; a second tap on the same reference
+  puts it away. See docs/features/rich-text-and-links.md.
+*/
+function onClick(part, event) {
+  if (!pointerIsTouch) {
+    activate(part)
+    return
+  }
+  if (hover.value?.part.key === part.key) {
+    closeHover()
+    return
+  }
+  openCard(part, event.currentTarget.getBoundingClientRect(), true)
+}
+
+onBeforeUnmount(() => {
+  cancelClose()
+  setDismissOn(false)
+})
 </script>
 
 <template>
@@ -115,11 +208,12 @@ onBeforeUnmount(cancelClose)
         class="rich-media"
         :class="part.media ? '' : 'rich-media-missing'"
         :data-text-anchor="anchorable ? `${part.id}:${part.index}` : undefined"
-        @mouseenter="openHover(part, $event)"
-        @mouseleave="scheduleClose"
-        @focus="openHover(part, $event)"
-        @blur="scheduleClose"
-        @click.stop="activate(part)"
+        @pointerdown.stop="onChipPointerDown"
+        @pointerenter="onEnter(part, $event)"
+        @pointerleave="onLeave"
+        @focus="onFocus(part, $event)"
+        @blur="onBlur"
+        @click.stop="onClick(part, $event)"
       >
         {{ labelFor(part) }}
       </button>
@@ -130,11 +224,14 @@ onBeforeUnmount(cancelClose)
       <Transition name="hover-card">
         <MediaHoverCard
           v-if="hover"
+          ref="cardRoot"
           :media="hover.part.media"
           :label="labelFor(hover.part)"
           :anchor-rect="hover.rect"
-          @enter="cancelClose"
-          @leave="scheduleClose"
+          :touch="hover.byTouch"
+          @enter="onCardEnter"
+          @leave="onCardLeave"
+          @activate="activate(hover.part)"
           @close="closeHover"
           @open="open(hover.part)"
         />

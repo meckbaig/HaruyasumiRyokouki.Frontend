@@ -1,10 +1,11 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
 import { pickTranslation } from '@/services/translations'
 import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 import { formatShortTime } from '@/services/dates'
+import { GHOST_CLICK_MS } from '@/services/ghostClick'
 
 /**
  * The card shown beside a media reference in a text. Positioned in **document**
@@ -18,12 +19,33 @@ const props = defineProps({
   label: { type: String, default: '' },
   /** Viewport rectangle of the element the card belongs to. */
   anchorRect: { type: Object, default: null },
+  /** Shown by a tap, so the click that called it must not reach its controls. */
+  touch: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['open', 'close', 'enter', 'leave'])
+const emit = defineEmits(['open', 'close', 'enter', 'leave', 'activate'])
 
 const { t } = useI18n()
 const ui = useUiStore()
+
+/**
+ * A tap that shows the card may leave the point it was aimed at over the
+ * picture, and the browser's own click then lands there. Nothing in the card
+ * answers a click from before it was open.
+ * See docs/features/rich-text-and-links.md.
+ */
+let openedAt = 0
+
+onMounted(() => {
+  openedAt = performance.now()
+})
+
+function onRootClickCapture(event) {
+  if (!props.touch) return
+  if (performance.now() - openedAt >= GHOST_CLICK_MS) return
+  event.stopPropagation()
+  event.preventDefault()
+}
 
 const translation = computed(() => pickTranslation(props.media, ui.locale))
 const title = computed(
@@ -58,6 +80,7 @@ const position = computed(() => {
   <div
     class="media-hover-card"
     :style="position"
+    @click.capture="onRootClickCapture"
     @mouseenter="emit('enter')"
     @mouseleave="emit('leave')"
   >
@@ -104,6 +127,15 @@ const position = computed(() => {
         <p v-if="description" class="mt-0.5 line-clamp-3 text-xs text-ink-soft">
           {{ description }}
         </p>
+        <!-- The way to the file's tile - the action the text itself takes on a
+             mouse click, offered here where a tap shows this card instead. -->
+        <button
+          type="button"
+          class="mt-auto self-end text-xs font-medium text-accent transition hover:underline -mr-5"
+          @click="emit('activate')"
+        >
+          {{ t('richText.gotoMedia') }}
+        </button>
       </div>
     </div>
 

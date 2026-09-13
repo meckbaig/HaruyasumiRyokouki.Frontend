@@ -30,6 +30,10 @@ be filled in by clicking the file in the grid below instead of typing it.
 - The editor highlights the markup inside the note and description fields
 - The media button fills its reference's id from a click on a file in the grid
 - Note and description fields open at the height their text needs
+- On a touch screen a tap opens the card, since a finger cannot hover
+- The card carries a button that brings the referenced file into view, on desktop as well
+- A card opened by a tap is dismissed by a press anywhere outside it or by the cross, not by the hover timer
+- A tap no longer also opens the picture, and a long press no longer opens the card
 
 ## 1.5.0 - a livelier search
 
