@@ -112,7 +112,6 @@ router.beforeEach((to) => {
 /** Per-route title key. `home` is null and falls back to the tagline. */
 const TITLE_KEYS = {
   home: null,
-  search: 'nav.home',
   map: 'map.title',
   login: 'login.title',
   'admin-pending': 'admin.title',
@@ -126,10 +125,25 @@ export function updateHead(route) {
   if (route.name === 'day' && route.params.date) {
     // Spelled out, not the raw ISO date: this is a tab title and a link heading.
     applyHead({ title: formatLongDate(route.params.date, i18n.global.locale.value) })
-  } else {
-    const key = TITLE_KEYS[route.name]
-    applyHead({ title: key ? i18n.global.t(key) : null })
+    return
   }
+
+  // A search tab names what is being looked for, so a row of open tabs is readable.
+  // A tag is named by its slug here and refined to its caption once the results
+  // arrive - see SearchView.
+  if (route.name === 'search') {
+    const text = String(route.query.text ?? '').trim()
+    if (text) {
+      applyHead({ title: text })
+      return
+    }
+    const tag = String(route.query.tag ?? '').trim()
+    applyHead({ title: tag ? `#${tag}` : null })
+    return
+  }
+
+  const key = TITLE_KEYS[route.name]
+  applyHead({ title: key ? i18n.global.t(key) : null })
 }
 
 router.afterEach((to) => updateHead(to))

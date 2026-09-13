@@ -93,7 +93,9 @@
     "hidden": "非公開",
     "hiddenNoShare": "非公開のファイルです - 共有できるリンクはありません",
     "hide": "非公開にする",
-    "unhide": "公開する"
+    "unhide": "公開する",
+    "hideHidden": "非公開ファイルを隠す",
+    "showHidden": "非公開ファイルを表示"
   },
   "language": {
     "label": "言語",

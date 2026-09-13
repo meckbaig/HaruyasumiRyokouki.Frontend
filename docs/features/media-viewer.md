@@ -83,11 +83,21 @@ opened, not for two neighbours on every page turn.
 The strip mounts only the two neighbours, and the page underneath loads its thumbnails
 lazily. On a long day a reader who starts at the first file and flips forward outruns the
 page, turning to files whose preview was never fetched. So each page turn **warms** the
-previews of the next two files with a detached `Image` - an off-DOM fetch that fills the
+previews of the next few files with a detached `Image` - an off-DOM fetch that fills the
 browser cache but paints nothing. The `Set` of warmed URLs makes a repeated turn cheap, and
-the warmed file settles in the moment it is reached instead of loading mid-slide. Previews
-only, never full-size: the full image still fetches on arrival, and the strip's own
-neighbour `<img>` already fetches the file one turn ahead.
+the warmed file settles in the moment it is reached instead of loading mid-slide.
+
+The **full-size** images of the neighbours are warmed the same way, so a turn lands on a
+file that is already sharp rather than watching it arrive. **Opening warms both sides**,
+because the reader may flip either way from the file they just opened; a turn warms only
+the one they are heading towards, which is the direction they last paged. **Not in the
+mobile layout**: on a small screen the swap is invisible, the spinner is already suppressed
+there, and warming a neighbour would spend traffic for nothing.
+
+Warming alone is not enough: a layer is drawn sharp only once its URL is known to be in
+hand, and a fresh probe cannot see a fetch that has just finished. So the warm's own
+`onload` records the URL in `fullCached`, and `watch(current)` settles the full layer from
+that record the moment the file is reached - sharp on the first frame of the turn.
 
 ## Fitting: where the picture goes
 
@@ -404,6 +414,7 @@ Rules that live in the markup, each of which looks arbitrary and is not.
 | The tag expander's hit area reaches well out sideways and up over the picture, and stays shallow below. | The pill is small; what answers a finger is not. Below is where the tags themselves begin. |
 | The "open in this day" link writes `?i=` but **not** `?o=`. | The file was already being looked at full screen; opening it again on arrival would be no arrival at all. The link is left out on that day's own page. |
 | A private file's share button is **removed**, not disabled. | The recipient would be sent to a day that, as far as they are concerned, does not contain it. An offer that is not there cannot be taken up by mistake; a disabled one still invites it. |
+| The title and the description are **selectable**. | They are the one thing in the viewer worth copying out - a place name to search for. Everywhere else is a gesture surface, and `.lightbox` sets `user-select: none`; `.lightbox-selectable` turns it back on for that block. A press that ends a selection must not also expand the description, so `toggleDescription` reads the selection before acting. |
 
 ## Invariants
 
@@ -438,6 +449,9 @@ Do not "fix" these:
 10. Strip images are keyed by file, or a turn shows the file just left.
 11. A queued turn waits a frame, not a tick.
 12. A video is never played from a `loadedmetadata` that arrives after it was paged past.
+13. Only **one** neighbour's full-size image is warmed, and it is the one the reader is
+    heading towards.
+14. The title and the description stay selectable; a selection must not expand them.
 
 ## Related
 

@@ -404,11 +404,19 @@ function onBlur() {
 
 /**
  * Backspace with the caret at the start of a gap pulls the chip on the left back
- * into text - the end-of-field convention, now available at every gap.
+ * into text - the end-of-field convention, now available at every gap. At the
+ * very start of the line there is no chip to its left, and the browser's own
+ * Backspace there empties the chips from view, so it is stopped instead.
  */
 function onBackspace(event) {
   const info = cleanCaretInfo()
-  if (!info || info.gap === 0 || info.offset !== 0) return
+  if (!info || info.offset !== 0) return
+
+  if (info.gap === 0) {
+    event.preventDefault()
+    return
+  }
+
   event.preventDefault()
   skipKeyup = true
   convertChipToText(info.gap - 1)

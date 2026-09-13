@@ -102,10 +102,47 @@ function warmPreviews() {
   }
 }
 
+/** Full-size URLs this session has already asked the browser to fetch ahead. */
+const warmedFullSize = new Set()
+
+/* Full-size URLs whose bytes have actually arrived, so a layer can be settled
+   before its own <img> has ever been rendered. Reactive: the filmstrip's
+   neighbours switch to the full image the moment it is ready.
+   See docs/features/media-viewer.md. */
+const fullCached = ref(new Set())
+
+/** Which way the reader last paged, so the neighbour ahead of them is warmed. */
+let pageDirection = 1
+
+/**
+ * Fetches a neighbour's full-size image, off-DOM, so a page turn shows it sharp
+ * from the first frame instead of loading. Opening warms both sides; a turn warms
+ * only the way the reader is heading. **Skipped in the mobile layout**, where the
+ * swap is invisible and the file is a heavy download.
+ */
+function warmFullSize(delta) {
+  if (!open.value) return
+  // Not on a phone: the swap is invisible there and the file is a heavy download.
+  if (isMobileLayout()) return
+  const item = props.items[props.index + delta]
+  if (!item) return
+  const url = fullScreenSrc(item)
+  if (!url || inHand.has(url) || warmedFullSize.has(url)) return
+  warmedFullSize.add(url)
+  const image = new Image()
+  // The completed fetch is what lets the layer settle the moment it is reached.
+  image.onload = () => {
+    const next = new Set(fullCached.value)
+    next.add(url)
+    fullCached.value = next
+  }
+  image.src = url
+}
+
 /** Whether this file's full-size image can be drawn with no request at all. */
 function haveFullSize(item) {
   const full = fullScreenSrc(item)
-  return Boolean(full) && inHand.has(full)
+  return Boolean(full) && (inHand.has(full) || fullCached.value.has(full))
 }
 
 function stripSrc(item) {
@@ -1030,14 +1067,27 @@ function page(delta, duration = ANIM_MS) {
   slideOneFrame(delta, duration)
 }
 
+// Registered before the `current` watcher, which reads the direction it sets.
+watch(
+  () => props.index,
+  (next, prev) => {
+    if (prev != null && next != null) pageDirection = next >= prev ? 1 : -1
+  },
+)
+
 watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
   previewLoaded.value = false
-  // Asked before this file has been rendered even once, so a layer the browser
-  // already holds is never given a frame it would have to be shown twice.
+  /*
+    Asked before this file has been rendered even once, so a layer the browser
+    already holds is never given a frame it would have to be shown twice. A
+    full-size whose bytes were warmed ahead of the turn settles here too, so the
+    file is drawn sharp from the first frame instead of fading in after the slide.
+    See docs/features/media-viewer.md.
+  */
   settleLayers({
-    full: isCached(fullScreen.value),
+    full: haveFullSize(current.value),
     preview: isCached(preview.value),
   })
   aspect.value = mediaAspect(current.value)
@@ -1048,6 +1098,8 @@ watch(current, () => {
   // Turned to a file: fetch the previews just ahead of it now, so a reader
   // flipping down a long, lazily-loaded day is not left waiting on one.
   warmPreviews()
+  // And the full-size image of the neighbour ahead, so the next turn is sharp.
+  warmFullSize(pageDirection)
 })
 
 /**
@@ -1395,6 +1447,8 @@ function toggleTags() {
 }
 
 function toggleDescription() {
+  // A press that ended a text selection is not a request to expand the description.
+  if (!window.getSelection()?.isCollapsed) return
   if (!descriptionOverflow.value) return
   descriptionExpanded.value = !descriptionExpanded.value
   settleChrome()
@@ -1542,6 +1596,10 @@ watch(open, async (isOpen) => {
     originTile = from ? { el: from, id: current.value?.id } : null
     heroOrigin = from ? boxOf(from) : null
     openedAt = performance.now()
+    // Opened on a file: the reader may flip either way, so warm both sides. A
+    // turn after this warms only the direction it travels - see `watch(current)`.
+    warmFullSize(1)
+    warmFullSize(-1)
     chromeReady.value = false
     lastFocused = document.activeElement
     document.addEventListener('keydown', onKeydown)
@@ -1799,7 +1857,7 @@ onBeforeUnmount(() => {
             class="lightbox-bar lightbox-bar-top flex items-start justify-between gap-4 overflow-hidden px-3 py-2 transition-transform duration-200"
             :class="uiVisible ? 'pointer-events-auto' : '-translate-y-full'"
           >
-            <div class="min-w-0 pt-1">
+            <div class="lightbox-selectable min-w-0 pt-1">
               <!-- Above the title rather than beside it: the title is truncated
                    to whatever room is left, and a mark sharing that line would
                    be the first thing squeezed out on a phone. -->

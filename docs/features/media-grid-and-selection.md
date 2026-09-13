@@ -17,6 +17,8 @@ and the press-and-drag selection gesture shared by four different walls.
 | `src/components/media/MediaContextMenu.vue` | Right-click menu. |
 | `src/services/cascade.js` | Stagger delay for arriving tiles. |
 | `src/components/common/SkeletonGrid.vue` | Placeholder sized from `mediaCount`. |
+| `src/composables/useHiddenRecords.js` | Editor-only "hide the hidden files" state and filter. |
+| `src/components/common/HiddenRecordsToggle.vue` | The one button that drives it, on the day and search pages. |
 
 ## Two-stage image load
 
@@ -178,6 +180,19 @@ the front page hangs its wall twice, the pending queue shows the same file as th
 the day being written, the "similar" panel duplicates the grid behind it. Without it the
 picture flies out of a tile the reader was not looking at.
 
+## Hiding the hidden files
+
+A signed-in editor gets a toggle, beside the share button on the day and search pages, that
+drops the private files a page would otherwise show. It is a client-side filter over the
+list already in hand - the cached day and the cached search answer are left whole, so the
+private files come back the instant the toggle is turned off, with no request.
+
+The choice is shared by both pages and persisted like the day map's own default
+(`haruyasumi.hiddenRecordsHidden`), so it survives a reload. `useHiddenRecords` owns the
+state and the filter; `HiddenRecordsToggle` is the one button. The search page's remainder
+behind "show the rest of this day" is filtered too, or a hidden file would reappear the
+moment a day was unfolded.
+
 ## The paint gesture
 
 `useTilePaint` owns press-and-drag selection. It belongs to the container, not the tile,
@@ -241,6 +256,8 @@ exactly those.
 7. Star/hide write onto the shared object rather than refetching, and only after success.
 8. `suppressClick` is cleared at the start of each gesture, not only after use.
 9. Anything that answers a tap on `touchend` must also suppress the click it invents.
+10. Hidden records are filtered client-side and the choice persists
+    (`haruyasumi.hiddenRecordsHidden`); the cached lists are never rewritten.
 
 ## Related
 

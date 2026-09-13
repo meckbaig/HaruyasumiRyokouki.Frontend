@@ -177,6 +177,8 @@ changes.** For one file, replace is what is meant; for a selection it is a trap.
 - Typing in a gap filters the dictionary and the pick lands **at that gap**. Backspace at
   the start of a gap pulls the chip on its left back into text and re-opens the picker, so
   the tag can be re-committed with Enter or swapped for another match in place.
+- Backspace at the **very start of the line** has no chip to its left. The browser's own
+  default there emptied the chips from view, so the keystroke is stopped outright instead.
 - Coining is offered whenever something is typed, not only when nothing matched: "temple"
   matching "temple grounds" does not mean "temple" exists.
 - `single` mode exists for the collect screen. The alternative is a second autocomplete

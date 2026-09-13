@@ -327,6 +327,17 @@
   }
 
   /*
+    The title and the description are text to be read and copied, unlike every
+    gesture surface around them.
+    See docs/features/media-viewer.md.
+  */
+  .lightbox-selectable {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+
+  /*
     Relative colour syntax where it exists: it keeps the theme's chroma instead of
     washing it out, and tints the bars by **scaling** the accent's chroma, so a
     neutral theme stays neutral. Older browsers lose the tint and nothing else.

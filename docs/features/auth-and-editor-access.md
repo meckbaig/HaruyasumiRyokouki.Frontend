@@ -72,6 +72,7 @@ shown an empty admin screen.
 `auth.isEditor` gates, across the app:
 
 - The pencil, the star and the hide control on a tile.
+- The hide/show toggle for private records on the day and search pages.
 - Selection mode and the floating toolbar.
 - The day-note editor.
 - The `favorite` / `private` fields being non-null at all - the server omits them for

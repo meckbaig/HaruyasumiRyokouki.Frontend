@@ -100,8 +100,16 @@ async function loadSuggestions(input) {
   }
 }
 
+/** True while `text` is being written by the address rather than by typing. */
+let syncedFromRoute = false
+
 watch(text, (next) => {
   stopFetch()
+  // A value put there by the address is not typing, so no suggestions.
+  if (syncedFromRoute) {
+    syncedFromRoute = false
+    return
+  }
   const input = next.trim().replace(/^#+\s*/, '')
   if (!input) {
     suggestions.value = []
@@ -130,7 +138,10 @@ onBeforeUnmount(stopFetch)
 watch(
   () => route.query.text,
   (next) => {
-    text.value = String(next ?? '')
+    const value = String(next ?? '')
+    if (value === text.value) return
+    syncedFromRoute = true
+    text.value = value
     closeList()
   },
 )
@@ -146,6 +157,9 @@ function goToTag(tag) {
   stopFetch()
   closeList()
   text.value = ''
+  // Picking the tag clears the dismiss: choosing the very tag just converted
+  // must show its chip, not leave the field looking empty.
+  chipDismissed.value = false
   // Named before the results arrive, so the chip reads properly from the first
   // frame instead of appearing as a bare slug and correcting itself.
   search.rememberTag(tag.slug, tag.value, ui.locale)
@@ -196,6 +210,30 @@ async function clearTag() {
   chipDismissed.value = true
   await nextTick()
   field.value?.focus()
+}
+
+/**
+ * Backspace in an empty field turns the chip back into the words it stood for,
+ * exactly as the tag field reopens a chip as text. The chip is put away and the
+ * caption lands in the field, ready to be edited or re-committed. See
+ * docs/features/search.md.
+ */
+async function convertTagToText() {
+  const name = activeTagName.value
+  if (!name) return
+  chipDismissed.value = true
+  text.value = name
+  suggestions.value = []
+  closeList()
+  await nextTick()
+  field.value?.focus()
+}
+
+/** Only with nothing typed: the chip sits at the caret's left, as a chip does. */
+function onBackspace(event) {
+  if (text.value || !activeTagSlug.value) return
+  event.preventDefault()
+  convertTagToText()
 }
 </script>
 
@@ -265,6 +303,7 @@ async function clearTag() {
         @keydown.down.prevent="move(1)"
         @keydown.up.prevent="move(-1)"
         @keydown.esc.prevent="closeList"
+        @keydown.backspace="onBackspace"
       />
 
       <button

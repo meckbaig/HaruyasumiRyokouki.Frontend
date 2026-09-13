@@ -5,6 +5,7 @@ import MediaGrid from '@/components/media/MediaGrid.vue'
 import { useDaysStore } from '@/stores/days'
 import { useUiStore } from '@/stores/ui'
 import { restOfDay } from '@/services/searchResults'
+import { isPrivate } from '@/services/privacy'
 import { formatLongDate } from '@/services/dates'
 import { cascadeDelay } from '@/services/cascade'
 
@@ -12,6 +13,8 @@ const props = defineProps({
   /** One entry of `splitSearchResults().mediaDays`. */
   group: { type: Object, required: true },
   editable: { type: Boolean, default: false },
+  /** Editor-only: keeps hidden files out of the remainder this day hands back. */
+  hideHidden: { type: Boolean, default: false },
   /** Id of the file a link singled out; only one group will actually hold it. */
   highlightedId: { type: Number, default: null },
 })
@@ -28,11 +31,16 @@ const rest = ref([])
 
 const heading = computed(() => formatLongDate(props.group.date, ui.locale))
 
+/** The remainder as the editor's hide toggle leaves it; matched files arrive filtered. */
+const restShown = computed(() =>
+  props.hideHidden ? rest.value.filter((media) => !isPrivate(media)) : rest.value,
+)
+
 /**
  * The lightbox walks a single flat list, so matched files come first and the
  * expanded remainder follows in the same order they are rendered.
  */
-const allShown = computed(() => [...props.group.matched, ...(expanded.value ? rest.value : [])])
+const allShown = computed(() => [...props.group.matched, ...(expanded.value ? restShown.value : [])])
 
 /**
  * "Show the rest of this day" is a separate fetch: search only returned the
@@ -95,9 +103,9 @@ function openAt(media) {
     <!-- Folds open as it arrives and folds shut as it is put away, so the button
          below it is never jumped over. -->
     <Transition name="reveal">
-      <div v-if="expanded && rest.length" class="reveal mt-2">
+      <div v-if="expanded && restShown.length" class="reveal mt-2">
         <MediaGrid
-          :items="rest"
+          :items="restShown"
           cascade
           dimmed
           show-time

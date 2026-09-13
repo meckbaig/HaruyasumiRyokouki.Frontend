@@ -139,6 +139,10 @@ operators, no syntax, no prefix to learn. The visitor types, and tags matching *
 and aliases across every language** drop down - so "лапша" offers "рамэн" although the word
 "лапша" appears on nothing.
 
+**Only typing opens the list.** A field synced from the address - a reload of a search
+page, or back/forward - is not a keystroke, so `watch(text)` steps aside for that write.
+Without it the list dropped open on arrival, over a search nobody had asked to change.
+
 - Picking a suggestion searches by slug; pressing Enter searches the words themselves.
   Both are always available and neither has to be discovered - the free-text row is always
   last and always offered.
@@ -156,6 +160,12 @@ Dismissing the chip is about the field, not the page: it clears `chipDismissed` 
 puts the caret in the field. It used to navigate, and with nothing typed the only honest
 destination was home - which threw away the results the reader was looking at in order to
 answer a gesture that only meant "I want to type something else".
+
+**Backspace with nothing typed turns the chip back into words**, the same gesture the tag
+field answers by reopening a chip as text. The chip is put away and its caption lands in
+the field, ready to be edited or committed as a free search. Picking a tag from the list
+clears that dismissal, so choosing the very tag just converted shows its chip again instead
+of leaving the field empty.
 
 ## Deep links on this page
 
@@ -178,6 +188,22 @@ A leading `#` is stripped from a free search. Somebody who has seen a chip writt
 `#ramen` will type the hash sooner or later, expecting it to mean something. It does not -
 tags are picked from the list, never spelled - and a hash appears in no note, so searching
 for it would answer nothing.
+
+## The tab names the query
+
+A search tab is headed by what is being looked for, so a row of open tabs is readable.
+`updateHead` reads `route.query.text`; a tag search names the tag as a **hashtag**, from
+the slug at once and refined to its caption by `SearchView` once the results name it. A tag
+also has no tabs to carry a total, so its media count is printed under the heading.
+See [sharing-and-links.md](sharing-and-links.md).
+
+## Editor-only: hiding the hidden files
+
+A signed-in editor gets a toggle beside the share button that drops private files from the
+answer. It is a client-side filter over the results already in hand, so it takes effect at
+once and the cached answer is left whole - showing them again costs nothing. The remainder
+"show the rest of this day" pulls in is filtered too. The state is shared and persisted like
+the day map's own default; see [media-grid-and-selection.md](media-grid-and-selection.md).
 
 ## Invariants
 

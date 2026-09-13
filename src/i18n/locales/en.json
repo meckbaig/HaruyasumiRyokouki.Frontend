@@ -93,7 +93,9 @@
     "hidden": "Hidden",
     "hiddenNoShare": "This file is hidden - there is no link to share",
     "hide": "Hide",
-    "unhide": "Show"
+    "unhide": "Show",
+    "hideHidden": "Hide hidden files",
+    "showHidden": "Show hidden files"
   },
   "language": {
     "label": "Language",

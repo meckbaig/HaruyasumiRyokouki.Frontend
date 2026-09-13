@@ -8,6 +8,7 @@ import MediaContextMenu from '@/components/media/MediaContextMenu.vue'
 import TripCalendar from '@/components/calendar/TripCalendar.vue'
 import TripMap from '@/components/map/TripMap.vue'
 import ShareButton from '@/components/common/ShareButton.vue'
+import HiddenRecordsToggle from '@/components/common/HiddenRecordsToggle.vue'
 import SkeletonGrid from '@/components/common/SkeletonGrid.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -26,6 +27,7 @@ import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
 import { routeFromMedia } from '@/composables/useTripMedia'
 import { hasOverlay } from '@/services/overlayStack'
+import { useHiddenRecords } from '@/composables/useHiddenRecords'
 import {
   useTextAnchor,
   setTextAnchor,
@@ -127,7 +129,10 @@ function toggleMapDefault() {
 }
 
 const day = computed(() => days.getDay(props.date))
-const media = computed(() => day.value?.media ?? [])
+/* The editor's hide toggle removes private files here, on the fly; the cached
+   day is left untouched, so showing them again is instant. */
+const { withoutHidden } = useHiddenRecords()
+const media = computed(() => withoutHidden(day.value?.media ?? []))
 const locatedMedia = computed(() =>
   media.value.filter(
     (item) => Number.isFinite(item?.latitude) && Number.isFinite(item?.longitude),
@@ -353,13 +358,23 @@ function onNoteSaved() {
       </div>
 
       <div class="flex items-center gap-2">
+        <HiddenRecordsToggle v-if="auth.isEditor" />
         <RouterLink
           v-if="neighbours.prev"
           :to="{ name: 'day', params: { date: neighbours.prev } }"
           class="btn-ghost !px-3"
           :aria-label="t('day.prev')"
         >
-          ←
+          <svg
+            class="h-4 w-4"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="M12.5 4 6.5 10l6 6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </RouterLink>
         <RouterLink
           v-if="neighbours.next"
@@ -367,7 +382,16 @@ function onNoteSaved() {
           class="btn-ghost !px-3"
           :aria-label="t('day.next')"
         >
-          →
+          <svg
+            class="h-4 w-4"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="M7.5 4l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </RouterLink>
         <ShareButton />
       </div>

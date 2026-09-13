@@ -8,6 +8,7 @@ import MediaLightbox from '@/components/media/MediaLightbox.vue'
 import MediaContextMenu from '@/components/media/MediaContextMenu.vue'
 import MediaEditDialog from '@/components/editor/MediaEditDialog.vue'
 import ShareButton from '@/components/common/ShareButton.vue'
+import HiddenRecordsToggle from '@/components/common/HiddenRecordsToggle.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -22,6 +23,8 @@ import { scrollToMedia } from '@/services/scrollToMedia'
 import { hasOverlay } from '@/services/overlayStack'
 import { cascadeDelay } from '@/services/cascade'
 import { captionForSlug } from '@/services/tags'
+import { applyHead } from '@/services/head'
+import { useHiddenRecords } from '@/composables/useHiddenRecords'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -47,7 +50,17 @@ const byTag = computed(() => Boolean(tagSlug.value))
 // The active tab lives in the URL so a shared link reopens on the same one.
 const tab = computed(() => (TABS.includes(route.query.tab) ? route.query.tab : 'media'))
 
-const mediaDays = computed(() => search.results.mediaDays)
+/* The editor's hide toggle drops private files from the answer, on the fly; the
+   cached results are left untouched, so showing them again is instant. */
+const { hidden: recordsHidden, withoutHidden } = useHiddenRecords()
+
+const mediaDays = computed(() => {
+  const groups = search.results.mediaDays
+  if (!recordsHidden.value) return groups
+  return groups
+    .map((group) => ({ ...group, matched: withoutHidden(group.matched) }))
+    .filter((group) => group.matched.length)
+})
 const noteDays = computed(() => search.results.noteDays)
 
 const counts = computed(() => ({
@@ -81,6 +94,18 @@ function run() {
 onMounted(run)
 watch([query, tagSlug], run)
 watch(() => ui.locale, run)
+
+/* A tag search's tab names the tag, spelled as a hashtag. The slug is known at
+   once and the caption only once the results name it, so this refines the title
+   the router set. A free search is the router's business alone. */
+watch(
+  [query, tagSlug, tagName],
+  () => {
+    if (!byTag.value) return
+    applyHead({ title: `#${tagName.value || tagSlug.value}` })
+  },
+  { immediate: true },
+)
 
 /*
   A link pointing at one file of these results, the same contract the day page
@@ -188,10 +213,19 @@ async function removeMedia(list) {
 <template>
   <div class="mx-auto max-w-6xl px-4 py-8">
     <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <h1 class="text-xl font-semibold tracking-tight text-ink">
-        {{ heading }}
-      </h1>
-      <ShareButton />
+      <div class="min-w-0">
+        <h1 class="text-xl font-semibold tracking-tight text-ink">
+          {{ heading }}
+        </h1>
+        <!-- A tag has no tabs, so its total is said here instead. -->
+        <p v-if="byTag" class="mt-1 text-sm text-ink-faint">
+          {{ t('search.mediaFound', { count: counts.media }, counts.media) }}
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <HiddenRecordsToggle v-if="auth.isEditor" />
+        <ShareButton />
+      </div>
     </header>
 
     <!-- The notes tab is meaningless for a tag: nothing was typed, so no day
@@ -248,6 +282,7 @@ async function removeMedia(list) {
             :group="group"
             :editable="auth.isEditor"
             :highlighted-id="highlightedId"
+            :hide-hidden="recordsHidden"
             @open="openLightbox"
             @edit="editing = $event"
             @context="contextTarget = $event"
