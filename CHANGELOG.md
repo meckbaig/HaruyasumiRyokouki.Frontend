@@ -4,6 +4,43 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.7.0 - a sharper search and viewer
+
+Turning a page in the full-screen viewer no longer waits for the picture. The neighbours'
+full-size images are fetched ahead of the turn - both sides when a file is opened, and
+only the way the reader is heading afterwards - and a file whose bytes are already in hand
+is drawn sharp on the first frame instead of fading in once the slide has ended. On a
+phone this is skipped: the swap is invisible on a small screen and the file is a heavy
+download. The title and the description can now be selected and copied, which is what
+someone does when they want to look up the place in the picture; a selection no longer
+also expands the description.
+
+The search page says more about what it is showing. The tab is named after the words being
+searched for, a tag search names the tag as a hashtag, and a tag search prints its total
+under the heading the way the tabs print theirs. Backspace in an empty field turns the
+selected tag back into text to be edited, and picking that same tag again brings its chip
+straight back. The suggestion list no longer drops open on its own when a search page is
+reloaded.
+
+The editor gains one control: a toggle beside the share button, on a day and on the search
+page, that hides the private records a page would otherwise show. It works on the spot,
+without a request, and the choice is remembered like the day map's own default. The tag
+field also stopped emptying its chips from view when Backspace is pressed at the very start
+of the line, and the day page's arrows are redrawn to match the buttons beside them.
+
+- A turn in the viewer shows the file sharp from the first frame, with the neighbour's full-size image warmed ahead
+- Opening a file warms both neighbours; a turn warms only the direction it travels - skipped in the mobile layout
+- The viewer's title and description can be selected and copied, and a selection does not expand the description
+- An editor toggle hides the private records on the day and search pages, remembered like the day map default
+- The toggle's icon turns red while the hidden records are hidden
+- A search tab is named after the query; a tag search names the tag as a hashtag
+- A tag search prints its returned-media count under the heading
+- Backspace in an empty search field turns the selected tag back into text
+- Picking the tag that was just converted brings its chip back
+- The suggestion list no longer opens by itself when a search page is reloaded
+- Backspace at the very start of the tag field no longer empties its chips from view
+- The day page's prev and next arrows are icons sized with the neighbouring buttons
+
 ## 1.6.0 - notes that point at things
 
 A day's note and a photograph's description are no longer plain text. They carry a
