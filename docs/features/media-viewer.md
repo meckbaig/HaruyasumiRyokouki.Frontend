@@ -372,6 +372,10 @@ handover at the end of the flight is exact.
   its content by the live scroll delta (a compositor transform - no layout, no re-raster)
   to keep the flight pinned to the tile. It is applied below the frame's header clip, so
   the clip itself stays put under the sticky page header.
+- **The loading wheel waits for the flight to land.** The flying picture covers the
+  middle of the window, where the wheel sits and where its fade runs, so a wheel let
+  in during the flight was already opaque when the flight handed over - it snapped in
+  rather than appearing. `spinnerShown` holds it back until `flight.active` is false.
 - `[data-lightbox-flying]` is stamped on `<html>` (not the dialog, which is unmounting)
   to suppress the room's own leave animation while a flight is running.
 - Reduced motion cancels the flight entirely; the plain fade does the work.

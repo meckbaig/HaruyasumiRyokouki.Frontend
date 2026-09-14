@@ -1059,3 +1059,28 @@
   background-color: var(--color-accent-soft);
   border-radius: 3px;
 }
+
+/*
+  The viewer's loading wheel. Its own keyframes, so the fade always plays from
+  zero when `spinnerShown` lets the wheel in - after the room is up and the
+  opening flight has landed. See docs/features/media-viewer.md.
+*/
+@keyframes lb-spinner-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes lb-spinner-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.lb-spinner-enter-active {
+  animation: lb-spinner-in 200ms ease-out;
+}
+
+.lb-spinner-leave-active {
+  animation: lb-spinner-out 150ms ease-in both;
+}

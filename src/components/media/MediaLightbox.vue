@@ -228,6 +228,13 @@ function armSpinner() {
 }
 
 /**
+ * The wheel is held back until the opening flight has landed: the flying picture
+ * covers the middle of the window, so a wheel faded in under it is already
+ * opaque when the strip arrives. See docs/features/media-viewer.md.
+ */
+const spinnerShown = computed(() => showSpinner.value && chromeReady.value && !flight.value?.active)
+
+/**
  * Aspect ratio of the open file. The API states it, so the fit is known before a
  * byte arrives; a loaded preview only refines it.
  * See docs/features/media-viewer.md.
@@ -1827,14 +1834,14 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Outside the strip, so neither dragging nor zooming moves it. -->
-          <Transition
-            enter-from-class="opacity-0"
-            enter-active-class="transition-opacity duration-200"
-            leave-to-class="opacity-0"
-            leave-active-class="transition-opacity duration-150"
-          >
+          <!-- Keyframe classes, not utilities: the wheel fades in on its own
+               clock once `spinnerShown` lets it in. See `.lb-spinner-*`. -->
+          <Transition name="lb-spinner" appear>
+            <!-- `spinnerShown`, not `showSpinner`: the wheel is held back until
+                 the room is up **and the opening flight has landed**, or it
+                 arrives behind the flying picture already opaque. -->
             <span
-              v-if="showSpinner"
+              v-if="spinnerShown"
               class="pointer-events-none absolute inset-0 flex items-center justify-center"
               aria-hidden="true"
             >
