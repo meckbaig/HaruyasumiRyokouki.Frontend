@@ -993,6 +993,14 @@
   color: var(--color-accent);
   text-decoration: underline;
   text-underline-offset: 2px;
+  /*
+    Flow and break like the words around them. A chip is an inline span, not a
+    `<button>`: a button is laid out atomically, so its label can never wrap.
+    See docs/features/rich-text-and-links.md.
+  */
+  display: inline;
+  white-space: inherit;
+  overflow-wrap: anywhere;
 }
 
 .rich-link:hover,

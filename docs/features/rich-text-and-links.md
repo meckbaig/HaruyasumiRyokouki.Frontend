@@ -38,6 +38,12 @@ by an ellipsis: `https://www.youtube.com/live/KwDqqZ9anRc?si=...` becomes
 are dropped. A trailing comma, period or bracket belongs to the sentence and is left as text
 after the link.
 
+A link and a chip are inline text: they wrap and break with the words around them, so a
+long label never runs past the page edge on a phone. A chip is a `<span role="button"
+tabindex="0">`, not a `<button>`: a button is laid out atomically, so its label can never
+wrap and the whole chip is pushed to the next line. Both also carry
+`overflow-wrap: anywhere`, since a label may hold no space to break at.
+
 ## Tokens, not HTML
 
 `parseRichText` returns ordered tokens (`text`, `media`, `link`). Each also carries `raw`,
@@ -230,6 +236,8 @@ mirror came and went on its own, and nothing ever read it.
 20. A follow places the block: centred when it fits the window, its first record at the
     top when it does not.
 21. The dim a follow raises outlasts the glide; a scroll while it stands extends it.
+22. A media reference is an inline span with a button's role, never a `<button>`: a
+    button's label cannot wrap, so the whole chip would jump to the next line.
 
 ## Related
 

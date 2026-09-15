@@ -210,21 +210,26 @@ onBeforeUnmount(() => {
         @click.stop
         >{{ part.label || linkLabel(part.href) }}</a
       >
-      <button
+      <!-- A chip wraps with the words around it, so it is an inline span wearing a
+           button's role: a real `<button>` cannot break a line. -->
+      <span
         v-else-if="part.type === 'media'"
-        type="button"
         class="rich-media"
         :class="part.media ? '' : 'rich-media-missing'"
+        role="button"
+        tabindex="0"
         :data-text-anchor="anchorable ? `${part.id}:${part.index}` : undefined"
         @pointerdown.stop="onChipPointerDown"
         @pointerenter="onEnter(part, $event)"
         @pointerleave="onLeave"
         @focus="onFocus(part, $event)"
         @blur="onBlur"
+        @keydown.enter.prevent="activate(part)"
+        @keydown.space.prevent="activate(part)"
         @click.stop="onClick(part, $event)"
       >
         {{ labelFor(part) }}
-      </button>
+      </span>
       <template v-else>{{ part.text }}</template>
     </template>
 
