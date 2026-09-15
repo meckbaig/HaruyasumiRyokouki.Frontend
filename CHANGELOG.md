@@ -4,6 +4,37 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.9.0 - smoother gestures on a phone
+
+The interface now answers touch where it used to answer a mouse. The tag list's swipe works
+across the whole bottom bar rather than the small pill that opens it, and it runs on touch
+events, which is what a browser leaves intact once it has claimed a scroll. A press that did
+not travel no longer takes the outline off a followed reference, hover styling in the viewer
+is offered only to devices that have a hover, and the lifted tag list is clipped instead of
+scrolled, so no bar appears while it expands.
+
+A double tap in the viewer magnifies by as much as the file's shape calls for: a panorama on
+a tall phone is taken to the top and bottom edges of the screen, where one fixed step used to
+stop short, while a file that already reaches them keeps the size it had. The stutter that
+came with that gesture on a dense screen is gone as well. The blurred miniature under the
+picture was painted into every frame of a zoom while the preview covered it, and it is no
+longer painted at all once the preview has arrived.
+
+The wall keeps its dim while a followed reference is gliding into view, and a singled-out
+block is placed by its shape: centred when it fits the window, its first record under the
+header with one grid gap when it does not. The hover card marks a video beside its own 1/N
+stamp, the way a grid tile marks one.
+
+- A double tap magnifies by the file's own shape, up to the edges of the screen, instead of a fixed 2.5
+- The viewer no longer paints the covered miniature, which is what made a zoom stutter on a dense screen
+- The tag list's swipe answers across the whole bottom bar, on touch events for touch
+- The lifted tag list is clipped rather than scrolled, so no scrollbar appears mid-expansion
+- A press that did not travel leaves a followed reference's outline alone
+- Hover styling in the viewer is scoped to devices that have a hover
+- The dim behind a followed reference is carried through the whole glide, extending as the page scrolls
+- A singled-out block is placed by its shape, and the day page is told the same sum
+- The hover card marks a video beside its 1/N stamp
+
 ## 1.8.0 - one reference, many files
 
 A note used to point at one file. It now points at as many as the line calls for: one
