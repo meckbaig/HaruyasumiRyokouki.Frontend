@@ -4,6 +4,33 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 1.8.0 - one reference, many files
+
+A note used to point at one file. It now points at as many as the line calls for: one
+`[media=5,7,9]` reference names every file it lists, and the address carries all of them,
+so a copied link outlines the whole block. A reference is filled from a pick of several
+files the way a bulk edit is chosen - press the button and select, or select and press it -
+and a confirm bubble hangs under the reference itself to settle the set.
+
+Pointing at a reference opens a card that is a carousel. The files step past one record at
+a time, from the card's own edge, at the speed the full-screen viewer turns a page, with a
+stamp saying which of how many and a bar that can be dragged. Following the reference rings
+every file it named as one outline - neighbouring tiles glued into a single shape, at the
+editor's own ring - and dims the rest of the wall for a second, so a block off screen still
+announces itself. The way back to the line it was followed from is kept until the reader is
+back at it, on the browser's Back, the mouse's own back button and a button in the page.
+
+- One `[media=id,id,...]` reference names several files, ids split by commas with no spaces
+- Fill a reference from a pick: one tile fills it outright, a selection rewrites it live, and a bubble under the reference confirms the set
+- Keep the caption when a pick rewrites a reference's ids
+- The address carries every id of a reference, not just the first
+- The hover card steps through a reference's files as a carousel, with a 1/N stamp and a stepped bar that can be dragged
+- A record arrives from the card's own edge, at the viewer's turn length, and the bar travels between steps rather than teleporting
+- A singled-out block is one stroked outline with equal-radius corners and neighbouring tiles glued, drawn in the editor's own ring shape
+- The rest of the wall dims for a second behind the block, and the outline and the dim are played as animations
+- The way back to the note is kept until the reference is read again, offered in the page as well as in the viewer, and survives closing or paging
+- A file opened from the hover card plays the plain fade, since its picture is a preview and not a tile
+
 ## 1.7.0 - a sharper search and viewer
 
 Turning a page in the full-screen viewer no longer waits for the picture. The neighbours'
@@ -40,6 +67,7 @@ of the line, and the day page's arrows are redrawn to match the buttons beside t
 - The suggestion list no longer opens by itself when a search page is reloaded
 - Backspace at the very start of the tag field no longer empties its chips from view
 - The day page's prev and next arrows are icons sized with the neighbouring buttons
+- The full-screen loading wheel appears and leaves through its animation again, instead of arriving in a single frame
 
 ## 1.6.0 - notes that point at things
 

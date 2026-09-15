@@ -4,6 +4,7 @@
  * release it follows. See docs/features/build-and-release.md.
  */
 const NAMES = {
+  '1.8': 'one reference, many files',
   '1.7': 'a sharper search and viewer',
   '1.6': 'notes that point at things',
   '1.5': 'a livelier search',
