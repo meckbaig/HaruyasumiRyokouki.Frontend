@@ -417,7 +417,8 @@ Rules that live in the markup, each of which looks arbitrary and is not.
 | The chrome wrapper is `pointer-events-none`; each bar takes them back. | The space between the bars has to stay with the gesture surface. |
 | The arrows are positioned against the **window**, not laid out between the bars. | They belong to the screen. Letting the bars decide their height moved them whenever a description or a row of tags did. |
 | A clipped description carries **both** a line clamp and a max-height. | The clamp is what ends a cut-off line in an ellipsis; the max-height is what can be animated, and what the overflow check reads. They agree on two lines, so the clamp decides how it looks and the height decides how it moves. |
-| The tag expander's hit area reaches well out sideways and up over the picture, and stays shallow below. | The pill is small; what answers a finger is not. Below is where the tags themselves begin. |
+| The tag expander's pill is a small affordance, but the **swipe that opens and closes the list is the whole bottom bar**; a tap still toggles only from the pill. | A swipe is not a control to be aimed at, and the tags beneath it are not hurt by the overlap. **Touch runs on touch events**, not pointer events: a browser cancels the pointer stream the moment it claims a scroll, so the `pointerup` that would end the swipe never arrives on a real phone. The lifted list is clipped rather than scrollable, so no bar appears mid-expansion and the whole bar stays one gesture surface. |
+| Hover on the arrows, the icons and the tag chips is scoped to `@media (hover: hover)`. | A touch screen reports a hover that never ends: the state sticks to whatever was last tapped, which left an arrow looking held down until the reader tapped elsewhere. |
 | The "open in this day" link writes `?i=` but **not** `?o=`. | The file was already being looked at full screen; opening it again on arrival would be no arrival at all. The link is left out on that day's own page. |
 | A private file's share button is **removed**, not disabled. | The recipient would be sent to a day that, as far as they are concerned, does not contain it. An offer that is not there cannot be taken up by mistake; a disabled one still invites it. |
 | The title and the description are **selectable**. | They are the one thing in the viewer worth copying out - a place name to search for. Everywhere else is a gesture surface, and `.lightbox` sets `user-select: none`; `.lightbox-selectable` turns it back on for that block. A press that ends a selection must not also expand the description, so `toggleDescription` reads the selection before acting. |
@@ -458,6 +459,11 @@ Do not "fix" these:
 13. Only **one** neighbour's full-size image is warmed, and it is the one the reader is
     heading towards.
 14. The title and the description stay selectable; a selection must not expand them.
+15. Hover styling is scoped to `@media (hover: hover)`; a touch device must never leave a
+    control looking pressed.
+16. The bottom bar answers the tag swipe, on touch events for touch and pointer events
+    for the mouse; a tap toggles only from the pill. The lifted list is clipped, never
+    scrollable, so no bar appears mid-expansion.
 
 ## Related
 

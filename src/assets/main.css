@@ -457,9 +457,16 @@
       color 150ms;
   }
 
-  .lightbox-icon:hover {
-    background-color: var(--lb-hover);
-    color: var(--lb-text);
+  /*
+    A touch screen reports a hover that never ends: the state sticks to whatever
+    was last tapped, which left an arrow looking held down until the reader
+    tapped elsewhere. Hover is offered to pointers that actually have one.
+  */
+  @media (hover: hover) {
+    .lightbox-icon:hover {
+      background-color: var(--lb-hover);
+      color: var(--lb-text);
+    }
   }
 
   /*
@@ -486,9 +493,11 @@
     color: var(--lb-accent) !important;
   }
 
-  .lightbox-tag:hover {
-    border-color: var(--lb-accent) !important;
-    color: var(--lb-text) !important;
+  @media (hover: hover) {
+    .lightbox-tag:hover {
+      border-color: var(--lb-accent) !important;
+      color: var(--lb-text) !important;
+    }
   }
 
   /*

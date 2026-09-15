@@ -24,7 +24,7 @@ import { formatLongDate, formatWeekday } from '@/services/dates'
 import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
 import { useMediaLink } from '@/composables/useMediaLink'
-import { scrollToMedia } from '@/services/scrollToMedia'
+import { scrollToMedia, scrollTargetFor } from '@/services/scrollToMedia'
 import { tileFor } from '@/services/mediaTiles'
 import { routeFromMedia } from '@/composables/useTripMedia'
 import { hasOverlay } from '@/services/overlayStack'
@@ -78,10 +78,25 @@ const noteEmphasis = ref(false)
 const EMPHASIS_MS = 1000
 let emphasisTimer = null
 
-function flashEmphasis() {
-  noteEmphasis.value = true
+/** Runs the dim down, or starts it over while the page is still moving. */
+function holdEmphasis() {
   clearTimeout(emphasisTimer)
   emphasisTimer = setTimeout(() => (noteEmphasis.value = false), EMPHASIS_MS)
+}
+
+function flashEmphasis() {
+  noteEmphasis.value = true
+  holdEmphasis()
+}
+
+/**
+ * The dim has to outlast the glide to the block. On a phone a long scroll took
+ * longer than `EMPHASIS_MS`, so the wall lit again before the block was reached.
+ * Every scroll the dim is still standing pushes its end back by another window.
+ * See docs/features/rich-text-and-links.md.
+ */
+function onEmphasisScroll() {
+  if (noteEmphasis.value) holdEmphasis()
 }
 
 function referenceRect(reference) {
@@ -89,18 +104,16 @@ function referenceRect(reference) {
 }
 
 /**
- * How far the follow will move the page: `scrollToMedia` centres the tile, and
- * the page may run out of room before it gets there. Null when the tile is not
- * on the page yet, which the grid is about to fix.
+ * How far the follow will move the page: `scrollToMedia` places the block, and
+ * the page may run out of room before it gets there. Null when the tiles are
+ * not on the page yet, which the grid is about to fix.
  */
 function followDelta(reference) {
-  const id = reference.ids?.[0] ?? reference.mediaId
-  const tile = id == null ? null : tileFor(id)
-  if (!tile) return null
-  const box = tile.getBoundingClientRect()
-  const wanted = window.scrollY + box.top + box.height / 2 - window.innerHeight / 2
-  const limit = document.documentElement.scrollHeight - window.innerHeight
-  return Math.max(0, Math.min(limit, wanted)) - window.scrollY
+  const ids = reference.ids ?? [reference.mediaId]
+  const tiles = ids.filter((id) => id != null).map((id) => tileFor(id)).filter(Boolean)
+  const target = scrollTargetFor(tiles)
+  if (target == null) return null
+  return target - window.scrollY
 }
 
 /**
@@ -176,7 +189,7 @@ function activateNoteMedia(reference) {
     mediaLink.write(reference.ids, false)
   }
   flashEmphasis()
-  scrollToMedia(reference.ids?.[0] ?? reference.mediaId)
+  scrollToMedia(reference.ids?.length ? reference.ids : reference.mediaId)
 }
 
 /**
@@ -344,7 +357,7 @@ watch(
     }
 
     if (link.open) lightboxIndex.value = index
-    else scrollToMedia(link.id)
+    else scrollToMedia(link.ids)
   },
   { immediate: true },
 )
@@ -395,6 +408,8 @@ onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
 // settled scroll answers it, and `scrollend` answers at once where it exists.
 onMounted(() => window.addEventListener('scroll', onScrollCheck, { passive: true }))
 onBeforeUnmount(() => window.removeEventListener('scroll', onScrollCheck))
+onMounted(() => window.addEventListener('scroll', onEmphasisScroll, { passive: true }))
+onBeforeUnmount(() => window.removeEventListener('scroll', onEmphasisScroll))
 onMounted(() => document.addEventListener('scrollend', settleAnchor))
 onBeforeUnmount(() => document.removeEventListener('scrollend', settleAnchor))
 onBeforeUnmount(() => clearTextAnchor())

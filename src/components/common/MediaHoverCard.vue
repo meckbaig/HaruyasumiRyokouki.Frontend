@@ -5,6 +5,7 @@ import { useUiStore } from '@/stores/ui'
 import MediaThumb from '@/components/media/MediaThumb.vue'
 import SteppedScrollbar from '@/components/layout/SteppedScrollbar.vue'
 import { pickTranslation } from '@/services/translations'
+import { isVideo } from '@/services/mediaType'
 import { formatShortTime } from '@/services/dates'
 import { GHOST_CLICK_MS } from '@/services/ghostClick'
 import { markOpenedWithoutSource } from '@/services/openedFrom'
@@ -76,6 +77,7 @@ const slides = computed(() =>
       media,
       title: translation.title || media?.fileName || t('media.untitled'),
       description: translation.description,
+      video: isVideo(media),
       // The clock alone: the card is only ever shown over a day page, so the
       // date is a fact the reader already has.
       stamp: media ? formatShortTime(media.created, ui.locale) : '',
@@ -230,13 +232,28 @@ const position = computed(() => {
                 <MediaThumb :media="slide.media" :alt="slide.title" />
               </button>
 
-              <!-- Which record of how many. Stamped like the clock, in the
-                   opposite corner so the two never sit on each other. -->
+              <!-- Which record, and whether it is a video: one row in the bottom
+                   left, the same corner the grid stamps its own badges in. The
+                   video mark follows the counter, so the counter always leads. -->
               <span
-                v-if="count > 1"
-                class="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+                class="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1"
               >
-                {{ i + 1 }}/{{ count }}
+                <span
+                  v-if="count > 1"
+                  class="rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+                >
+                  {{ i + 1 }}/{{ count }}
+                </span>
+
+                <span
+                  v-if="slide.video"
+                  class="flex items-center gap-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+                >
+                  <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                    <path d="M3.5 2.5v7l6-3.5z" />
+                  </svg>
+                  {{ t('media.video') }}
+                </span>
               </span>
 
               <!-- Stamped on the picture, the way a day's own tiles do it. -->

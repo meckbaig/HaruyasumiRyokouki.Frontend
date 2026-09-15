@@ -96,17 +96,50 @@ export function useMediaLink({ suspended = () => false } = {}) {
   }
 
   /**
-   * Listens for the press, not the click: a click is the tail of a gesture that
-   * may have begun on the previous page. See docs/features/sharing-and-links.md.
+   * How far a press may travel and still count as a tap on the spot. A swipe
+   * scrolls the page or the filmstrip, and must leave the outline standing.
    */
+  const TAP_SLOP = 10
+  let press = null
+
   function dismiss(event) {
     if (link.value.id == null || suspended()) return
     if (event.target?.closest?.('a[href]')) return
     clear()
   }
 
-  onMounted(() => document.addEventListener('pointerdown', dismiss))
-  onBeforeUnmount(() => document.removeEventListener('pointerdown', dismiss))
+  /**
+   * A press without travel is a tap on the spot, which puts the outline away; a
+   * swipe is not. Answering on `pointerup` rather than the click keeps the tail
+   * of a gesture begun on the previous page from reading as a press here.
+   * See docs/features/sharing-and-links.md.
+   */
+  function onPointerDown(event) {
+    press = { x: event.clientX, y: event.clientY }
+  }
+
+  function onPointerUp(event) {
+    const start = press
+    press = null
+    if (!start) return
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > TAP_SLOP) return
+    dismiss(event)
+  }
+
+  function onPointerCancel() {
+    press = null
+  }
+
+  onMounted(() => {
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('pointerup', onPointerUp)
+    document.addEventListener('pointercancel', onPointerCancel)
+  })
+  onBeforeUnmount(() => {
+    document.removeEventListener('pointerdown', onPointerDown)
+    document.removeEventListener('pointerup', onPointerUp)
+    document.removeEventListener('pointercancel', onPointerCancel)
+  })
 
   return { link, write, push, clear }
 }

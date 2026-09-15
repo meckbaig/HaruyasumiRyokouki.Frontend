@@ -72,7 +72,8 @@ A chip may name several files, so the card is a carousel rather than a single pi
   it. A swipe on a touch screen does the same, committing past `SWIPE_COMMIT` (`30`); the
   viewport is `touch-action: none`, so the gesture is the card's and not the page's.
 - **A `1/N` badge sits bottom-left**, in the same stamp as the clock but the opposite
-  corner, so the two never sit on each other. The clock stays bottom-right.
+  corner, so the two never sit on each other. The clock stays bottom-right. A video's
+  play mark follows the badge in the same row, the way a grid tile marks its own.
 - **Our own scrollbar is drawn on the card** by `SteppedScrollbar`, the same shape as the
   page's bar and placed by the card through its class. Behind the thumb runs a **channel
   for the whole range**, so how many records a reference names is readable at a glance; a
@@ -126,10 +127,15 @@ referenced more than once - and the page decides what to do with it.
 copied address names the whole block.
 
 - **A way back is kept when the jump scrolls and carries the line out of the band a reader
-  reads.** `followLeavesLine` works out where the tile will land (the page may run out of
+  reads.** `followLeavesLine` works out where the block will land (the page may run out of
   room first) and where the line ends up after that scroll; a nudge that leaves the line in
   view only outlines the file, and neither the viewer's arrow nor the page's own button is
   offered.
+- **The dim outlasts the glide.** Following a reference dims the rest of the wall
+  (`emphasis` in `DayView`); on a phone a block far down the page took longer to reach than
+  the dim's fixed window, so it lifted before the block arrived. Every scroll while the dim
+  stands pushes its end back, and it is spent on arrival rather than en route.
+  See [media-grid-and-selection.md](media-grid-and-selection.md).
 - **Only a departure pushes a history entry.** A follow that scrolls calls `departFromText`,
   which records the anchor and pushes `?i=<ids>`; that entry is the note's, and the browser's
   Back returns to it. Opening and paging the viewer **replace** the same entry, so a picture
@@ -221,6 +227,9 @@ mirror came and went on its own, and nothing ever read it.
     viewer does not search for a tile and plays the plain fade.
 19. A media reference's ids are read from the run that is marked, never rebuilt from the
     caption.
+20. A follow places the block: centred when it fits the window, its first record at the
+    top when it does not.
+21. The dim a follow raises outlasts the glide; a scroll while it stands extends it.
 
 ## Related
 

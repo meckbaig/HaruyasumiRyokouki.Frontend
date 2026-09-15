@@ -205,7 +205,9 @@ A note reference may name several files at once, and a link carries all of them
 - **The rest of the wall dims for a second** when a reference is followed from the note
   (`emphasis` in `DayView`), because a block may sit off screen and the outline alone would
   not be seen. It is an **overlay pseudo-element**, not the tile's own opacity: the tiles
-  carry a filled `cascade-in`, and touching their `animation` replayed every arrival.
+  carry a filled `cascade-in`, and touching their `animation` replayed every arrival. Every
+  scroll while the dim stands pushes its end back, so a long glide - a block far down on a
+  phone - arrives while the wall is still dim rather than after it has lit again.
 - **`highlightedIds` is the link's own ids**, never a second parallel state - so the address
   and the outline agree, and a press elsewhere puts both away at once. `highlightedId`
   remains for a link that names a single file.
@@ -290,7 +292,8 @@ exactly those.
     (`haruyasumi.hiddenRecordsHidden`); the cached lists are never rewritten.
 11. A block outline is one stroked SVG path: a 2px band whose centreline is the block's
     boundary inset half a band, every corner trimmed and joined by an equal-radius arc.
-12. The emphasis dim is time-boxed and is not the search dim.
+12. The emphasis dim is time-boxed - extended while the page is still scrolling - and is
+    not the search dim.
 13. `highlightedIds` is the link's, never a parallel state of the page's own.
 
 ## Related

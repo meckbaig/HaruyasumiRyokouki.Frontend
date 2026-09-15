@@ -9,7 +9,7 @@ the sender's language along, and giving preview crawlers a card in that language
 | --- | --- |
 | `src/services/share.js` | Builds and copies URLs. |
 | `src/composables/useMediaLink.js` | The `?i=` / `?o=` pair: read, write, resolve, dismiss. |
-| `src/services/scrollToMedia.js` | Brings a singled-out file into view. |
+| `src/services/scrollToMedia.js` | `scrollTargetFor` and `scrollToMedia`: where a singled-out block lands. |
 | `src/components/common/ShareButton.vue` | Page-level share button. |
 | `src/services/head.js` | Runtime title/OG/manifest for browsers and JS-running crawlers. |
 | `src/i18n/index.js` | Reads and strips `?lang=`. |
@@ -65,8 +65,8 @@ than disabled - an offer that is not there cannot be taken up by mistake.
 
 | Export | Purpose |
 | --- | --- |
-| `readMediaLink(query)` | `{ id, open }`. `id` is null unless the value is an integer. |
-| `withMediaLink(query, id, open)` | The same query with the pair set, or removed when `id` is null. |
+| `readMediaLink(query)` | `{ ids, id, open }`. `id` is the first id, null unless the value is an integer. |
+| `withMediaLink(query, ids, open)` | The same query with the pair set, or removed when there are no ids. |
 | `pageIdentity(route)` | The address **with the pair removed** and the rest sorted. |
 | `useMediaLink({ suspended })` | `{ link, write, clear }` for the current route. |
 
@@ -80,19 +80,32 @@ arrival page under one history entry per picture. It also skips writes that woul
 change anything, because vue-router treats navigating to the same place as a reportable
 error.
 
-The outline is dismissed by any press that is not about it, with three carve-outs:
+The outline is dismissed by a **tap** that is not about it, with these carve-outs:
 
 - Clicks on `a[href]` are left alone - a navigation is starting, and replacing the address
   underneath it cancels it.
 - `suspended()` holds dismissal off while the viewer is open; the outline is behind it,
   and the click that opened it must not take it away.
-- It listens on **`pointerdown`, not `click`**. A click is dispatched when a press that
-  began earlier is released, so a page arriving *by* a click can be handed the tail of a
-  gesture never aimed at it. A press always belongs to the page in front of the reader.
+- A press only dismisses when it does not travel (`TAP_SLOP`, 10px). A vertical swipe is
+  how a phone scrolls a wall of tiles, and answering it took the outline away from a reader
+  who was only scrolling towards the block.
+- It answers on **`pointerup`, and only for a press it saw begin**, rather than on `click`.
+  A click is dispatched when a press that began earlier is released, so a page arriving
+  *by* a click can be handed the tail of a gesture never aimed at it.
 
-`scrollToMedia(id)` waits two ticks - one for the grid to render the id it was just given,
+`scrollToMedia(ids)` waits two ticks - one for the grid to render the ids it was just given,
 one for it to reveal further chunks to reach a file far down a long day - then finds the
-element by `[data-media-id]` and centres it. Scrolling on load is normally worth avoiding;
+tiles by `[data-media-id]` and places the block:
+
+| Block | Lands |
+| --- | --- |
+| Fits the window | Centred, so it reads as a group among its neighbours. |
+| Taller than the window | Its **first record at the top**, under the page chrome and one grid gap below it. Centring a block too tall to take in at once pushed the first record - the one the reader was sent to - off the top; pinned flush, that record read as glued to the header. |
+
+`scrollTargetFor(elements)` is that sum on its own, exported so the day page can work out
+where a follow will land before deciding whether it counts as a departure. `window.scrollTo`
+is called **without** `behavior`, so `html`'s own `scroll-behavior` decides the glide - which
+is what still lets reduced motion turn it off. Scrolling on load is normally worth avoiding;
 here it is the entire point of the link.
 
 ## Language on a shared link
@@ -137,7 +150,7 @@ and `AllowOverride`. On another server the rules transfer; only the syntax chang
 1. `?lang=` is consumed in `src/i18n/index.js` at import time via `history.replaceState`.
    Never move it into a router hook or a component.
 2. Anything watching for "the reader moved" compares `pageIdentity(route)`.
-3. Dismissal listens on `pointerdown`.
+3. Dismissal answers a tap that did not travel, on `pointerup`; a swipe leaves the outline.
 4. `i` may name several ids; `o=1` opens the first of them, and the rest are only outlined.
 5. The front page never writes `?i=`.
 6. A private file is never shareable.

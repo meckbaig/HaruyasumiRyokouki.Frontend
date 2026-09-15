@@ -370,7 +370,7 @@ function onFullFailed() {
 /* Gestures. One pointer surface for all of them, because their meanings overlap
    and deciding between them needs the whole picture of what is pressed.
    See docs/features/media-viewer.md. */
-const MAX_SCALE = 4
+const MAX_SCALE = 8
 const TAP_ZOOM = 2.5
 const TAP_WINDOW = 210
 const TAP_SLOP = 40
@@ -1461,19 +1461,66 @@ function toggleDescription() {
   settleChrome()
 }
 
-/** The grab handle also answers a drag: up opens the tag list, down closes it. */
-let handleY = null
+/*
+  The whole lower bar answers the drag, not just the little grab handle: a swipe
+  is not a control to be aimed at, and the tags under it are not hurt by the
+  overlap. A tap still toggles only from the handle - anywhere else the bar is
+  tags and buttons. See docs/features/media-viewer.md.
+*/
+const TAGS_SWIPE_MIN = 12
+let tagDrag = null
 
-function onHandleDown(event) {
-  handleY = event.clientY
+function finishTagDrag(y) {
+  const drag = tagDrag
+  tagDrag = null
+  if (!drag) return
+  const dy = y - drag.y
+  if (Math.abs(dy) < TAGS_SWIPE_MIN) return
+  tagsExpanded.value = dy < 0
+  settleChrome()
 }
 
-function onHandleUp(event) {
-  if (handleY === null) return
-  const dy = event.clientY - handleY
-  handleY = null
-  if (Math.abs(dy) < 12) toggleTags()
-  else tagsExpanded.value = dy < 0
+/** Mouse only: the drag ends wherever the cursor is, well past the bar. */
+function onTagPointerDown(event) {
+  if (!tagsOverflow.value) return
+  if (event.pointerType !== 'mouse' || event.button > 0) return
+  tagDrag = { y: event.clientY }
+  document.addEventListener('pointerup', onTagPointerUp)
+}
+
+function onTagPointerUp(event) {
+  document.removeEventListener('pointerup', onTagPointerUp)
+  finishTagDrag(event.clientY)
+}
+
+/**
+ * Touch takes its own path: pointer events stop the moment a browser claims the
+ * gesture for a scroll, so a real phone never sends the pointerup that would end
+ * the swipe. Touch events keep coming, and a touchend fires on the element the
+ * touch began on wherever the finger ends.
+ */
+function onTagTouchStart(event) {
+  if (!tagsOverflow.value) return
+  const touch = event.touches[0]
+  if (touch) tagDrag = { y: touch.clientY }
+}
+
+function onTagTouchMove(event) {
+  const touch = event.touches[0]
+  if (!tagDrag || !touch) return
+  // Claimed once the travel says "swipe": a tap that barely drifts keeps its click.
+  if (Math.abs(touch.clientY - tagDrag.y) < TAGS_SWIPE_MIN) return
+  if (event.cancelable) event.preventDefault()
+}
+
+function onTagTouchEnd(event) {
+  const touch = event.changedTouches[0]
+  if (touch) finishTagDrag(touch.clientY)
+}
+
+function onTagDragCancel() {
+  tagDrag = null
+  document.removeEventListener('pointerup', onTagPointerUp)
 }
 
 /** Keeps Tab inside the dialog while it is open. */
@@ -1640,6 +1687,7 @@ onBeforeUnmount(() => {
   popOverlay(overlayToken)
   flight.value?.cancel()
   document.removeEventListener('keydown', onKeydown)
+  onTagDragCancel()
   unlockScroll({ now: true })
   stopSpinner()
   resetGestures()
@@ -2031,18 +2079,23 @@ onBeforeUnmount(() => {
             ref="footer"
             class="lightbox-bar lightbox-bar-bottom relative flex items-center justify-between gap-3 px-3 py-2 transition-transform duration-200"
             :class="uiVisible ? 'pointer-events-auto' : 'translate-y-full'"
+            @pointerdown="onTagPointerDown"
+            @pointerup="onTagPointerUp"
+            @touchstart.passive="onTagTouchStart"
+            @touchmove="onTagTouchMove"
+            @touchend="onTagTouchEnd"
+            @touchcancel="onTagDragCancel"
           >
-            <!-- Offered only when the tags do not fit. The pill is small; its hit
-                 area is not - wide and tall above, shallow below where the tags
-                 begin. See docs/features/media-viewer.md. -->
+            <!-- Offered only when the tags do not fit. A tap here toggles the
+                 list; the swipe that does the same is answered by the whole bar,
+                 so the pill is an affordance rather than a target to hit. -->
             <button
               v-if="tagsOverflow"
               type="button"
               class="absolute -top-2 left-1/2 -translate-x-1/2 px-10 pb-2 pt-4"
               :aria-expanded="tagsExpanded"
               :aria-label="t('media.moreTags')"
-              @pointerdown="onHandleDown"
-              @pointerup="onHandleUp"
+              @click="toggleTags"
             >
               <span class="block h-1 w-10 rounded-full bg-[var(--lb-accent)] opacity-50" />
             </button>
@@ -2051,7 +2104,7 @@ onBeforeUnmount(() => {
               ref="tagList"
               class="flex min-w-0 flex-wrap gap-1.5 overflow-hidden transition-[max-height] duration-300"
               :class="[
-                tagsExpanded ? 'max-h-[40vh] overflow-y-auto' : 'max-h-[3.4rem]',
+                tagsExpanded ? 'max-h-[40vh]' : 'max-h-[3.4rem]',
                 tagsOverflow ? 'mt-3.5' : '',
               ]"
             >
