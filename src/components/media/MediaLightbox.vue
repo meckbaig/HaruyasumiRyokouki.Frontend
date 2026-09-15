@@ -19,6 +19,7 @@ import { isMobileLayout } from '@/services/display'
 import { withMediaLink, pageIdentity } from '@/composables/useMediaLink'
 import { copyMediaUrl } from '@/services/share'
 import { useCopyFeedback } from '@/composables/useCopyFeedback'
+import { useDelayed } from '@/composables/useDelayed'
 import { pushOverlay, popOverlay, isTopmost, hasOverlay } from '@/services/overlayStack'
 import { takeOpenedFrom, NO_SOURCE } from '@/services/openedFrom'
 import { motionReduced, SLIDE_MS } from '@/services/motion'
@@ -199,6 +200,16 @@ const fullFailed = ref(false)
 /** The preview has painted, so the miniature under it has done its job. */
 const previewLoaded = ref(false)
 
+/** The preview's own fade, which the miniature has to outlive. */
+const PREVIEW_FADE_MS = 300
+/**
+ * The blurred miniature steps down once the preview is solid over it. It is
+ * covered pixel for pixel from then on, and it is the one layer in the stack
+ * carrying a filter: a full screen of `blur(24px)`, redone inside every raster
+ * of a magnified picture. See docs/features/media-viewer.md.
+ */
+const miniatureRetired = useDelayed(() => previewLoaded.value, PREVIEW_FADE_MS)
+
 const SPINNER_DELAY = 50
 
 const showSpinner = ref(false)
@@ -370,7 +381,7 @@ function onFullFailed() {
 /* Gestures. One pointer surface for all of them, because their meanings overlap
    and deciding between them needs the whole picture of what is pressed.
    See docs/features/media-viewer.md. */
-const MAX_SCALE = 8
+const MAX_SCALE = 6
 const TAP_ZOOM = 2
 const TAP_WINDOW = 210
 const TAP_SLOP = 40
@@ -417,6 +428,14 @@ const stripStyle = computed(() => ({
 const zoomStyle = computed(() => ({
   transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value})`,
 }))
+
+/**
+ * The picture is magnified, or a movement is running. The cell is given a layer
+ * of its own while this holds: without one the transform is applied by a
+ * repaint, so every frame of a pan rasterises the visible part of a 4x picture.
+ * See docs/features/media-viewer.md.
+ */
+const pictureMoving = computed(() => animating.value || zoomed.value)
 
 /** Dragging away dims the surroundings, so the dismissal reads as deliberate. */
 const dismissOpacity = computed(() =>
@@ -1821,7 +1840,10 @@ onBeforeUnmount(() => {
               <div
                 v-else
                 class="relative isolate flex h-full w-full items-center justify-center"
-                :class="animating ? 'transition-transform duration-200' : ''"
+                :class="[
+                  animating ? 'transition-transform duration-200' : '',
+                  pictureMoving ? 'will-change-transform' : '',
+                ]"
                 :style="zoomStyle"
               >
                 <img
@@ -1860,7 +1882,7 @@ onBeforeUnmount(() => {
                 />
 
                 <div
-                  v-if="miniature"
+                  v-if="miniature && !miniatureRetired"
                   class="pointer-events-none absolute left-1/2 top-1/2 z-[10] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
                   :class="fitClass"
                   :style="fitBoxStyle"

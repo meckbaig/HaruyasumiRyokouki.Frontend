@@ -19,6 +19,7 @@ of its complexity is timing, not logic. Read this document before editing it.
 | `src/services/openedFrom.js` | Hands the viewer the element pressed, or an explicit "none". |
 | `src/services/mediaTiles.js` | `tilesFor` / `tileFor` / `boxOf` / `isOnScreen`. |
 | `src/services/overlayStack.js` | Keyboard ownership and scroll-lock arbitration. |
+| `src/composables/useDelayed.js` | `miniatureRetired` - when the miniature has done its job. |
 | `src/composables/useMediaLink.js` | `pageIdentity` - used to close on real navigation. |
 | `src/assets/main.css` | `.fit-media`, `lightbox-*` transitions, `[data-lightbox-flying]`. |
 
@@ -45,10 +46,17 @@ base and each sharper layer settles over the one beneath it:
 
 The rule that makes this hard: **a layer that will never be wanted must never be
 painted**, not painted and then faded out. A layer is transparent until it is whole, and
-once whole it **stays** beneath the one above it instead of stepping down. So the layer on
+once whole it **stays** beneath the one above it instead of stepping down, so the layer on
 top always renders over a real stand-in. That is the point of the arrangement: when the
 browser evicts a full-size bitmap in a long session and must re-decode it, the repaint
-happens over the preview and miniature still under it, never over the black room.
+happens over the preview still under it, never over the black room.
+
+The **miniature is the one exception, and it is a rendering one.** It steps down
+(`miniatureRetired`, `PREVIEW_FADE_MS` after the preview is declared loaded) exactly when
+the preview has finished fading over it and it becomes invisible. A covered layer is not
+occlusion-culled inside the paint layer that holds it, so while it stays mounted it is
+drawn again inside every raster - and it is the one layer here carrying a filter, a full
+screen of `blur(24px)`. What it stood in for is the preview, which is still there.
 
 A layer the browser already holds is therefore marked ready *before* the first render, so
 it settles in at full opacity from the first frame rather than fading up from the one
@@ -407,6 +415,40 @@ either expanded - so their height is measured, not assumed, and fed back into th
 - The picture needs no animation of its own: it reads from the bars, and the observer
   reports every frame.
 
+## Rendering cost
+
+The picture is one transformed cell, so a magnified one is a screenful of image at 4x or
+more. Two rules keep that off the frame budget; the rest is measured, not guessed at.
+
+| Rule | Why |
+| --- | --- |
+| The cell carries a layer of its own while `pictureMoving` - magnified, or a movement is running. | Without one the transform is applied by a repaint, so a pan rasterises the visible part of the magnified picture on every frame. Promoted, the pan becomes the compositor's: nothing about the frame changes. |
+| The miniature steps down once the preview is solid over it. | A covered layer is not occlusion-culled inside the paint layer that holds it, and this one carries a full-screen `blur(24px)` - so it would be blurred again inside every raster. Invisible: what it stood in for is the preview, which stays. |
+
+**What a zoom costs, measured on a QHD phone (Snapdragon 855, 60Hz).** Lowering the screen to
+720p makes every gesture smooth. Dropping the backdrop blur changes nothing, and so does
+serving previews only - no full-size file fetched or painted at all. So the cost is **per
+device pixel of the picture's own raster**: not bytes, not the arrival of a sharper file, and
+not the chrome.
+
+That also says why the promotion fixes a pan and not a zoom. A pan only moves the picture, so
+the compositor moves a texture it already has. A zoom changes the scale, and a new scale means
+a new raster - a screenful of it, again and again while the scale is moving. Every path here
+that asks for a new scale in one style recalc therefore pays for a screenful in one frame: the
+tap zoom, its back-out, the wheel, and the chrome's own rest.
+
+**The covered blur was the excess.** With that layer gone the same gestures are smooth at
+1440p, on the device the measurement above comes from. What is left is the shape of the cost
+rather than a defect - a new scale still costs a screenful - so a larger display, or anything
+else added under the picture, can bring the jank back. The lever then is to let the compositor
+scale the texture the picture already has and re-raster once the movement stops: what photo
+apps do, at the price of a moment of softness while the hand moves. It is not in the code.
+
+A pan writes its transform through the component's own reactivity, so a pointer event is one
+render of the viewer and one layout read. That is small beside a screenful of raster and it
+has never shown up in a measurement; writing the transform straight onto the cell, and
+measuring the frame once when the gesture begins, is the change to reach for if it ever does.
+
 ## Template and CSS
 
 Rules that live in the markup, each of which looks arbitrary and is not.
@@ -416,7 +458,7 @@ Rules that live in the markup, each of which looks arbitrary and is not.
 | **Every file lives in the filmstrip, video included.** | Video used to sit in a branch of its own. With no strip on screen there was nothing to slide, so a turn *away* from a video swapped while a turn *towards* it slid. What actually differs is the gestures, and those are turned off per file. |
 | A video cell writes `aspect-ratio` out; a picture does not. | A video has no proportions until its metadata arrives, so `height: auto` would be settled from the 300x150 every `<video>` starts life at. The file states its shape, so the element is given it outright. |
 | The video cell is clipped into the band by the same transform that places a picture there. | Otherwise the controls along its bottom edge sit behind the footer. There is nothing to zoom, so that transform never leaves its resting value. |
-| **Each layer stays beneath the one above it; none is stood down.** | The layer on top always paints over a solid stand-in, so there is never a gap to the dark room. A cached layer is marked ready before first paint and settles at once; one that arrives later fades up over the layer below. |
+| **Each layer but the miniature stays beneath the one above it; none is stood down.** | The layer on top always paints over a solid stand-in, so there is never a gap to the dark room. A cached layer is marked ready before first paint and settles at once; one that arrives later fades up over the layer below. The miniature is unmounted once the preview has faded over it: a covered layer is still painted, and that one carries a full-screen blur. |
 | A layer is transparent **until it is whole**, not merely until it starts arriving. | A picture still downloading is painted as far as it has got and left blank below - a half-drawn photograph on white. |
 | The miniature is blurred and scaled past the blur inside a box that clips it. | It is a handful of pixels; without the overscan its softened edges fray against the dark. It ships inline, so it is the only thing on screen on the one path where nothing is cached - a shared link opened cold. |
 | Every layer carries `draggable="false"`. | Without it a mouse press starts the browser's own image drag and the pan never receives its moves. |
@@ -471,6 +513,11 @@ Do not "fix" these:
 16. The bottom bar answers the tag swipe, on touch events for touch and pointer events
     for the mouse; a tap toggles only from the pill. The lifted list is clipped, never
     scrollable, so no bar appears mid-expansion.
+17. The cell is promoted while magnified or moving. The transform is not left to a
+    repaint; see **Rendering cost**.
+18. The miniature is unmounted `PREVIEW_FADE_MS` after the preview loads, not at `load`:
+    unmounted sooner, the preview's own fade would run over the black room. It is the only
+    layer that stands down, and only because it is invisible once the preview is opaque.
 
 ## Related
 
