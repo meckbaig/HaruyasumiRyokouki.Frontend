@@ -103,10 +103,11 @@
   },
   "richText": {
     "insertMedia": "メディア",
-    "insertMediaHint": "このページのファイルをIDで参照します: [media=ID]キャプション[/media]",
+    "insertMediaHint": "このページのファイルをIDで参照します: [media=ID]キャプション[/media]。複数は1つの参照に、カンマ区切り(空白なし)で入ります。",
     "insertLink": "リンク",
     "insertLinkHint": "名前付きのリンクを挿入します: [url=アドレス]キャプション[/url]",
-    "pickMediaHint": "下のグリッドでファイルを選ぶと、そのIDが入ります。入力すると取り消されます。",
+    "pickMediaHint": "下のグリッドでファイルを選びます。1つならそのまま入り、複数なら確定が必要です。入力すると取り消されます。",
+    "confirmPickHint": "選択したファイルが参照に書き込まれます。確定で決定します。",
     "mediaMissing": "メディアが見つかりません",
     "mediaMissingHint": "このIDのファイルはありません。削除されたか、指定が誤っています。",
     "openMedia": "全画面で開く",

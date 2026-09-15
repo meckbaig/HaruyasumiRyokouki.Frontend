@@ -8,9 +8,10 @@ and the press-and-drag selection gesture shared by four different walls.
 | File | Role |
 | --- | --- |
 | `src/components/media/MediaGrid.vue` | The wall: chunking, cascade, selection wiring. |
-| `src/components/media/MediaTile.vue` | One tile: image, badges, star, hide, pencil, outline. |
+| `src/components/media/MediaTile.vue` | One tile: image, badges, star, hide, pencil. |
 | `src/components/media/MediaThumb.vue` | The two-stage thumbnail. Every wall renders one. |
 | `src/services/mediaTiles.js` | Finding the element(s) that stand for a file. |
+| `src/services/blockOutline.js` | The singled-out block's perimeter, as one SVG path. |
 | `src/composables/useTilePaint.js` | The paint gesture, shared. |
 | `src/stores/editor.js` | Selection state, `lastSave` / `lastDelete`. |
 | `src/components/editor/SelectionToolbar.vue` | App-level floating toolbar. |
@@ -92,7 +93,7 @@ sentinel is actually visible.
 
 | Prop | Purpose |
 | --- | --- |
-| `highlighted` | Singled out by a link. Draws the **same** ring as a selection: both mean "this one, out of all of these", and selection is a transient editor state, so the two are never on screen for the same reason at once. |
+| `faded` | Dimmed for a moment while a link's block is lit, so the block stands out of the wall. |
 | `dimmed` | Shows the tile behind a dim, lifted on hover - the rest of a day behind what search matched. The value follows the theme scheme (0.8 light, 0.6 dark). |
 | `showDate` | Stamps the day. For the pending queue, where files arrive from all over the trip with nothing else to place them by. |
 | `showTime` | Stamps the clock **on approach**. Where the date is already established by the page or a group heading, the clock is the useful half - wanted often enough to offer, rarely enough not to print across every photograph. |
@@ -180,6 +181,35 @@ the front page hangs its wall twice, the pending queue shows the same file as th
 the day being written, the "similar" panel duplicates the grid behind it. Without it the
 picture flies out of a tile the reader was not looking at.
 
+## A block singled out
+
+A note reference may name several files at once, and a link carries all of them
+(`?i=1,2,3`). `MediaGrid` then outlines them as **one** shape rather than a ring each.
+
+- **One SVG path, stroked.** `services/blockOutline.js` turns the selected tiles into a closed
+  loop on the grid's own lattice (a boundary line sits half a gap from the tile) and strokes
+  its centreline. `stroke-width` makes the band a uniform 2px, so a straight run and an arc
+  cannot differ in thickness nor come apart at the join. The tiles' positions are read as
+  **layout offsets**, so the arrival transform of a page loaded with a link does not shift it.
+- **Every corner is one radius.** Each edge is moved half a band inwards, then every corner is
+  trimmed and joined by an arc of the same radius centred on the inside of the turn - the same
+  sum for a convex and a reflex corner, so the inner bend of an L is rounded like an outer one.
+  The band's outer edge lands where the editor's selection ring's does.
+- **Adjacency is read from the laid-out rectangles**, not from indices, so it is right at
+  every breakpoint - two columns on a phone, five on a wide window. Two selected tiles with a
+  gap between them become two loops, and a block that only touches another at a corner splits
+  there. **The tile draws no ring of its own**, since a ring cannot be glued across tiles; the
+  editor's selection keeps its per-tile ring.
+- **The outline fades in and out** (`tile-outline` keyframes). The wall never clicks between
+  outlined and not.
+- **The rest of the wall dims for a second** when a reference is followed from the note
+  (`emphasis` in `DayView`), because a block may sit off screen and the outline alone would
+  not be seen. It is an **overlay pseudo-element**, not the tile's own opacity: the tiles
+  carry a filled `cascade-in`, and touching their `animation` replayed every arrival.
+- **`highlightedIds` is the link's own ids**, never a second parallel state - so the address
+  and the outline agree, and a press elsewhere puts both away at once. `highlightedId`
+  remains for a link that names a single file.
+
 ## Hiding the hidden files
 
 A signed-in editor gets a toggle, beside the share button on the day and search pages, that
@@ -258,6 +288,10 @@ exactly those.
 9. Anything that answers a tap on `touchend` must also suppress the click it invents.
 10. Hidden records are filtered client-side and the choice persists
     (`haruyasumi.hiddenRecordsHidden`); the cached lists are never rewritten.
+11. A block outline is one stroked SVG path: a 2px band whose centreline is the block's
+    boundary inset half a band, every corner trimmed and joined by an equal-radius arc.
+12. The emphasis dim is time-boxed and is not the search dim.
+13. `highlightedIds` is the link's, never a parallel state of the page's own.
 
 ## Related
 

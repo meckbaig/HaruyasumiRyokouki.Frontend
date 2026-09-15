@@ -123,6 +123,13 @@ light palette, which doubles as the pre-JS default.
   `.fit-media`, `.cascade-item`, `.dim-tile`. Use them instead of re-spelling Tailwind.
 - Named transitions (`page-*`, `lightbox-*`, `modal-*`, `reveal*`, `soft-*`, `map-full-*`)
   are defined in `main.css` below the component layer.
+- **The interface is fluid.** Every movement and every change of state is played as an
+  animation - a record scrolling past in a card, an outline arriving around a block of
+  tiles, a bar sliding away, the wall dimming behind what a link singled out - never a
+  jump between two states. Prefer keyframes (`*-enter-active` / `*-leave-active`) over
+  Tailwind transition classes: an animation is not settled by class bookkeeping, and
+  reduced motion relies on animations to still fire `animationend`. A state that only
+  appears and vanishes is a defect.
 - The native scrollbar is suppressed and `AppScrollbar` draws one over the page. A native
   bar occupies a layout lane that comes and goes, which shifted the whole page sideways
   whenever the viewer locked scrolling.

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MediaGrid from '@/components/media/MediaGrid.vue'
@@ -25,14 +25,15 @@ import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
 import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia } from '@/services/scrollToMedia'
+import { tileFor } from '@/services/mediaTiles'
 import { routeFromMedia } from '@/composables/useTripMedia'
 import { hasOverlay } from '@/services/overlayStack'
+import { chromeInsets } from '@/services/pageChrome'
 import { useHiddenRecords } from '@/composables/useHiddenRecords'
 import {
   useTextAnchor,
   setTextAnchor,
   clearTextAnchor,
-  mirrorTextAnchor,
   returnToTextAnchor,
   anchorSelector,
 } from '@/services/textAnchor'
@@ -61,39 +62,129 @@ const contextTarget = ref(null)
 
 /*
   The note's own references. A click brings the file's tile into view and singles
-  it out; the card's thumbnail opens it full screen. Either way the reference is
-  remembered so the viewer can offer a way back - but only while the line is out
-  of sight, since returning to something already on screen moves nothing.
+  it out; the card's thumbnail opens it full screen. Following one is a step away
+  from the line, so it is remembered and given a history entry of its own - but
+  only when the jump scrolled the page at all.
   See docs/features/rich-text-and-links.md.
 */
 const textAnchor = useTextAnchor()
 const hasTextAnchor = computed(() => Boolean(textAnchor.value))
-/** The reference just followed, not yet matched with a file being opened. */
-let pendingReference = null
+/*
+  Not a fact about the trip, and not part of what is remembered: all the files
+  the reference did not name dim for a second, so a block that is out of sight
+  still announces itself. See docs/features/rich-text-and-links.md.
+*/
+const noteEmphasis = ref(false)
+const EMPHASIS_MS = 1000
+let emphasisTimer = null
+
+function flashEmphasis() {
+  noteEmphasis.value = true
+  clearTimeout(emphasisTimer)
+  emphasisTimer = setTimeout(() => (noteEmphasis.value = false), EMPHASIS_MS)
+}
 
 function referenceRect(reference) {
   return document.querySelector(anchorSelector(reference))?.getBoundingClientRect() ?? null
 }
 
-/** A way back is worth keeping only when the text is off screen already. */
-function rememberReference(reference) {
+/**
+ * How far the follow will move the page: `scrollToMedia` centres the tile, and
+ * the page may run out of room before it gets there. Null when the tile is not
+ * on the page yet, which the grid is about to fix.
+ */
+function followDelta(reference) {
+  const id = reference.ids?.[0] ?? reference.mediaId
+  const tile = id == null ? null : tileFor(id)
+  if (!tile) return null
+  const box = tile.getBoundingClientRect()
+  const wanted = window.scrollY + box.top + box.height / 2 - window.innerHeight / 2
+  const limit = document.documentElement.scrollHeight - window.innerHeight
+  return Math.max(0, Math.min(limit, wanted)) - window.scrollY
+}
+
+/**
+ * Whether the follow scrolls the page **and** carries its line out of the band a
+ * reader reads. A nudge that leaves the line in view is no departure, so it is
+ * not remembered. See docs/features/rich-text-and-links.md.
+ */
+function followLeavesLine(reference) {
+  const delta = followDelta(reference)
+  if (delta == null) return true
+  if (delta === 0) return false
+
   const rect = referenceRect(reference)
-  if (!rect || (rect.bottom > 0 && rect.top < window.innerHeight)) {
-    clearTextAnchor()
-    return
-  }
+  if (!rect) return false
+  const top = chromeInsets().top + ACTIVE_TOP_GAP
+  return rect.top - delta < top || rect.bottom - delta > window.innerHeight - ACTIVE_BOTTOM_GAP
+}
+
+/**
+ * The band of the window in which a line counts as read again: clear of the
+ * sticky header and of the bottom edge, so a word peeking at the very top is not
+ * mistaken for the block being back in view.
+ * See docs/features/rich-text-and-links.md.
+ */
+const ACTIVE_TOP_GAP = 24
+const ACTIVE_BOTTOM_GAP = 80
+
+function referenceReadable(reference) {
+  const rect = referenceRect(reference)
+  if (!rect) return false
+  const top = chromeInsets().top + ACTIVE_TOP_GAP
+  return rect.top >= top && rect.bottom <= window.innerHeight - ACTIVE_BOTTOM_GAP
+}
+
+/**
+ * Remembers the line a reference was followed from and gives the step an entry
+ * of its own, so the browser's Back returns to the note. Written by **any**
+ * follow that scrolled the page, however little; the memory is spent the moment
+ * the line is readable again. See docs/features/rich-text-and-links.md.
+ */
+function departFromText(reference) {
   setTextAnchor(reference)
+  mediaLink.push(reference.ids ?? [reference.mediaId], false)
 }
 
+/* A settled scroll decides whether the line is back in the band; during a smooth
+   scroll the events keep postponing the check. */
+let scrollSettleTimer = null
+
+function onScrollCheck() {
+  if (!textAnchor.value) return
+  clearTimeout(scrollSettleTimer)
+  scrollSettleTimer = setTimeout(settleAnchor, 160)
+}
+
+function settleAnchor() {
+  if (!textAnchor.value) return
+  if (referenceReadable(textAnchor.value)) clearTextAnchor()
+}
+
+/**
+ * Following the text into the pile. The address names **every** file the
+ * reference carried, so the outline and the link agree. A jump that scrolls the
+ * page at all is a departure and is given a history entry; one that moves
+ * nothing only outlines the file. See docs/features/rich-text-and-links.md.
+ */
 function activateNoteMedia(reference) {
-  pendingReference = reference
-  // `?i=` singles the tile out, so the reader can see which one was meant.
-  mediaLink.write(reference.mediaId, false)
-  scrollToMedia(reference.mediaId)
+  if (followLeavesLine(reference)) {
+    departFromText(reference)
+    // The page may be too short to move at all; settle the question once anyway.
+    onScrollCheck()
+  } else {
+    mediaLink.write(reference.ids, false)
+  }
+  flashEmphasis()
+  scrollToMedia(reference.ids?.[0] ?? reference.mediaId)
 }
 
+/**
+ * Opening the card's picture full screen. The card sits beside the line and
+ * nothing scrolls, so this is no departure: the line is where the reader left
+ * it, and a way back only stands if a follow put one there.
+ */
 function openNoteMedia(reference) {
-  pendingReference = reference
   const index = media.value.findIndex((item) => item.id === reference.mediaId)
   if (index >= 0) lightboxIndex.value = index
 }
@@ -105,14 +196,34 @@ function onGridOpen(item) {
   if (index >= 0) lightboxIndex.value = index
 }
 
+/** True while a popstate is being answered, when the address is the browser's. */
+let answeringPop = false
+/** True while a popstate is returning to the note, so the link does not scroll. */
+let returningToText = false
+
 /**
  * The browser's own Back and Forward. A step onto an entry that does not ask for
- * the viewer closes it; one back to the text lights the reference as well.
+ * the viewer closes it, and if a line is remembered that step **is** the return
+ * to the note. One that asks for the viewer keeps it open.
+ * See docs/features/rich-text-and-links.md.
  */
 function onPopState() {
   const wanted = new URLSearchParams(window.location.search).get('o') === '1'
-  if (!wanted && lightboxIndex.value != null) lightboxIndex.value = null
-  if (textAnchor.value) returnToTextAnchor()
+  if (wanted) return
+
+  // The address is the browser's to settle now; a write from the close would
+  // cancel the very step it is making.
+  if (lightboxIndex.value != null) {
+    answeringPop = true
+    lightboxIndex.value = null
+    nextTick(() => (answeringPop = false))
+  }
+
+  if (!textAnchor.value) return
+  // The link's own scroll must not fight the return to the note.
+  returningToText = true
+  returnToTextAnchor()
+  nextTick(() => (returningToText = false))
 }
 
 // Persisted preference: some visitors find the day map distracting, so it can be
@@ -182,7 +293,7 @@ watch(
     answered = undefined
     // The anchor named an element of the note just left.
     clearTextAnchor()
-    pendingReference = null
+    noteEmphasis.value = false
   },
 )
 
@@ -202,6 +313,8 @@ function openDay(date) {
 // still covers the outline, and a press over it is not the reader dismissing it.
 const mediaLink = useMediaLink({ suspended: () => hasOverlay() })
 const highlightedId = computed(() => mediaLink.link.value.id)
+/** Every file the link names, so the wall outlines the whole block at once. */
+const highlightedIds = computed(() => mediaLink.link.value.ids)
 
 /** The file already answered for, so the same one is not answered for twice. */
 let answered
@@ -209,6 +322,12 @@ let answered
 watch(
   [media, () => mediaLink.link.value],
   ([list, link]) => {
+    // A return to the note owns the page's scroll; the link must not pull to
+    // the wall underneath it. See docs/features/rich-text-and-links.md.
+    if (returningToText) {
+      answered = link.id
+      return
+    }
     if (!list.length || answered === link.id) return
     answered = link.id
     if (link.id == null) return
@@ -234,29 +353,18 @@ watch(
 watch(() => editor.lastDelete, () => load(true))
 
 /**
- * A file followed from the note gets a history entry of its own, so the browser's
- * Back returns to the text. Anything else replaces: paging must not bury the page
- * under one entry per picture. See docs/features/rich-text-and-links.md.
+ * Opening or paging a file replaces the address; closing drops the pair. **The
+ * only entry of its own is the one a follow leaves behind**, so a picture turned
+ * to or a viewer closed never buries the note under another step.
+ * See docs/features/rich-text-and-links.md.
  */
-watch(lightboxIndex, async (index, previous) => {
+watch(lightboxIndex, (index) => {
+  // A popstate is answering for the address; a write here would cancel the step.
+  if (answeringPop) return
+
   const opened = index == null ? null : media.value[index]
-
-  if (!opened) {
-    mediaLink.clear()
-    clearTextAnchor()
-    pendingReference = null
-    return
-  }
-
-  if (previous == null && pendingReference) rememberReference(pendingReference)
-  pendingReference = null
-
-  if (hasTextAnchor.value) {
-    await mediaLink.push(opened.id, true)
-    mirrorTextAnchor()
-  } else {
-    mediaLink.write(opened.id, true)
-  }
+  if (opened) mediaLink.write(opened.id, true)
+  else mediaLink.clear()
 })
 
 /**
@@ -283,7 +391,15 @@ onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 onMounted(() => window.addEventListener('popstate', onPopState))
 onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
+// Seeing the reference again is the one thing that spends the way back. A
+// settled scroll answers it, and `scrollend` answers at once where it exists.
+onMounted(() => window.addEventListener('scroll', onScrollCheck, { passive: true }))
+onBeforeUnmount(() => window.removeEventListener('scroll', onScrollCheck))
+onMounted(() => document.addEventListener('scrollend', settleAnchor))
+onBeforeUnmount(() => document.removeEventListener('scrollend', settleAnchor))
 onBeforeUnmount(() => clearTextAnchor())
+onBeforeUnmount(() => clearTimeout(emphasisTimer))
+onBeforeUnmount(() => clearTimeout(scrollSettleTimer))
 
 /**
  * Touch equivalent of the arrow keys. Suspended under an overlay and during a
@@ -479,6 +595,8 @@ function onNoteSaved() {
             show-time
             :editable="auth.isEditor"
             :highlighted-id="highlightedId"
+            :highlighted-ids="highlightedIds"
+            :emphasis="noteEmphasis"
             @open="onGridOpen"
             @edit="editing = $event"
             @context="contextTarget = $event"
@@ -556,6 +674,38 @@ function onNoteSaved() {
         />
       </section>
     </template>
+
+    <!--
+      The way back, standing in the page rather than only in the full-screen
+      viewer: a translucent button that scrolls to the line a reference was
+      followed from. Gone the moment that line is read again.
+      See docs/features/rich-text-and-links.md.
+    -->
+    <Transition name="soft">
+      <button
+        v-if="hasTextAnchor"
+        type="button"
+        class="fixed bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-ink/50 text-paper shadow-lg backdrop-blur transition hover:bg-ink/85"
+        :title="t('richText.returnToText')"
+        :aria-label="t('richText.returnToText')"
+        @click="returnToTextAnchor"
+      >
+        <svg
+          class="h-5 w-5"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path
+            d="M10 16.5V5m0 0-4.5 4.5M10 5l4.5 4.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+    </Transition>
 
     <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
     <MediaLightbox

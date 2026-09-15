@@ -103,10 +103,11 @@
   },
   "richText": {
     "insertMedia": "Media",
-    "insertMediaHint": "Insert a reference to a file of this page by its ID: [media=ID]Caption[/media]",
+    "insertMediaHint": "Insert a reference to files of this page by ID: [media=ID]Caption[/media]. Several files go in one reference, ids split by commas with no spaces.",
     "insertLink": "Link",
     "insertLinkHint": "Insert a named link: [url=address]Caption[/url]",
-    "pickMediaHint": "Pick a file in the grid below and its ID takes the placeholder. Typing cancels this.",
+    "pickMediaHint": "Pick files in the grid below: one fills the reference outright, several ask to be confirmed. Typing cancels this.",
+    "confirmPickHint": "The selected files are written into the reference. Confirm when the set is right.",
     "mediaMissing": "Media not found",
     "mediaMissingHint": "There is no file with this ID here - it was deleted or the ID is wrong.",
     "openMedia": "Open full screen",

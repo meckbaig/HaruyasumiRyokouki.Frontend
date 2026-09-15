@@ -17,8 +17,8 @@ const props = defineProps({
   /** Dimmed until pointed at: the rest of a day, behind what search matched. */
   dimmed: { type: Boolean, default: false },
   editable: { type: Boolean, default: false },
-  /** Singled out by a link (see composables/useMediaLink). */
-  highlighted: { type: Boolean, default: false },
+  /** Dimmed for a moment so the singled-out files stand out of the wall. */
+  faded: { type: Boolean, default: false },
   /**
    * Stamps the day the file was taken onto the tile. For the pending queue,
    * where files arrive from all over the trip with nothing else to place them
@@ -58,12 +58,10 @@ const selected = computed(() => editor.isSelected(props.media.id))
 const label = computed(() => props.media.title || props.media.fileName || t('media.untitled'))
 
 const outlineClass = computed(() => {
-  // A link singling this file out gets the same outline as a selection: both
-  // mean "this one, out of all of these", and selection mode is an editor's
-  // transient state, so the two are never on screen for the same reason at once.
-  if (selected.value || props.highlighted) {
-    return 'ring-2 ring-accent ring-offset-2 ring-offset-paper'
-  }
+  // The editor's selection ring. A link's block is one stroked path drawn by
+  // MediaGrid instead: a ring cannot be glued across tiles, a stroke can.
+  // See docs/features/media-grid-and-selection.md.
+  if (selected.value) return 'ring-2 ring-accent ring-offset-2 ring-offset-paper'
   return 'ring-1 ring-edge'
 })
 
@@ -180,8 +178,8 @@ function activate() {
 <template>
   <div
     ref="root"
-    class="group relative transition-opacity"
-    :class="dimmed ? 'dim-tile' : ''"
+    class="group tile-motion relative"
+    :class="[dimmed ? 'dim-tile' : '', faded ? 'emphasis-dim' : '']"
     :data-media-id="media.id"
   >
     <!-- `touch-pan-y`, not `touch-none`: the browser must keep handling vertical

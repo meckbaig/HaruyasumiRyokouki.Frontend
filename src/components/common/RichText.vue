@@ -56,7 +56,10 @@ const parts = computed(() => {
     if (token.type !== 'media') return { ...token, key }
     const index = seen.get(token.id) ?? 0
     seen.set(token.id, index + 1)
-    return { ...token, key, index, media: byId.value.get(token.id) ?? null }
+    // Every id the reference names; one that is not on this page stays a null
+    // rather than shortening the list, so the card can say so.
+    const medias = token.ids.map((id) => byId.value.get(id) ?? null)
+    return { ...token, key, index, medias, media: medias.find(Boolean) ?? null }
   })
 })
 
@@ -151,9 +154,13 @@ function setDismissOn(next) {
 
 watch(hover, (value) => setDismissOn(Boolean(value?.byTouch)))
 
-/** The reference, named by file and by which mention of it was followed. */
-function reference(part) {
-  return { mediaId: part.id, index: part.index }
+/**
+ * The reference: every file it names, and which mention of it was followed.
+ * `mediaId` stays the single file the reference is anchored by - the one the
+ * address carries and the one the text is returned to.
+ */
+function reference(part, mediaId) {
+  return { mediaId: mediaId ?? part.ids[0], ids: part.ids, index: part.index }
 }
 
 function activate(part) {
@@ -162,8 +169,9 @@ function activate(part) {
   closeHover()
 }
 
-function open(part) {
-  emit('media-open', reference(part))
+/** `mediaId` is the file the reader is looking at in the card, if there is one. */
+function open(part, mediaId) {
+  emit('media-open', reference(part, mediaId))
   closeHover()
 }
 
@@ -225,7 +233,7 @@ onBeforeUnmount(() => {
         <MediaHoverCard
           v-if="hover"
           ref="cardRoot"
-          :media="hover.part.media"
+          :medias="hover.part.medias"
           :label="labelFor(hover.part)"
           :anchor-rect="hover.rect"
           :touch="hover.byTouch"
@@ -233,7 +241,7 @@ onBeforeUnmount(() => {
           @leave="onCardLeave"
           @activate="activate(hover.part)"
           @close="closeHover"
-          @open="open(hover.part)"
+          @open="open(hover.part, $event)"
         />
       </Transition>
     </Teleport>

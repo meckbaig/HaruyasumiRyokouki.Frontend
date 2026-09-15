@@ -13,8 +13,9 @@ import { SUPPORTED_LOCALES } from '@/i18n'
 import { cascadeDelay } from '@/services/cascade'
 import { useDelayed } from '@/composables/useDelayed'
 import { insertTemplate } from '@/composables/useTemplateInsert'
-import { mediaTemplate, urlTemplate } from '@/services/richText'
+import { mediaTemplate, urlTemplate, mediaReference } from '@/services/richText'
 import { startPick, cancelPick, picking } from '@/services/mediaPick'
+import { useEditorStore } from '@/stores/editor'
 import { readDraft, writeDraft, clearDraft, sameNotes } from '@/services/dayDrafts'
 
 const props = defineProps({
@@ -31,6 +32,7 @@ const emit = defineEmits(['saved', 'cancel'])
 const { t } = useI18n()
 const ui = useUiStore()
 const days = useDaysStore()
+const editor = useEditorStore()
 
 // One note per language, plus the id of each existing translation row so the
 // backend can update it in place rather than matching by language.
@@ -56,19 +58,40 @@ const thumbs = ref([])
 const lightboxIndex = ref(null)
 /** The note field of the active language, for the template buttons. */
 const noteEditor = ref(null)
-/** The placeholder a click on a tile is meant to replace. */
-let pendingRange = null
+/** The range of the ids inside the reference a pick is writing into. */
+const pendingRange = ref(null)
+/** A pick is running and the other files of the block may still change. */
+const confirmVisible = ref(false)
+/** Our own writes dispatch `input`; the field must not read them as typing. */
+let internalEdit = false
 
 function noteElement() {
   return noteEditor.value?.element ?? null
 }
 
+/**
+ * The media button, in two orders. A selection already stands: the reference is
+ * born carrying it and only wants confirming. Nothing is selected: the reference
+ * waits, and a single tile click fills it outright. Typing either away cancels.
+ * See docs/features/rich-text-and-links.md.
+ */
 function addMediaTemplate() {
   const element = noteElement()
   if (!element) return
+
+  const ids = editor.ids
+  if (ids.length) {
+    // The selected text is the caption; only the ids are rewritten later.
+    pendingRange.value = insertTemplate(element, (selected) => mediaReference(ids, selected))
+    startPick(applyPickedMedia)
+    confirmVisible.value = true
+    return
+  }
+
   // The placeholder is left selected and remembered: the reader may fill it by
   // clicking the file in the grid rather than typing its id.
-  pendingRange = insertTemplate(element, mediaTemplate)
+  pendingRange.value = insertTemplate(element, mediaTemplate)
+  confirmVisible.value = false
   startPick(applyPickedMedia)
 }
 
@@ -76,26 +99,68 @@ function addUrlTemplate() {
   insertTemplate(noteElement(), urlTemplate)
 }
 
-/** A tile was clicked: its id takes the placeholder's place. */
-function applyPickedMedia(id) {
+/** Writes the ids into the reference, leaving the caption and caret alone. */
+function writeIds(ids) {
   const element = noteElement()
-  if (!element || !pendingRange) return
+  const range = pendingRange.value
+  if (!element || !range) return
 
-  const [start, end] = pendingRange
+  const [start, end] = range
+  const list = ids.filter((id) => id != null).join(',')
+  const text = list || 'id'
   const value = element.value
-  element.value = value.slice(0, start) + id + value.slice(end)
-  const caret = start + String(id).length
-  element.focus()
-  element.setSelectionRange(caret, caret)
+  element.value = value.slice(0, start) + text + value.slice(end)
+  pendingRange.value = [start, start + text.length]
+
+  internalEdit = true
   element.dispatchEvent(new Event('input', { bubbles: true }))
-  pendingRange = null
+  internalEdit = false
+}
+
+/** A tile was clicked on its own: its id takes the placeholder's place, done. */
+function applyPickedMedia(id) {
+  writeIds([id])
+  finishPick()
+}
+
+/**
+ * While a pick runs, the selection in the grid **is** the reference: each change
+ * rewrites the ids, so the text always says what is selected, and Confirm is the
+ * way to settle it.
+ */
+watch(
+  () => editor.ids,
+  (ids) => {
+    if (!picking.value) return
+    if (ids.length) {
+      confirmVisible.value = true
+      writeIds(ids)
+    } else {
+      confirmVisible.value = false
+    }
+  },
+)
+
+/** Settles the block the reader has assembled and clears the selection. */
+function confirmPick() {
+  if (picking.value) writeIds(editor.ids)
+  finishPick()
+}
+
+function finishPick() {
+  cancelPick()
+  pendingRange.value = null
+  confirmVisible.value = false
+  if (editor.selectionMode) editor.clear()
 }
 
 /** Typing takes the offer back: the field is no longer waiting for a click. */
 function onNoteInput() {
+  if (internalEdit) return
   if (!picking.value) return
   cancelPick()
-  pendingRange = null
+  pendingRange.value = null
+  confirmVisible.value = false
 }
 
 function openThumb(event, index) {
@@ -395,10 +460,27 @@ async function save() {
         v-model="active.note"
         :rows="10"
         :disabled="loading"
+        :mark-range="confirmVisible ? pendingRange : null"
         class="mt-1"
         @input="onNoteInput"
-      />
-      <p v-if="picking" class="field-hint text-accent">{{ t('richText.pickMediaHint') }}</p>
+      >
+        <!-- The block is settled by hand once more than one file is selected: a
+             second tile cannot mean what a single click did. The bubble hangs
+             under the reference itself, not under the field. -->
+        <template #mark-action>
+          <button
+            type="button"
+            class="btn-primary !px-3 !py-1 !text-xs"
+            :title="t('richText.confirmPickHint')"
+            @click="confirmPick"
+          >
+            {{ t('common.confirm') }}
+          </button>
+        </template>
+      </RichTextArea>
+      <p v-if="picking && !confirmVisible" class="field-hint text-accent">
+        {{ t('richText.pickMediaHint') }}
+      </p>
       <p v-else-if="showLoading" class="field-hint">{{ t('common.loading') }}</p>
     </div>
 

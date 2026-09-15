@@ -85,6 +85,12 @@ doc yet, read the code and then write one.
 - **Don't sacrifice clarity for brevity.** Readable, well-commented code is preferred
   over clever one-liners. The rule above applies to *infrastructure* — use what already
   exists instead of reinventing it — not to making code harder to understand.
+- **The interface is fluid.** Every movement and every change of state is played as an
+  animation - a record scrolling past, an outline arriving, a bar sliding away, a
+  warning dimming the wall - never a jump between two states. Something that only
+  appears and vanishes is a defect, not a style choice. Reduced motion cuts the
+  animation short; it never removes the movement from the design. See
+  [docs/architecture.md](docs/architecture.md).
 
 ## Commands
 

@@ -37,7 +37,8 @@ was being looked at. Two parameters do:
 | Parameter | Meaning |
 | --- | --- |
 | `i=<media id>` | Single this file out, outlined among the rest. |
-| `o=1` | And open it full screen at once. |
+| `i=<id,id,...>` | A note reference may name several files at once; the address carries **every** id, comma-separated, and the whole block is outlined. |
+| `o=1` | And open the first file full screen at once. |
 
 `o` never travels alone - it is only ever written beside `i`.
 
@@ -137,8 +138,9 @@ and `AllowOverride`. On another server the rules transfer; only the syntax chang
    Never move it into a router hook or a component.
 2. Anything watching for "the reader moved" compares `pageIdentity(route)`.
 3. Dismissal listens on `pointerdown`.
-4. The front page never writes `?i=`.
-5. A private file is never shareable.
+4. `i` may name several ids; `o=1` opens the first of them, and the rest are only outlined.
+5. The front page never writes `?i=`.
+6. A private file is never shareable.
 
 ## Related
 

@@ -6,6 +6,7 @@ import BulkTagDialog from './BulkTagDialog.vue'
 import { useEditorStore } from '@/stores/editor'
 import { useUiStore } from '@/stores/ui'
 import { deleteMedia } from '@/api/media'
+import { picking } from '@/services/mediaPick'
 
 const { t } = useI18n()
 const editor = useEditorStore()
@@ -76,8 +77,10 @@ function onTagged() {
     leave-to-class="translate-y-4 opacity-0"
     leave-active-class="transition duration-200"
   >
+    <!-- Held back while a reference is being picked: the selection there *is* the
+         reference, and the editing actions would read as a way to settle it. -->
     <div
-      v-if="editor.selectionMode && editor.count > 0"
+      v-if="editor.selectionMode && editor.count > 0 && !picking"
       class="fixed inset-x-0 bottom-16 z-40 flex justify-center px-4"
     >
       <!--

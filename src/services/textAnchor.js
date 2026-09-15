@@ -5,7 +5,6 @@
  */
 import { ref, nextTick } from 'vue'
 
-const ANCHOR_KEY = '__haruTextAnchor'
 const FLASH_MS = 1600
 
 /** `{ mediaId, index }` - index is the occurrence, since a file may repeat. */
@@ -16,27 +15,15 @@ export function useTextAnchor() {
 }
 
 /**
- * Mirrored into `history.state` so the browser's own Back can see it. The module
- * ref stays the source of truth: vue-router rewrites that state on every
- * navigation, which would drop the anchor while the viewer is still open.
+ * The one place the anchor is kept. Not `history.state`: vue-router rewrites
+ * that on every navigation, so the answer would come and go on its own.
  */
 export function setTextAnchor(value) {
   anchor.value = value ?? null
-  writeHistory(anchor.value)
 }
 
 export function clearTextAnchor() {
-  if (!anchor.value) return
   anchor.value = null
-  writeHistory(null)
-}
-
-/**
- * Re-writes the anchor onto the entry the browser is on now. Needed after a
- * push: the anchor was set while the previous entry was current.
- */
-export function mirrorTextAnchor() {
-  if (anchor.value) writeHistory(anchor.value)
 }
 
 /** Selector for the element an anchor names. Shared with the page that sets it. */
@@ -59,10 +46,3 @@ export async function returnToTextAnchor() {
   clearTextAnchor()
 }
 
-function writeHistory(value) {
-  try {
-    history.replaceState({ ...(history.state ?? {}), [ANCHOR_KEY]: value }, '')
-  } catch {
-    // The mirror is a nicety; the module ref already carries the anchor.
-  }
-}

@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaTile from './MediaTile.vue'
 import { useEditorStore } from '@/stores/editor'
 import { cascadeDelay } from '@/services/cascade'
+import { blockOutlinePath } from '@/services/blockOutline'
 import { useTilePaint } from '@/composables/useTilePaint'
 
 const props = defineProps({
@@ -11,6 +12,10 @@ const props = defineProps({
   editable: { type: Boolean, default: false },
   /** Id of the file a link singled out, outlined wherever it sits in the list. */
   highlightedId: { type: Number, default: null },
+  /** Ids a note reference named, all outlined together as one block. */
+  highlightedIds: { type: Array, default: () => [] },
+  /** Dims every file not singled out, for a moment after a link is followed. */
+  emphasis: { type: Boolean, default: false },
   /** Dims every tile, lifting the dim on the one the cursor is over. */
   dimmed: { type: Boolean, default: false },
   /** Stamps each tile with the day its file was taken; see MediaTile. */
@@ -34,6 +39,13 @@ const emit = defineEmits(['open', 'edit', 'context'])
 
 const { t } = useI18n()
 const editor = useEditorStore()
+
+/** Everything singled out right now: the link's one file, or a note's several. */
+const highlightSet = computed(() => {
+  const set = new Set(props.highlightedIds)
+  if (props.highlightedId != null) set.add(props.highlightedId)
+  return set
+})
 
 /**
  * Client-side pagination.
@@ -80,11 +92,14 @@ function revealMore() {
  * any other. Revealing up to it is enough; the rest still waits for the reader.
  */
 watch(
-  [() => props.highlightedId, () => props.items],
-  ([id]) => {
-    if (id == null) return
-    const index = props.items.findIndex((media) => media.id === id)
-    if (index >= visibleCount.value) visibleCount.value = index + 1
+  [() => props.highlightedIds, () => props.highlightedId, () => props.items],
+  () => {
+    let reach = -1
+    for (const id of highlightSet.value) {
+      const index = props.items.findIndex((media) => media.id === id)
+      if (index > reach) reach = index
+    }
+    if (reach >= visibleCount.value) visibleCount.value = reach + 1
   },
   { immediate: true },
 )
@@ -128,8 +143,72 @@ const paint = useTilePaint({
   armed: () => editor.selectionMode,
 })
 
+/*
+  The outline around a block of singled-out files: one stroked centreline, the
+  same 2px band and corner radius as the editor's selection ring, so adjacent
+  tiles are glued and inner and outer corners are rounded alike.
+  See docs/features/media-grid-and-selection.md.
+*/
+const outlinePath = ref('')
+
+function computeOutlines() {
+  const set = highlightSet.value
+  const element = container.value
+  if (!set.size || !element) {
+    outlinePath.value = ''
+    return
+  }
+
+  const gap = parseFloat(getComputedStyle(element).columnGap)
+  const tiles = []
+  for (const tile of element.querySelectorAll('[data-media-id]')) {
+    /*
+      `offset*`, never `getBoundingClientRect`: the tiles arrive with a
+      `cascade-in` translate, and a rect read mid-arrival (a page loaded with a
+      link already in the address) left the whole outline a few pixels low. Layout
+      offsets ignore the transform and are relative to this container.
+    */
+    if (!tile.offsetWidth) continue
+    tiles.push({
+      selected: set.has(Number(tile.dataset.mediaId)),
+      rect: {
+        left: tile.offsetLeft,
+        top: tile.offsetTop,
+        width: tile.offsetWidth,
+        height: tile.offsetHeight,
+      },
+    })
+  }
+  outlinePath.value = blockOutlinePath(tiles, gap)
+}
+
+let outlineObserver = null
+
+watch(
+  [highlightSet, visibleItems],
+  () => nextTick(computeOutlines),
+  { flush: 'post' },
+)
+
+function watchContainer(element) {
+  outlineObserver?.disconnect()
+  if (!element) return
+  if (typeof ResizeObserver !== 'undefined') {
+    outlineObserver = new ResizeObserver(() => computeOutlines())
+    outlineObserver.observe(element)
+  }
+}
+
+watch(container, watchContainer)
+onMounted(() => {
+  watchContainer(container.value)
+  window.addEventListener('resize', computeOutlines)
+})
+
 onBeforeUnmount(() => {
   observer?.disconnect()
+  outlineObserver?.disconnect()
+  window.removeEventListener('resize', computeOutlines)
 })
 </script>
 
@@ -137,7 +216,7 @@ onBeforeUnmount(() => {
   <div>
     <div
       ref="container"
-      class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+      class="relative grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
       @pointerdown="paint.onPointerDown"
       @touchstart.passive="paint.onTouchStart"
       @click.capture="paint.onClickCapture"
@@ -154,11 +233,23 @@ onBeforeUnmount(() => {
         :show-date="showDate"
         :show-time="showTime"
         :touch-controls="touchControls"
-        :highlighted="highlightedId != null && media.id === highlightedId"
+        :faded="emphasis && !highlightSet.has(media.id)"
         @open="emit('open', $event)"
         @edit="emit('edit', $event)"
         @context="emit('context', $event)"
       />
+
+      <!-- One path, stroked: the band wraps the whole block, glued at the gaps
+           and rounded at every corner. See media-grid-and-selection.md. -->
+      <Transition name="tile-outline">
+        <svg
+          v-if="outlinePath"
+          class="tile-outline-svg absolute inset-0 h-full w-full overflow-visible"
+          aria-hidden="true"
+        >
+          <path :d="outlinePath" />
+        </svg>
+      </Transition>
     </div>
 
     <div v-if="hasMore" ref="sentinel" class="mt-6 flex flex-col items-center gap-2">

@@ -12,6 +12,7 @@ The pieces mounted once at app level, and the rules every full-window overlay ha
 | `src/components/common/ConfirmDialog.vue` | The one blocking question. |
 | `src/components/common/ToastHost.vue` | Transient notifications. |
 | `src/components/layout/AppScrollbar.vue` | The drawn scrollbar. |
+| `src/components/layout/SteppedScrollbar.vue` | The same bar for a list stepped through one record at a time. |
 | `src/components/common/` | `LoadingIndicator`, `ErrorState`, `EmptyState`, `SkeletonGrid`, `ShareButton`. |
 | `src/composables/useDelayed.js` | Holds a "loading" notice back until the wait is real. |
 | `src/services/cascade.js` | Stagger for a list arriving in a cascade. |
@@ -106,6 +107,9 @@ there is nothing to reserve and nothing to move.
 - `target` is null for the page, or an element for a scroller inside it - a dialog tall
   enough to need one, where the browser's own bar cuts a straight grey lane through a panel
   with rounded corners.
+- `SteppedScrollbar` is the same bar for a list of records rather than a scroller - the
+  hover card's carousel. Its host sets where it sits through a class, exactly as the page
+  bar's host does, and its drag picks a record rather than a pixel.
 - Dragging scrolls with `behavior: 'instant'`: the page scrolls smoothly by default, and
   under a hand it must not lag behind.
 - If this component fails to run the page still scrolls by every other means. What is lost

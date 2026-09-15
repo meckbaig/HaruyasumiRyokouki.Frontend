@@ -20,8 +20,8 @@ import { withMediaLink, pageIdentity } from '@/composables/useMediaLink'
 import { copyMediaUrl } from '@/services/share'
 import { useCopyFeedback } from '@/composables/useCopyFeedback'
 import { pushOverlay, popOverlay, isTopmost, hasOverlay } from '@/services/overlayStack'
-import { takeOpenedFrom } from '@/services/openedFrom'
-import { motionReduced } from '@/services/motion'
+import { takeOpenedFrom, NO_SOURCE } from '@/services/openedFrom'
+import { motionReduced, SLIDE_MS } from '@/services/motion'
 import { GHOST_CLICK_MS } from '@/services/ghostClick'
 import { chromeInsets } from '@/services/pageChrome'
 import HeroFlight from './HeroFlight.vue'
@@ -375,7 +375,7 @@ const TAP_ZOOM = 2.5
 const TAP_WINDOW = 210
 const TAP_SLOP = 40
 const DRAG_SLOP = 8
-const ANIM_MS = 220
+const ANIM_MS = SLIDE_MS
 /** Floor for a velocity-shortened slide, so a fast fling is not a snap. */
 const MIN_SLIDE_MS = 70
 /**
@@ -1599,7 +1599,10 @@ watch(open, async (isOpen) => {
     pushOverlay(overlayToken)
     // Read now, with the page below still laid out as the reader left it.
     // Searching by id is the fallback only - a file can be on the page twice.
-    const from = takeOpenedFrom() ?? tileFor(current.value?.id, { visible: true })
+    // `NO_SOURCE` is the opener saying it has no tile at all, so skip the search.
+    const source = takeOpenedFrom()
+    const from =
+      source === NO_SOURCE ? null : (source ?? tileFor(current.value?.id, { visible: true }))
     originTile = from ? { el: from, id: current.value?.id } : null
     heroOrigin = from ? boxOf(from) : null
     openedAt = performance.now()

@@ -295,6 +295,70 @@
   }
 
   /*
+    The bar for a list moved one record at a time
+    (components/layout/SteppedScrollbar.vue): the page's own bar, standing for
+    records rather than pixels. The host sets where it sits, as the page bar's
+    host does. See docs/features/rich-text-and-links.md.
+  */
+  .stepped-scrollbar {
+    position: absolute;
+    top: 0;
+    right: 2px;
+    bottom: 0;
+    width: 10px;
+    pointer-events: none;
+  }
+
+  /*
+    The channel behind the thumb: the whole range, so how many records there are
+    is readable at a glance, not only which one is on show. Thin at rest and
+    thicker under the pointer, so the bar reads as a strip, not a groove.
+  */
+  .stepped-scrollbar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 2px;
+    bottom: 0;
+    width: 6px;
+    border-radius: 999px;
+    background-color: color-mix(in oklab, var(--color-ink), transparent 86%);
+    transition: width 150ms;
+  }
+
+  .stepped-scrollbar-thumb {
+    position: absolute;
+    right: 2px;
+    width: 6px;
+    border-radius: 999px;
+    background-color: color-mix(in oklab, var(--color-ink), transparent 40%);
+    pointer-events: auto;
+    cursor: grab;
+    touch-action: none;
+    /* Carries the thumb between the steps, so it never teleports. */
+    transition:
+      top 220ms cubic-bezier(0.2, 0.9, 0.3, 1),
+      height 220ms ease,
+      width 150ms,
+      background-color 150ms;
+  }
+
+  /*
+    The channel widens with the thumb, never apart from it - so the strip is one
+    width at rest and one width under the pointer, hover or drag alike.
+  */
+  .stepped-scrollbar:hover::before,
+  .stepped-scrollbar:has(.stepped-scrollbar-thumb-active)::before {
+    width: 8px;
+  }
+
+  .stepped-scrollbar:hover .stepped-scrollbar-thumb,
+  .stepped-scrollbar-thumb-active {
+    width: 8px;
+    background-color: color-mix(in oklab, var(--color-ink), transparent 22%);
+  }
+
+  /*
     Lightbox palette. A dark room under every theme; only the accent travels
     across, lifted towards white. The plain `var(--color-accent)` line before
     each mix is the no-`color-mix` fallback.
@@ -954,6 +1018,9 @@
   background-color: var(--color-paper-raised);
   padding: 0.625rem;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+  /* The strip is clipped **here**, not at an inset: a record must arrive from
+     the card's own edge. See `.carousel-viewport`. */
+  overflow: hidden;
 }
 
 /*
@@ -1060,6 +1127,66 @@
   border-radius: 3px;
 }
 
+/* The run the editor is acting on right now - the ids being picked. */
+.rich-editor-mark {
+  background-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  border-radius: 3px;
+}
+
+/*
+  The bubble hung under that run: a cloud with a tail, not a field's hint. It is
+  placed in the field's own coordinates by RichTextArea, so it follows the text
+  when the field scrolls. See docs/features/rich-text-and-links.md.
+*/
+.rich-editor-bubble {
+  position: absolute;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 1rem);
+  border-radius: 0.7rem;
+  border: 1px solid var(--color-edge);
+  background-color: var(--color-paper-raised);
+  padding: 0.35rem;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.14);
+}
+
+.rich-bubble-enter-active {
+  animation: rich-bubble-in 160ms ease-out;
+}
+
+.rich-bubble-leave-active {
+  animation: rich-bubble-out 120ms ease-in both;
+}
+
+.rich-editor-bubble::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 12px;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border-left: 1px solid var(--color-edge);
+  border-top: 1px solid var(--color-edge);
+  background-color: var(--color-paper-raised);
+}
+
+@keyframes rich-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes rich-bubble-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
 /*
   The viewer's loading wheel. Its own keyframes, so the fade always plays from
   zero when `spinnerShown` lets the wheel in - after the room is up and the
@@ -1083,4 +1210,115 @@
 
 .lb-spinner-leave-active {
   animation: lb-spinner-out 150ms ease-in both;
+}
+
+/*
+  A tile's own motion. The transition sits on the tile **whether or not it is
+  dimmed**, so both the dim and the return play; a transition declared only on
+  the dimmed state is set up the same moment the value changes, and the change
+  can land in a single frame.
+*/
+.tile-motion {
+  transition: opacity 280ms ease;
+}
+
+/*
+  Every file a followed reference did not name, dimmed for a second so a block
+  that sits off screen still announces itself. An **overlay, never the tile's own
+  `animation`**: the tiles carry a filled `cascade-in`, and re-writing it to dim
+  them made every arrival replay. See media-grid-and-selection.md.
+*/
+@keyframes emphasis-dim {
+  0% {
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.65;
+  }
+
+  80% {
+    opacity: 0.65;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 1000ms is `EMPHASIS_MS` in DayView. The pseudo-element carries the fade, so the
+   tile's own arrival animation is left alone. */
+.emphasis-dim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0.375rem;
+  background-color: var(--color-paper);
+  pointer-events: none;
+  animation: emphasis-dim 1000ms ease-out both;
+}
+
+/*
+  The perimeter around a block of singled-out files: one SVG path stroked at the
+  editor's selection ring's band (2px) and corner radius, so the straight runs
+  and the arcs are the same line and a glued block is a single shape.
+  See docs/features/media-grid-and-selection.md.
+*/
+.tile-outline-svg {
+  pointer-events: none;
+}
+
+.tile-outline-svg path {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+}
+
+/* Drawn and taken away with a fade, so the wall never clicks between states. */
+@keyframes tile-outline-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tile-outline-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.tile-outline-enter-active {
+  animation: tile-outline-in 180ms ease-out;
+}
+
+.tile-outline-leave-active {
+  animation: tile-outline-out 140ms ease-in both;
+}
+
+
+/*
+  The media hover card's own carousel: the records stacked in a strip the
+  viewport shows one at a time, so a step is a real scroll - a record leaving
+  over the card's edge while the next arrives behind it - and never a fade.
+  The viewport holds the vertical gesture, so a swipe steps the list instead of
+  scrolling the page under the card.
+*/
+/* Reaches the card's edges by cancelling its padding, so the clip is the card
+   and a record arrives from the border rather than from ten pixels inside it. */
+.carousel-viewport {
+  height: 11.25rem;
+  margin: -0.625rem;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.carousel-track {
+  /* Duration comes from `SLIDE_MS`, written inline by the component. */
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.carousel-slide {
+  height: 11.25rem;
+  padding: 0.625rem;
 }

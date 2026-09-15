@@ -9,11 +9,12 @@ the viewer to the text.
 
 | File | Role |
 | --- | --- |
-| `src/services/richText.js` | `parseRichText` (tokens with `raw`), `linkLabel`, editor template builders. |
+| `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `linkLabel`, editor template builders. |
 | `src/components/common/RichText.vue` | Token renderer and hover card owner; emits references upward. |
-| `src/components/common/MediaHoverCard.vue` | The card: thumbnail, title, description, time, go-to-media button, cross. |
-| `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it. |
-| `src/services/textAnchor.js` | The remembered reference, `anchorSelector`, `mirrorTextAnchor`, `returnToTextAnchor`. |
+| `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar and go-to-media. |
+| `src/components/layout/SteppedScrollbar.vue` | The card's bar: one record per step, draggable, drawn like the page's own. |
+| `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, and a bubble for a marked run. |
+| `src/services/textAnchor.js` | The remembered reference, `anchorSelector`, `returnToTextAnchor`. |
 | `src/services/mediaPick.js` | The fleeting mode where a tile click fills a media template. |
 | `src/composables/useTemplateInsert.js` | `insertTemplate` - writes a template at a caret and returns its range. |
 | `src/views/DayView.vue` | Renders the note; decides the anchor; owns the viewer and the return. |
@@ -27,6 +28,7 @@ the viewer to the text.
 | Written | Renders as | Note |
 | --- | --- | --- |
 | `[media=5]Caption[/media]` | A chip labelled "Caption" | A file resolved against the page's own list. |
+| `[media=5,7,9]Caption[/media]` | One chip for three files | Ids split by commas, **no spaces**; the chip carries them all. A space would let a caption be read as a second id. |
 | `[url=https://...]Name[/url]` | A link labelled "Name" | Opens in a new tab. |
 | `https://...` alone | A link | Labelled by `linkLabel`. |
 
@@ -51,6 +53,40 @@ tiles stamp theirs, and the title and description on the right. **The date is de
 absent** - the card is only ever
 shown over a day page, so the day is a fact the reader already has. Links are not chipped
 this way; only media references have a card.
+
+### Every file of a reference
+
+A chip may name several files, so the card is a carousel rather than a single picture.
+
+- **The records are a vertical strip, not a fade.** They are stacked in a track the viewport
+  shows one of, and a step moves the track by one record's height - a record slides out over
+  the card's edge while the next arrives behind it, the way the full-screen viewer turns a
+  page. State between two records is never cross-faded: the movement is the point.
+- **The strip is clipped by the card itself**, not by an inset inside it: the viewport
+  cancels the card's padding, so a record arrives from the card's edge rather than from ten
+  pixels inside it.
+- **The step takes `SLIDE_MS`**, the same constant the viewer's own turn uses
+  (`src/services/motion.js`), so the two movements read as one gesture.
+- **A wheel notch is one record.** `WHEEL_NOTCH` (`24`) of accumulated delta turns the list,
+  and `STEP_LOCK_MS` (`220`) keeps a trackpad's stream of tiny deltas from running through
+  it. A swipe on a touch screen does the same, committing past `SWIPE_COMMIT` (`30`); the
+  viewport is `touch-action: none`, so the gesture is the card's and not the page's.
+- **A `1/N` badge sits bottom-left**, in the same stamp as the clock but the opposite
+  corner, so the two never sit on each other. The clock stays bottom-right.
+- **Our own scrollbar is drawn on the card** by `SteppedScrollbar`, the same shape as the
+  page's bar and placed by the card through its class. Behind the thumb runs a **channel
+  for the whole range**, so how many records a reference names is readable at a glance; a
+  thumb the height of one record moves down by the records before it. It can be
+  **dragged**, and stays *stepped* under the hand: the pointer picks a record, not a pixel,
+  and the thumb's own transition carries it between the steps, so it never teleports.
+- **The thumbnail is `MediaThumb`**, the two-stage miniature and preview every other wall
+  uses, not a single `<img>` on `preview || miniature`.
+- **Opening full screen does not fly out of this card.** Its 160px picture is a
+  stand-in, so the open marks "no source" and the viewer plays its plain fade,
+  never searching for a tile. See [media-viewer.md](media-viewer.md).
+- **The first record's box, then a group.** A reference that resolves to nothing shows the
+  missing panel; a reference where only some files are missing still steps through them, a
+  null slide saying so.
 
 - **The card is placed in document coordinates and lives on `<body>`.** Scroll offsets are
   added to the chip's viewport rectangle, so the card scrolls with the page instead of
@@ -79,39 +115,64 @@ this way; only media references have a card.
 
 ## The way back
 
-A mouse click on a chip singles the file out with `?i=<id>` and scrolls to its tile; the
-thumbnail in the card opens it full screen. On a touch screen the tap shows the card, and
-the card's own button singles the file out. `RichText` only reports what was followed - it emits
-`{ mediaId, index }` with `index` the occurrence, since one file may be referenced more than
-once - and the page decides what to do with it.
+A mouse click on a chip singles the files out with `?i=<id,id,...>` and scrolls to the first
+of their tiles; the thumbnail in the card opens one full screen. On a touch screen the tap
+shows the card, and the card's own button singles the files out. `RichText` only reports what
+was followed - it emits `{ mediaId, ids, index }`, `mediaId` the file the reference is
+anchored by, `ids` every file it named, and `index` the occurrence, since one file may be
+referenced more than once - and the page decides what to do with it.
 
-- **`DayView.rememberReference` keeps the anchor only while the reference is off screen.**
-  A way back to a line already in view moves nothing, so nothing is recorded and the
-  viewer's arrow is not offered.
-- **Opening with an anchor present pushes a history entry.** The URL carries `?i=&o=1`, and
-  `mirrorTextAnchor` writes the anchor onto that entry's `history.state`. Paging keeps
-  replacing, so the page is not buried under one entry per picture.
-- **The browser's Back is the same way back as the arrow.** A `popstate` onto an entry that
-  does not ask for the viewer closes it, and one back to the text also scrolls to the
-  reference. Closing does **not** depend on the anchor: a Forward then Back through the
-  pair can arrive with no anchor left, and the viewer still has to close. The arrow is the
-  explicit version of the same return.
+**The address carries every id, not just the first**, so the outline and the link agree and a
+copied address names the whole block.
+
+- **A way back is kept when the jump scrolls and carries the line out of the band a reader
+  reads.** `followLeavesLine` works out where the tile will land (the page may run out of
+  room first) and where the line ends up after that scroll; a nudge that leaves the line in
+  view only outlines the file, and neither the viewer's arrow nor the page's own button is
+  offered.
+- **Only a departure pushes a history entry.** A follow that scrolls calls `departFromText`,
+  which records the anchor and pushes `?i=<ids>`; that entry is the note's, and the browser's
+  Back returns to it. Opening and paging the viewer **replace** the same entry, so a picture
+  turned to never buries the note under one more step.
+- **The way back is kept until the line is readable again.** Closing the viewer, paging, or a
+  press elsewhere must not take it away; a settled scroll on which the reference reaches the
+  band a reader actually reads - clear of the sticky header and of the bottom edge,
+  `referenceReadable` - is the one thing that spends it. A word peeking at the very top is
+  not the line being back.
+- **The way back also stands in the page.** While a line is remembered, a translucent round
+  button sits bottom-right with the viewer's own arrow and does the same thing, so the way up
+  is not reachable only from inside the full-screen viewer.
+- **The browser's Back is the same way back as the arrow.** A `popstate` onto an entry with
+  no `o=1` closes the viewer, and if an anchor is remembered that step also scrolls to the
+  reference. A step that does ask for the viewer leaves it open. `onPopState` holds off the
+  writes it would otherwise cause - the close's own write on that step, and the link's own
+  scroll while the note is being restored - because either would fight the step itself.
 - **The arrow stays while paging.** The anchor names a place in the text, not the picture it
   opened, so paging away does not lose it.
 - **Returning scrolls, lights and clears.** `returnToTextAnchor` scrolls the chip to the
   middle, adds `.text-anchor-flash` for 1.6s, and drops the anchor - after which the arrow is
   gone from the UI. The flash is a static background, not an animation, so it survives
   reduced motion.
-- **The anchor is cleared when the viewer closes, when the day changes and on unmount**,
-  because in each case it named something the reader is no longer looking at.
+- **The anchor is cleared when the day changes and on unmount**, because in each case it
+  named a note the reader is no longer looking at. **Closing the viewer does not clear it**:
+  the memory is what lets the browser's Back reach the note after a look at a picture.
 
-The state lives in a module ref, **not** in `history.state` alone: vue-router rewrites that
-state on every navigation, which would drop the anchor while the viewer is still open. The
-mirror exists so the browser's own Back sees it.
+The anchor lives in one module ref in `services/textAnchor.js` and nowhere else. It is **not**
+mirrored into `history.state`: vue-router rewrites that state on every navigation, so a
+mirror came and went on its own, and nothing ever read it.
 
 ## The editor
 
 - **Buttons sit level with the field's label**, not in a row of their own under the field.
+- **The media button picks one file or several.** A single tile click fills the reference
+  outright and ends the pick - no confirmation, because a click is already a decision. Once a
+  *selection* stands (in the grid, the same gesture as an edit), the reference is rewritten
+  live as the selection changes and a **Confirm bubble** hangs under the reference itself; the
+  bubble is the way to settle the block, and it is placed in the field's own coordinates so a
+  scroll of the field carries it along.
+- **The bubble is a slot, not a floating dialog.** `RichTextArea` marks the run (the ids)
+  and renders whatever the caller puts in `#mark-action` under it; the field that is editing
+  owns the button and the meaning.
 - **`RichTextArea` highlights the markup.** It is a textarea whose own text is transparent,
   with a `<pre>` of the same tokens painted behind it, scrolled in step. The two layers share
   every metric - font, padding, line height, `scrollbar-gutter` - or the highlight drifts
@@ -135,8 +196,8 @@ mirror exists so the browser's own Back sees it.
 2. `raw` on a token is the exact source; the editor layer and the field must agree
    character for character.
 3. The anchor is kept only when the reference is off screen.
-4. Only an open with an anchor present pushes; every other write replaces.
-5. The anchor's module ref is the source of truth; `history.state` is a mirror.
+4. Only a follow that takes the line off screen pushes; every other write replaces.
+5. The anchor lives in one module ref and nowhere else; there is no `history.state` mirror.
 6. A media reference is resolved against the page's own list, and a miss is shown, not
    dropped.
 7. The card is positioned in document coordinates so it scrolls with the page.
@@ -149,6 +210,17 @@ mirror exists so the browser's own Back sees it.
     timeout.
 13. A mouse click on a reference follows it to its tile; a tap shows the card, whose own
     button follows it instead.
+14. The address names **every** id of a reference; the outline is the link's state, so the
+    two agree and a copied address carries the whole block.
+15. A follow that takes the line off screen pushes a history entry, so Back returns to the
+    text.
+16. The way back is spent **only** by seeing the reference again; closing the viewer or
+    paging never clears it.
+17. The card steps with a real scroll. Two records are never cross-faded.
+18. The card is **not** the flight origin; opening from it marks "no source", so the
+    viewer does not search for a tile and plays the plain fade.
+19. A media reference's ids are read from the run that is marked, never rebuilt from the
+    caption.
 
 ## Related
 

@@ -16,7 +16,7 @@ of its complexity is timing, not logic. Read this document before editing it.
 | `src/services/motion.js` | `motionReduced()`, shared by both. |
 | `src/services/pageChrome.js` | Where the page's own floating chrome leaves off. |
 | `src/services/mediaAssets.js` | URL accessors: `miniatureSrc`, `previewSrc`, `fullScreenSrc`, `streamSrc`, `downloadSrc`, `mediaAspect`, `mediaDate`. |
-| `src/services/openedFrom.js` | Hands the viewer the exact element that was pressed. |
+| `src/services/openedFrom.js` | Hands the viewer the element pressed, or an explicit "none". |
 | `src/services/mediaTiles.js` | `tilesFor` / `tileFor` / `boxOf` / `isOnScreen`. |
 | `src/services/overlayStack.js` | Keyboard ownership and scroll-lock arbitration. |
 | `src/composables/useMediaLink.js` | `pageIdentity` - used to close on real navigation. |
@@ -361,7 +361,9 @@ handover at the end of the flight is exact.
   A file appears on the page more than once often: the front page hangs its wall twice,
   the pending queue shows the same file as the strip in the day being written, and the
   "similar" panel duplicates the grid behind it. Searching by id found *a* tile.
-  `markOpenedFrom(el)` must be called from whatever handler opens the viewer.
+  `markOpenedFrom(el)` must be called from whatever handler opens the viewer. The media
+  hover card instead calls `markOpenedWithoutSource()`, since its picture is a preview,
+  and the viewer must play its plain fade rather than search for a tile.
 - **Where it flies back to** (`tileBoxBack`) prefers the remembered `originTile`, even
   off-screen - the reader knows they scrolled. Any other tile must be on screen, or there
   is no destination and the plain fade does the work.
