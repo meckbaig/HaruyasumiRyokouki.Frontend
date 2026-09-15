@@ -249,8 +249,8 @@ const position = computed(() => {
             </div>
 
             <div class="flex h-40 min-w-0 flex-1 flex-col">
-              <p class="line-clamp-2 text-sm font-medium text-ink">{{ slide.title }}</p>
-              <p v-if="slide.description" class="mt-0.5 line-clamp-3 text-xs text-ink-soft">
+              <p class="line-clamp-3 text-sm font-medium text-ink" :title="slide.title">{{ slide.title }}</p>
+              <p v-if="slide.description" class="mt-0.5 line-clamp-5 text-xs text-ink-soft">
                 {{ slide.description }}
               </p>
               <!-- The way to the tile - the action the text itself takes on a
