@@ -371,7 +371,7 @@ function onFullFailed() {
    and deciding between them needs the whole picture of what is pressed.
    See docs/features/media-viewer.md. */
 const MAX_SCALE = 8
-const TAP_ZOOM = 2.5
+const TAP_ZOOM = 2
 const TAP_WINDOW = 210
 const TAP_SLOP = 40
 const DRAG_SLOP = 8
@@ -493,6 +493,19 @@ function toFramePoint(clientX, clientY) {
     x: clientX - rect.left - rect.width / 2,
     y: clientY - rect.top - rect.height / 2,
   }
+}
+
+/**
+ * What a double tap magnifies to: `TAP_ZOOM` at the least, and further when the
+ * file is wider than the window, so a panorama on a tall phone ends against the
+ * top and bottom edges. A file at or under the window's own ratio already meets
+ * them at rest, where the sum falls below `TAP_ZOOM`. See media-viewer.md.
+ */
+function tapZoomScale() {
+  const { width, height } = frameSize()
+  const ratio = knownAspect()
+  if (!ratio || width <= 0) return TAP_ZOOM
+  return Math.max(TAP_ZOOM, (ratio * height) / width)
 }
 
 /**
@@ -830,7 +843,9 @@ function onPointerUp(event) {
     // picture would magnify and the bars would leave in the same breath.
     clearTimeout(uiTapTimer)
     withAnimation(() =>
-      zoomed.value ? resetZoom() : zoomTo(TAP_ZOOM, toFramePoint(event.clientX, event.clientY)),
+      zoomed.value
+        ? resetZoom()
+        : zoomTo(tapZoomScale(), toFramePoint(event.clientX, event.clientY)),
     )
     lastTapAt = 0
     suppressClick = true

@@ -134,7 +134,7 @@ One pointer surface handles all of them, because their meanings overlap.
 | Mouse click on the picture | Toggles the chrome. |
 | Mouse click beside the picture | Closes. |
 | Tap (touch), anywhere | Toggles the chrome only. Never closes. |
-| Double tap | Zoom to `TAP_ZOOM` (2.5) at that point, or back out. |
+| Double tap | Zoom to `tapZoomScale()` at that point, or back out. |
 | Wheel | Zoom, with the transition held on ~180ms after each notch so discrete steps read as continuous. |
 | `←` / `→` / `Esc` | Page, page, close. |
 | Anything on a video **player** | Left to the player. |
@@ -157,6 +157,13 @@ Details that look arbitrary and are not:
 - **Single tap is delayed by `TAP_WINDOW` (210ms)** to find out whether it is half of a
   double tap. Acting immediately showed the chrome leaving and returning inside one
   double tap.
+- **A double tap targets the wider of `TAP_ZOOM` (2.5) and the window's vertical fill**
+  (`ratio * height / width`). The scale is measured against the window, so a file wider
+  than the window runs out of width at rest and fills less of its height: on a tall phone
+  a fixed 2.5 left a panorama short of the top and bottom edges, and magnifying it until
+  it meets them is the size the reader was reaching for. A file at or under the window's
+  ratio already meets those edges at rest, where that sum falls below 2.5, so `TAP_ZOOM`
+  remains the floor and the tap keeps its old size there.
 - **A dismissal does not fly back to the tile.** The reader already threw the picture
   somewhere; a second departure runs two animations at once.
 - **A video takes gestures beside it and none on it.** `onPlayer()` hands any press on the
