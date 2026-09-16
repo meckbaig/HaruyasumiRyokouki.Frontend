@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaHoverCard from './MediaHoverCard.vue'
+import { useHoverIntent } from '@/composables/useHoverIntent'
 import { parseRichText, linkLabel } from '@/services/richText'
 
 /**
@@ -27,15 +28,34 @@ const emit = defineEmits(['media-activate', 'media-open'])
 
 const { t } = useI18n()
 
-/** Time to carry the pointer from the text across to the card. */
-const CLOSE_DELAY = 250
-
 const hover = ref(null)
-/** The card's own root, so a press outside it can be told from one on it. */
+/**
+ * The card as it stands, measured to know where the hand could be going. A swap keeps two
+ * of them on the page for the length of the fade - one leaving, one arriving - and a plain
+ * ref would be dropped to null when the leaving one goes, taking the card the trajectory
+ * is aiming at with it. So the newest wins, and a null is ignored.
+ */
 const cardRoot = ref(null)
-let closeTimer = null
-/** True while a card shown by a tap listens for a press anywhere to put it away. */
-let dismissOn = false
+
+function setCardRoot(instance) {
+  if (instance) cardRoot.value = instance
+}
+
+/*
+  When the card opens and closes - the hand's own trajectory, a keyboard focus, a tap
+  on a touch screen - is the composable's business: this component only says what the
+  card shows. See docs/features/rich-text-and-links.md.
+*/
+const intent = useHoverIntent({
+  card: cardRoot,
+  onOpen: (next) => {
+    hover.value = next
+  },
+  onClose: () => {
+    hover.value = null
+  },
+})
+
 /**
  * The pointer behind the last press. A tap focuses a reference as well as
  * clicking it, and a tap is not a hover - so the card waits for the click
@@ -67,30 +87,9 @@ function labelFor(part) {
   return part.label || part.media?.title || part.media?.fileName || t('richText.mediaMissing')
 }
 
-function cancelClose() {
-  if (closeTimer) {
-    clearTimeout(closeTimer)
-    closeTimer = null
-  }
-}
-
-function scheduleClose() {
-  cancelClose()
-  closeTimer = window.setTimeout(() => {
-    hover.value = null
-    closeTimer = null
-  }, CLOSE_DELAY)
-}
-
-function closeHover() {
-  cancelClose()
-  hover.value = null
-}
-
-/** `byTouch` marks a card shown by a tap, which no pointer is hovering to keep. */
-function openCard(part, rect, byTouch = false) {
-  cancelClose()
-  hover.value = { part, rect, byTouch }
+/** What the card is opened for: the reference, and where its own chip sits. */
+function payloadFor(part, event) {
+  return { part, rect: event.currentTarget.getBoundingClientRect() }
 }
 
 /*
@@ -101,58 +100,37 @@ function openCard(part, rect, byTouch = false) {
 */
 function onEnter(part, event) {
   if (event.pointerType !== 'mouse') return
-  openCard(part, event.currentTarget.getBoundingClientRect())
+  intent.hoverIn(payloadFor(part, event))
 }
 
+/** The hand left the text; from here its trajectory decides. */
 function onLeave(event) {
   if (event.pointerType !== 'mouse') return
-  scheduleClose()
+  intent.hoverOut(event)
 }
 
 function onFocus(part, event) {
   if (pointerIsTouch) return
-  openCard(part, event.currentTarget.getBoundingClientRect())
+  intent.openNow(payloadFor(part, event))
 }
 
+/** A card opened by a focus goes when the focus does. */
 function onBlur() {
   if (pointerIsTouch) return
-  scheduleClose()
+  intent.close()
 }
 
 function onChipPointerDown(event) {
   pointerIsTouch = event.pointerType !== 'mouse'
 }
 
-/** The pointer is a mouse's; a card shown by a tap dismisses by hand instead. */
 function onCardEnter() {
-  if (hover.value?.byTouch) return
-  cancelClose()
+  intent.cardIn()
 }
 
-function onCardLeave() {
-  if (hover.value?.byTouch) return
-  scheduleClose()
+function onCardLeave(event) {
+  intent.cardOut(event)
 }
-
-/*
-  A press anywhere puts a tapped card away, and the cross does the same. A press
-  on a reference never reaches here - the reference stops it, since a tap on one
-  is that reference's own toggle.
-  See docs/features/rich-text-and-links.md.
-*/
-function onDocumentPointerDown(event) {
-  if (cardRoot.value?.$el?.contains(event.target)) return
-  closeHover()
-}
-
-function setDismissOn(next) {
-  if (next === dismissOn) return
-  dismissOn = next
-  if (next) document.addEventListener('pointerdown', onDocumentPointerDown)
-  else document.removeEventListener('pointerdown', onDocumentPointerDown)
-}
-
-watch(hover, (value) => setDismissOn(Boolean(value?.byTouch)))
 
 /**
  * The reference: every file it names, and which mention of it was followed.
@@ -166,13 +144,13 @@ function reference(part, mediaId) {
 function activate(part) {
   emit('media-activate', reference(part))
   // The reader is moving to the tile; the card has said what it had to say.
-  closeHover()
+  intent.close()
 }
 
 /** `mediaId` is the file the reader is looking at in the card, if there is one. */
 function open(part, mediaId) {
   emit('media-open', reference(part, mediaId))
-  closeHover()
+  intent.close()
 }
 
 /*
@@ -186,16 +164,11 @@ function onClick(part, event) {
     return
   }
   if (hover.value?.part.key === part.key) {
-    closeHover()
+    intent.close()
     return
   }
-  openCard(part, event.currentTarget.getBoundingClientRect(), true)
+  intent.openNow({ ...payloadFor(part, event), byTouch: true })
 }
-
-onBeforeUnmount(() => {
-  cancelClose()
-  setDismissOn(false)
-})
 </script>
 
 <template>
@@ -221,7 +194,7 @@ onBeforeUnmount(() => {
         :data-text-anchor="anchorable ? `${part.id}:${part.index}` : undefined"
         @pointerdown.stop="onChipPointerDown"
         @pointerenter="onEnter(part, $event)"
-        @pointerleave="onLeave"
+        @pointerleave="onLeave($event)"
         @focus="onFocus(part, $event)"
         @blur="onBlur"
         @keydown.enter.prevent="activate(part)"
@@ -234,10 +207,14 @@ onBeforeUnmount(() => {
     </template>
 
     <Teleport to="body">
+      <!-- Keyed by the reference, so another one arriving while this leaves gives the
+           transition two cards to play: a fade out where it stood, a fade in where the
+           hand has gone. The leaving card answers no pointer, so it cannot swallow it. -->
       <Transition name="hover-card">
         <MediaHoverCard
           v-if="hover"
-          ref="cardRoot"
+          :key="hover.part.key"
+          :ref="setCardRoot"
           :medias="hover.part.medias"
           :label="labelFor(hover.part)"
           :anchor-rect="hover.rect"
@@ -245,7 +222,7 @@ onBeforeUnmount(() => {
           @enter="onCardEnter"
           @leave="onCardLeave"
           @activate="activate(hover.part)"
-          @close="closeHover"
+          @close="intent.close()"
           @open="open(hover.part, $event)"
         />
       </Transition>

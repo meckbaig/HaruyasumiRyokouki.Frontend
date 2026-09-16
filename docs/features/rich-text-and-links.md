@@ -10,8 +10,10 @@ the viewer to the text.
 | File | Role |
 | --- | --- |
 | `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `linkLabel`, editor template builders. |
-| `src/components/common/RichText.vue` | Token renderer and hover card owner; emits references upward. |
+| `src/components/common/RichText.vue` | Token renderer; says which reference a card belongs to and emits references upward. |
 | `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar and go-to-media. |
+| `src/services/hoverIntent.js` | The hover thresholds, and the geometry of a hand's trajectory: the nearest point of the card, the safe triangle, the polygon test. Pure functions. |
+| `src/composables/useHoverIntent.js` | When a card opens and closes: hover in and out, arrival at the card, a hand stopped outside it, a card shown by hand. |
 | `src/components/layout/SteppedScrollbar.vue` | The card's bar: one record per step, draggable, drawn like the page's own. |
 | `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, and a bubble for a marked run. |
 | `src/services/textAnchor.js` | The remembered reference, `anchorSelector`, `returnToTextAnchor`. |
@@ -101,14 +103,41 @@ A chip may name several files, so the card is a carousel rather than a single pi
 - **The card fades in and out.** A `Transition` named `hover-card` wraps it. It is a hint,
   not a dialog, so it only fades - no rise, no drift. The leaving card stops answering the
   pointer at once, so it cannot swallow the hand on the way back to the chip.
-- **A 500ms timeout lets the pointer cross the gap.** Leaving the chip starts a timer;
-  entering the card cancels it; leaving the card starts it again. This replaces an arrow
-  drawn between the two.
-- **A cross closes it by hand**, in case the timeout runs while the pointer is away.
+- **A swap is played, never teleported.** The card is keyed by the reference, so when
+  another one arrives while this leaves, the transition has two elements to play at once:
+  the old fades out where it stood while the new fades in where the hand has gone. That is
+  the card changed by hand as well - a tap on a second reference on a touch screen - which
+  otherwise repainted the same element's content in place.
+- **The hand's trajectory decides, not a timeout.** Leaving the chip starts no clock: the
+  pointer is followed, its position sampled at most once a frame, and the card is kept only
+  while the hand closes on it. Whether the reader meant it is never a matter of waiting.
+- **Closing is judged against the nearest point of the card**, not its centre, so a hand
+  going to a far corner of a wide card still reads as coming toward it.
+- **A virtual safe triangle spans the gap.** Its apex is where the hand left the chip, its
+  base the card's near edge, reaching a margin past each corner. A hand inside it is neither
+  plainly coming nor plainly going, so the card waits. Nothing is added to the DOM.
+- **A hand at rest is not a hand arriving.** Movements under `STOP_SPEED_PX_S` (`40px/s`)
+  are the tremble of a resting hand, not a direction. A card is given `POINTER_STOP_MS`
+  (`140ms`) from the last movement that meant anything, and that window is what decides a
+  hand which has stopped sending moves at all - as a hand does when it stops. Long enough
+  not to punish a pause, short enough that nothing hangs in the gap.
+- **Arriving at the card ends the analysis.** Entering it stops every timer; leaving it
+  hands the judgement back to the trajectory.
+- **A reference crossed on the way does not take the card over.** While the hand is in
+  transit, one it passes over is only remembered: the card it is heading for stands until
+  the hand comes to rest on the other, and that rest is the same window as the stop. So a
+  hand sweeping past the other references in the line changes nothing, while a hand that
+  stops on one gets that one's card.
+- **The card is due after a short wait.** `OPEN_DELAY_MS` (`50ms`): a hand merely passing
+  over a reference has left by then and the card is never painted, which is what keeps a
+  sweep across the text from opening cards. A card a finger or a keyboard has already
+  opened swaps at once, since no hand is following it.
+- **A cross closes it by hand**, and so does a press outside a card that a tap or a keyboard
+  focus opened: that card has no hand following it to keep it open.
 - **A mouse hovers; a touch taps.** A touch reports an enter and a focus too, and answering
   either put the card under the finger, where the click a browser invents from the tap then
   landed on the card's own picture. So the card opens on a mouse's enter or on a keyboard
-  focus, and on a touch screen it opens from the tap's click. The timeout is a mouse's as
+  focus, and on a touch screen it opens from the tap's click. The trajectory is a mouse's as
   well: a tapped card has nothing hovering to keep it open, so it goes on a press anywhere
   outside it, or on the cross.
 - **A tapped card swallows the click from before it was open.** A card shown by a touch
@@ -219,7 +248,7 @@ mirror came and went on its own, and nothing ever read it.
 11. A hover belongs to a mouse: a touch enter or focus must not open the card, or the click
     the tap invents lands on the card's own picture.
 12. A tapped card is dismissed by a press outside it or the cross, never by the hover
-    timeout.
+    trajectory.
 13. A mouse click on a reference follows it to its tile; a tap shows the card, whose own
     button follows it instead.
 14. The address names **every** id of a reference; the outline is the link's state, so the
@@ -238,6 +267,18 @@ mirror came and went on its own, and nothing ever read it.
 21. The dim a follow raises outlasts the glide; a scroll while it stands extends it.
 22. A media reference is an inline span with a button's role, never a `<button>`: a
     button's label cannot wrap, so the whole chip would jump to the next line.
+23. The card closes on the way the hand is moving, never on a fixed delay. The only timers
+    are the open delay and the one armed after the pointer has already stopped outside the
+    card.
+24. The safe triangle is virtual: nothing is added to the DOM for it.
+25. A card opened by hand - a tap, a keyboard focus - is never judged by the trajectory, and
+    a touch never opens one by hovering.
+26. A reference crossed on the way to the card never takes it over; only coming to rest on
+    one does, and that rest is the stop window.
+27. A swap of reference is a leave and an enter played at once, never a repaint of the same
+    element in place.
+28. The card's element is taken from the newest copy: a swap has two on the page for the
+    length of the fade, and the one leaving must not blank the one being measured.
 
 ## Related
 
