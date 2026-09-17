@@ -4,6 +4,47 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 2.0.0 - a new map
+
+A pin is no longer a plain teardrop. It carries the picture it stands for, and
+pressing it opens a preview block of its own - the picture, the title, the date
+and the clock, with the controls that belong to them, the same reading a media
+reference in a note already gives. From that block a file opens full screen, or
+is singled out in the grid of its day. The picture grows out of the pin and folds
+back into it on close, the tail on the point.
+
+Getting around the map no longer depends on the zoom. A pin opens at any scale,
+and the preview carries arrows that walk the whole map in the order the pictures
+were taken, so the reader steps from one photograph to the next instead of
+chasing marks in and out of each other. The line that used to join the pins is
+now a row of arrows, so the direction a day travelled is read at a glance, and on
+a day page each pin names the hour its picture was taken, above its frame.
+
+The map became a part of the day page rather than a picture beside it: a file on
+it can be opened in the grid below, sent to a map service, or looked at in place,
+while the map itself steps between its heights, fills the window, or opens on the
+map page - each keeping the file that was open and the ground it stood on. The
+same surface is tuned for a hand: a swipe across the preview turns the page and
+never drags the map, framing keeps the preview clear of the map's own edges, and
+the marks and the route carry a budget per device, so a whole trip stays light.
+
+- A pin carries the picture it stands for, instead of a plain teardrop
+- A press opens a preview block with the picture, the title, the date and the clock, like a media reference in a note
+- From the block a file opens full screen, is singled out in its day's grid, or is sent to a map service
+- The preview grows out of the pin and folds back into it on close, the tail on the point
+- A pin opens at any zoom, and the arrows on the preview step through the whole map in the order the pictures were taken
+- The line joining the pins became a row of arrows, so the day's direction reads at a glance
+- On a day page each pin names the hour its picture was taken, above the frame
+- The day's map steps between its heights, fills the window and opens on the map page, keeping the file that was open and the ground it stood on
+- Expanding keeps the view, the open album and the file it shows; collapsing brings all three back to the window
+- A viewer opened from the block returns to the file that closed, on whichever map is in front, and the map action frames it
+- "Go to media" folds a full-screen map before it brings the grid to the file
+- On a phone a swipe across the preview turns the page and never moves the map
+- Framing and gestures are checked against the map's edges, so a preview stays clear of them
+- The marks and the route carry a per-device mode budget (desktop or mobile), so a long trip stays fast and loads no picture off screen
+- Pins gather into piles by their distance on screen and split apart again as the map is zoomed in
+- A dot under a pile marks each distinct place its files were taken
+
 ## 1.9.0 - smoother gestures on a phone
 
 The interface now answers touch where it used to answer a mouse. The tag list's swipe works

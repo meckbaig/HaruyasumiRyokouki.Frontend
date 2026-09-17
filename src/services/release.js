@@ -4,6 +4,7 @@
  * release it follows. See docs/features/build-and-release.md.
  */
 const NAMES = {
+  '2.0': 'a new map',
   '1.9': 'smoother gestures on a phone',
   '1.8': 'one reference, many files',
   '1.7': 'a sharper search and viewer',
