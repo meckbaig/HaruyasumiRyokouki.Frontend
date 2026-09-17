@@ -63,9 +63,32 @@ The API returns every result in one response by design, so throttling happens he
 
 | Prop | Effect |
 | --- | --- |
-| `chunkSize` (60) | Tiles revealed at a time. Only `visibleCount` are ever in the DOM. |
+| `chunkSize` (60) | Tiles revealed at a time. Only the revealed tiles are ever in the DOM. |
 | `autoReveal` | Whether the sentinel reveals the next chunk on its own. |
 | `cascade` | Stagger arriving tiles, one after another. Used by the pending queue, the day page and each search-result group. |
+| `previewRows` | Pages the wall to that many **rows** and keeps the rest behind one "show all" button. Null keeps plain chunking. |
+
+### A page of rows, and why
+
+A day page puts a map **below** its wall, and a long day put it past several screens of
+photographs. Given `previewRows`, the wall instead opens on that many rows and offers one
+button that reveals the whole list, so the map is a press away rather than a scroll. How
+many tiles a row holds is read from the window's own breakpoints (2 / 3 / 4 / 5), the same
+numbers the grid's Tailwind classes use.
+
+- The **day page** asks for four rows, unless "hide the map by default" is set - then the
+  reader is not heading for the map, and a page in front of them would be lost.
+- The **search page's "rest of this day"** opens on the same four rows, so unfolding a long
+  day does not hand over the whole wall at once.
+- A **link into the wall** opens the page **whole** - before the first tile is drawn when the
+  address already names a file, and the moment it arrives when it comes later from a note.
+  The file the reader was sent to often sits past the page, and a wall cut off just past it
+  would leave the rest behind a button for no reason. A **chunked** wall (no `previewRows`)
+  instead grows only far enough to hold the named file, through `reachFloor`, which outlives
+  the link - folding the wall away under a reader who just closed the viewer would be worse.
+  See [rich-text-and-links.md](rich-text-and-links.md).
+- With `previewRows` set the sentinel is not observed at all; the button is the only way on,
+  so `autoReveal` has nothing to do.
 
 `autoReveal` **must be false where the grid is one section among several.** On the pending
 screen the media queue sits above the day queue; with a few thousand files waiting, the
@@ -84,7 +107,9 @@ whose every id was already in the previous one is the same list minus something,
 
 A `?i=` file must be in the DOM to be outlined or scrolled to, and the eightieth photo of
 a day is one link away like any other. A watcher reveals up to `index + 1` - enough, no
-more. This is why `scrollToMedia` waits **two** ticks: one for the id, one for the reveal.
+more - and a **paged** wall is opened whole instead, since the page's own limit is not a
+bound the link should have to respect. This is why `scrollToMedia` waits **two** ticks: one
+for the id, one for the reveal.
 
 `IntersectionObserver` uses `rootMargin: '600px 0px'` so the next chunk starts before the
 sentinel is actually visible.
@@ -279,6 +304,9 @@ exactly those.
 ## Invariants
 
 1. Any new wall of thumbnails must call `markOpenedFrom` before opening the viewer.
+2. A `previewRows` wall opens **whole** whenever a link names a file in it, at arrival or
+   later. A chunked wall grows only to the named file, through `reachFloor`. A latch that
+   never let go made every wall unpaginated for the rest of the visit.
 2. Tiles must carry `data-tile-index` (paint) and `data-media-id` (links, hero flight),
    and are looked up only through `services/mediaTiles.js`.
 3. `autoReveal` is false wherever the grid is not the whole page.

@@ -363,16 +363,13 @@
     across, lifted towards white. The plain `var(--color-accent)` line before
     each mix is the no-`color-mix` fallback.
     See docs/features/i18n-and-theming.md.
+
+    `lightbox-chrome` is the palette alone, with none of the room: the album over
+    a map pin wears the viewer's own buttons without becoming a second viewer.
+    See docs/features/maps.md.
   */
-  .lightbox {
-    color-scheme: dark;
-
-    /* Every gesture here is a press and a drag, which is also how a selection
-       begins. Mobile Firefox double-taps into a selection otherwise. */
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-
+  .lightbox,
+  .lightbox-chrome {
     /*
       A theme states its lightbox colour outright with `accent-on-dark`; without
       one, `accent` is lightened to carry on black.
@@ -385,6 +382,16 @@
     --lb-edge: rgb(255 255 255 / 0.14);
     --lb-hover: rgb(255 255 255 / 0.12);
     --lb-bar: rgb(0 0 0 / 0.45);
+  }
+
+  .lightbox {
+    color-scheme: dark;
+
+    /* Every gesture here is a press and a drag, which is also how a selection
+       begins. Mobile Firefox double-taps into a selection otherwise. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 
     background-color: #000;
     color: var(--lb-text);
@@ -408,7 +415,8 @@
     See docs/features/i18n-and-theming.md.
   */
   @supports (color: oklch(from white 0.5 0.1 0)) {
-    .lightbox {
+    .lightbox,
+    .lightbox-chrome {
       --lb-derived: oklch(from var(--color-accent) 0.82 c h);
       --lb-bar: oklch(from var(--lb-accent) 0.22 calc(c * 0.45) h / 0.5);
     }
@@ -420,7 +428,8 @@
     covering the most screen. It gets true black instead, leaning on opacity
     alone for separation. `data-theme` is stamped on <html> by the theme store.
   */
-  :root[data-theme='black'] .lightbox {
+  :root[data-theme='black'] .lightbox,
+  :root[data-theme='black'] .lightbox-chrome {
     --lb-bar: rgb(0 0 0 / 0.55);
   }
 
@@ -950,6 +959,511 @@
   display: block;
   filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3));
 }
+
+/*
+  The two-stage thumbnail, shared by every wall of thumbnails and by the photo
+  pin and pile on the map: a blurred miniature as the permanent base, and the
+  preview settling over it. **One definition**, so a pin crops exactly as a grid
+  tile does. `is-ready` goes on the stage.
+  See docs/features/media-grid-and-selection.md.
+*/
+.thumb-stage {
+  overflow: hidden;
+}
+
+/*
+  The crop is stated with `!important` because a mark lives inside Leaflet's
+  marker pane: the stylesheet that sizes Leaflet's own images must not be able to
+  un-crop a pin. `cover` about the centre, on every wall and on both stages - and
+  on the turned pile's two sliding layers, which are images in the same pane.
+*/
+.thumb-base,
+.thumb-shot,
+.trip-photo-cluster-img {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: 50% 50% !important;
+  pointer-events: none;
+}
+
+/*
+  The base reads as a soft ground rather than as a second picture, and both
+  figures are a fraction of the box: 10px of blur over a 300px tile is 2px over a
+  44px pin, and the 5% over-scale that hides the blur's edge is 2% there.
+*/
+.thumb-base {
+  filter: blur(var(--thumb-blur, 10px));
+  transform: scale(var(--thumb-scale, 1.05));
+}
+
+/* Transparent until it is whole, so the stage never shows an empty frame. */
+.thumb-shot {
+  opacity: 0;
+  transition: opacity 260ms ease-out;
+}
+
+.thumb-stage.is-ready .thumb-shot {
+  opacity: 1;
+}
+
+/*
+  The square photo pin the trip and day maps draw: the miniature-then-preview
+  pair every wall of thumbnails uses, in a smaller frame than the teardrop.
+  Leaflet gives the outer icon box its size; everything below is the inner mark.
+*/
+.trip-photo-pin,
+.trip-photo-cluster,
+.map-card {
+  /* One frame for the pin, the pile and the preview, so the unfold has no seam
+     and a change of theme recolours all three. See docs/features/maps.md. */
+  --mark-frame: var(--color-paper-raised);
+  --mark-border: var(--color-edge);
+  --mark-tail: var(--color-paper-raised);
+}
+
+.trip-photo-pin {
+  background: none;
+  border: 0;
+}
+
+.trip-photo-pin-box {
+  position: absolute;
+  inset: 0 0 7px 0;
+  overflow: hidden;
+  border: 2px solid var(--mark-border);
+  border-radius: 8px;
+  background-color: var(--mark-frame);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  /* The blur is a fraction of the box; a 44px mark takes the pin's own. */
+  --thumb-blur: 2px;
+  --thumb-scale: 1.02;
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+/*
+  The clock on a lone pin of a day map, standing **above** the frame: the picture
+  is 40px wide and `2:35 PM` does not fit in it, while the centre of the box is
+  the subject and the bottom centre is the tail. It wears the pile's own badge,
+  outside the picture's box, so nothing clips it. See docs/features/maps.md.
+*/
+.trip-photo-time {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 3px);
+  transform: translateX(-50%);
+  padding: 0 4px;
+  border-radius: 3px;
+  background-color: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The tail, in the frame's own colour. */
+.trip-photo-pin::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid var(--mark-tail);
+}
+
+.trip-photo-pin-active .trip-photo-pin-box {
+  border-color: var(--color-accent);
+  box-shadow:
+    0 0 0 2px var(--color-accent),
+    0 1px 4px rgb(0 0 0 / 0.35);
+}
+
+.trip-photo-pin-active::after {
+  border-top-color: var(--color-accent);
+}
+
+/*
+  A pile of pins: **the pin's own shape**, the same 44x51 frame and the same tail,
+  so a pile opens into a preview by the same movement a single pin does. One
+  member's miniature on show, the count as a badge over it, and a second layer
+  that slides in on a turn. See docs/features/maps.md.
+*/
+.trip-photo-cluster {
+  background: none;
+  border: 0;
+}
+
+.trip-photo-cluster-box {
+  position: absolute;
+  inset: 0 0 7px 0;
+  overflow: hidden;
+  border: 2px solid var(--mark-border);
+  border-radius: 8px;
+  background-color: var(--mark-frame);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  /* The blur is a fraction of the box; a 44px mark takes the pin's own. */
+  --thumb-blur: 2px;
+  --thumb-scale: 1.02;
+}
+
+/*
+  The turn's two layers: a miniature, which is the blurred base every wall starts
+  from - never a sharp picture of its own. **Only these**: the quiet pile's pair
+  takes the shared `.thumb-base` / `.thumb-shot` rules, so it shows the preview
+  the whole mode exists for. See docs/features/maps.md.
+*/
+.trip-photo-cluster-img {
+  filter: blur(var(--thumb-blur, 10px));
+  /* The turn: only the transform moves, and it is the shared curve. */
+  will-change: transform;
+}
+
+/* The tail, the pin's own, so the two marks are one shape. */
+.trip-photo-cluster::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid var(--mark-tail);
+}
+
+.trip-photo-cluster-count {
+  position: absolute;
+  right: 3px;
+  bottom: 10px;
+  min-width: 1rem;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background-color: rgb(0 0 0 / 0.62);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* The route is drawn on one canvas (see services/routeArrows.js); the canvas
+   itself is placed from JavaScript, so nothing here sizes it. */
+
+/*
+  The album that opens over a pin. The pin **becomes** it: the marker is hidden
+  while the card stands and the frame starts as that pin's own rectangle, then
+  grows in width and height while the picture keeps its top edge, so the footer
+  strip opens underneath. The sizes are animated from JavaScript, because the
+  start is the pin's box and the end is the card's, both measured.
+  See docs/features/maps.md.
+
+  **It takes no presses of its own.** Only its controls and its text answer a
+  hand, so a drag, a wheel or a pinch anywhere over the picture is still the
+  map's - which is what keeps the page from scrolling and the browser from
+  zooming instead of Leaflet. A press on the picture is read from its geometry by
+  `TripMap`, which owns the map.
+*/
+.map-card {
+  position: absolute;
+  z-index: 1100;
+  width: var(--map-card-width, 20rem);
+  pointer-events: none;
+  box-sizing: border-box;
+  /* The last strip of the box is the tail, whose tip is the point itself. The
+     pin reserves the same 7px, so the close ends flush. */
+  padding-bottom: var(--map-card-tail, 7px);
+  /* Grows upward and sideways from the point, never below it. */
+  transform: translate(-50%, -100%);
+  /* The pin has no padding around its picture; the card opens to its own. */
+  --map-card-pad: 0.5rem;
+  --map-card-border: 1px;
+  --map-card-photo-radius: 0.375rem;
+}
+
+/*
+  The card rides a zoom. Leaflet carries every marker through a zoom animation
+  with a transition on the map pane's own children, and the card is not one of
+  them: it is placed in container pixels. The same length and curve let it
+  travel with its pin; `TripMap` writes the place and drops the class at the
+  settle. See docs/features/maps.md.
+*/
+.map-card.is-zooming {
+  transition:
+    left 250ms cubic-bezier(0, 0, 0.25, 1),
+    top 250ms cubic-bezier(0, 0, 0.25, 1);
+}
+
+/* The closed state **is the pin**: the pin's own box, ring, radius and inset,
+   stated as well as animated. Once the morph lets go of its own fill the card is
+   still the pin, so nothing snaps at the handover and the pin underneath has the
+   same rectangle. See docs/features/maps.md. */
+.map-card.is-closed {
+  /* `PHOTO_PIN_SIZE` and its 7px tail, in `services/leaflet.js`. */
+  width: 44px;
+  height: 51px;
+  /* 2px of border and no padding: the pin's own 2px ring, rather than 1px of edge
+     over 1px of frame. See docs/features/maps.md. */
+  --map-card-pad: 0;
+  --map-card-border: 2px;
+  --map-card-photo-radius: 8px;
+}
+
+/* The pin's own shadow, taken at the middle of the fold and given back at the
+   middle of the open. See docs/features/maps.md. */
+.map-card.is-closed .map-card-inner {
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+
+/* Square at the pin, where the ratio is the only thing left sizing the picture -
+   a 16:9 rule would fold a 40px picture to half its height. */
+.map-card.is-closed .map-card-photo {
+  aspect-ratio: 1 / 1;
+}
+
+/* Reading the open box must not be taken for the padding's own animation. */
+.map-card.is-measuring .map-card-inner {
+  transition: none;
+}
+
+/* The pin's own tail, grown into the card's, so the two read as one mark. */
+.map-card::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid var(--mark-tail);
+}
+
+.map-card-inner {
+  height: 100%;
+  max-height: 22.5rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: var(--map-card-border) solid var(--mark-border);
+  background-color: var(--mark-frame);
+  padding: var(--map-card-pad);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.22);
+  /* The ring is played with the fold; the shadow hands over at its middle, so a
+     shadow the pin will not wear does not vanish with the card. */
+  transition:
+    padding 260ms cubic-bezier(0.2, 0.9, 0.3, 1),
+    border-width 260ms cubic-bezier(0.2, 0.9, 0.3, 1),
+    box-shadow 130ms ease 130ms;
+}
+
+.map-card-body {
+  position: relative;
+  transform-origin: 50% 100%;
+}
+
+/*
+  The paging strip: one frame on show with its neighbours beside it, the track
+  slid a whole frame at a time. **The viewer's own filmstrip**, on its own, so a
+  step here and a page there are the same movement.
+  See docs/features/media-viewer.md.
+*/
+.media-strip {
+  overflow: hidden;
+}
+
+.media-strip-track {
+  display: flex;
+  /* Duration comes from `SLIDE_MS`, written inline by the component. */
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.media-strip-frame {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+/* The picture fills the card's width, cropped to a landscape strip; the badges
+   sit on it, so it is the positioned box for them. `aspect-ratio` is the resting
+   shape; the unfold animates an explicit height over it, square at the pin. */
+.map-card-photo {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--map-card-photo-radius);
+  background-color: var(--color-edge);
+  aspect-ratio: 16 / 9;
+  transition: border-radius 260ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* The thumbnail is stretched to the box, so its crop follows the unfold rather
+   than its own shape. */
+.map-card-photo-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* The arrows ride the picture, in the picture's own box. */
+.map-card-arrows {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  /* The record's picture: the card's width less its padding, at its 16:9. */
+  height: calc((var(--map-card-width, 20rem) - 1rem) / 1.7778);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.375rem;
+  pointer-events: none;
+}
+
+/* Its own mark: a compact square target, tight to the corner, not the viewer's
+   disc, because it stands on the picture rather than on a bar. */
+.map-card-close {
+  position: absolute;
+  top: 0.375rem;
+  right: 0.375rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.375rem;
+  pointer-events: auto;
+  color: var(--lb-accent);
+  background-color: var(--lb-bar);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+
+.map-card-close > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+@media (hover: hover) {
+  .map-card-close:hover {
+    background-color: var(--lb-hover);
+    color: var(--lb-text);
+  }
+}
+
+/* The text is the one thing here worth selecting, so it keeps its presses too. */
+.map-card-text {
+  margin-top: 0.5rem;
+  pointer-events: auto;
+}
+
+.map-card-actions {
+  /*
+    The footer stands on the card's own paper, not the dark room, so it re-derives
+    the viewer's palette for ink on light: the accent unlifted, the text and the
+    hover from the ink, and the disc from the paper itself. The marks over the
+    picture keep the dark-room values. See docs/features/i18n-and-theming.md.
+  */
+  --lb-accent: var(--color-accent);
+  --lb-text: var(--color-ink);
+  --lb-muted: var(--color-ink-soft);
+  --lb-hover: color-mix(in oklab, var(--color-ink), transparent 88%);
+  --lb-bar: color-mix(in srgb, var(--color-paper-raised) 80%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+/*
+  Everything the pin does not have is chrome the opening box reveals: the footer,
+  the close, the arrows and the badges. It leaves inside the **first quarter** of a
+  close and arrives in the **last quarter** of an open - never with the fold - so
+  the last frame of a close is the pin and nothing else.
+  See docs/features/maps.md.
+*/
+.map-card-text,
+.map-card-actions,
+.map-card-arrows,
+.map-card-photo > span {
+  transition: opacity 65ms ease 195ms;
+}
+
+/* The close carries a hover of its own as well, so it states the chrome's opacity
+   in the same transition rather than being overwritten by a second one. */
+.map-card-close {
+  transition:
+    background-color 150ms,
+    color 150ms,
+    opacity 65ms ease 195ms;
+}
+
+.map-card.is-closed .map-card-text,
+.map-card.is-closed .map-card-actions,
+.map-card.is-closed .map-card-arrows,
+.map-card.is-closed .map-card-photo > span {
+  opacity: 0;
+  transition: opacity 65ms ease;
+}
+
+.map-card.is-closed .map-card-close {
+  opacity: 0;
+  transition:
+    background-color 150ms,
+    color 150ms,
+    opacity 65ms ease;
+}
+
+/*
+  A control floating over a full-screen map - the expand and collapse marks. It
+  stands on the map the way the album's own close stands on the picture, so it
+  takes the viewer's blur: paper at four fifths, with the map moving under it.
+  See docs/features/maps.md.
+*/
+.map-float-control {
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  background-color: color-mix(in srgb, var(--color-paper-raised) 80%, transparent);
+}
+
+/*
+  One standard for an icon button, wherever it stands - the viewer's bars, its
+  arrows and the album over a pin. A round target of the same size everywhere, so
+  the same mark is reached the same way. A component's own `h-*`/`w-*` on the
+  icon still wins, which is how the viewer keeps its larger arrows.
+  See docs/features/ui-shell.md.
+*/
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  pointer-events: auto;
+}
+
+.icon-button > svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/*
+  The unfold is driven from JavaScript (`TripMap`'s `onCardBeforeEnter` and
+  friends), because its start scale comes from the pin's measured box rather than
+  a constant. The transform it writes is the `.map-card` one above, so the whole
+  card grows out of the pin and folds back into it.
+*/
 
 /*
   Honour the OS "reduce motion" setting - unless the visitor has explicitly

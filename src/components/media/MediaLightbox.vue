@@ -29,6 +29,7 @@ import HeroFlight from './HeroFlight.vue'
 import { boxOf, isOnScreen, tilesFor, tileFor } from '@/services/mediaTiles'
 import TagChip from './TagChip.vue'
 import RichText from '@/components/common/RichText.vue'
+import { hasCoordinates, MAP_SERVICES, mapServiceUrl } from '@/services/mapLinks'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -39,9 +40,21 @@ const props = defineProps({
    * for a day note, off everywhere else. See docs/features/rich-text-and-links.md.
    */
   canReturnToText: { type: Boolean, default: false },
+  /**
+   * Whether the page behind has a map that can show this file. On for a day
+   * page with located media. See docs/features/maps.md.
+   */
+  canShowOnMap: { type: Boolean, default: false },
+  /**
+   * Whether the page's own marks are reachable. Set while a full-screen map
+   * covers them, so the viewer neither searches the page for an origin nor takes
+   * a page tile as a destination - a flight would land under the map. See
+   * docs/features/media-viewer.md.
+   */
+  pageCovered: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:index', 'close', 'return'])
+const emit = defineEmits(['update:index', 'close', 'return', 'show-on-map'])
 
 const { t } = useI18n()
 const route = useRoute()
@@ -61,6 +74,49 @@ const caption = computed(() => text.value.description)
 
 const hasPrev = computed(() => open.value && props.index > 0)
 const hasNext = computed(() => open.value && props.index < props.items.length - 1)
+
+/*
+  The way out of the viewer onto a map: the day's own map where the page has one,
+  or an outside service. The icon only appears for a file that carries
+  coordinates. See docs/features/maps.md.
+*/
+const geotagged = computed(() => hasCoordinates(current.value))
+
+const mapServices = computed(() =>
+  MAP_SERVICES.map((service) => ({
+    id: service.id,
+    label: t(service.label),
+    href: mapServiceUrl(current.value, service.id),
+  })).filter((service) => service.href),
+)
+
+const mapMenuOpen = ref(false)
+const mapMenu = ref(null)
+const mapButton = ref(null)
+
+/** A press anywhere but the menu and its own button puts it away. */
+function onMapMenuPress(event) {
+  if (mapMenu.value?.contains(event.target)) return
+  if (mapButton.value?.contains(event.target)) return
+  mapMenuOpen.value = false
+}
+
+watch(mapMenuOpen, (open) => {
+  if (open) document.addEventListener('pointerdown', onMapMenuPress, true)
+  else document.removeEventListener('pointerdown', onMapMenuPress, true)
+})
+
+// A menu opened for the last file would be answering about the wrong one.
+watch(() => props.index, () => (mapMenuOpen.value = false))
+
+/** The page's own map takes over: the viewer closes, and the page frames it. */
+function chooseSiteMap() {
+  const id = current.value?.id ?? null
+  mapMenuOpen.value = false
+  if (id == null) return
+  close()
+  emit('show-on-map', id)
+}
 
 /** Neighbours ride along in the filmstrip, shown as the previews the grid cached. */
 const prevItem = computed(() => (hasPrev.value ? props.items[props.index - 1] : null))
@@ -928,6 +984,14 @@ let heroOrigin = null
  */
 let originTile = null
 
+/**
+ * Whether the page below was covered at the moment this viewer opened. Read once,
+ * not from the prop: the day page drops the flag as a close begins, and `track`
+ * re-reads the destination on every frame - a live prop would swap the mark
+ * mid-flight. See docs/features/media-viewer.md.
+ */
+let coveredAtOpen = false
+
 /** The box a file occupies on the page underneath, if it is on screen at all. */
 function tileBox(item, { offscreen = false } = {}) {
   let hidden = null
@@ -956,6 +1020,8 @@ function tileBoxBack(item) {
     const box = boxOf(originTile.el)
     if (box) return box
   }
+  // A page the map covers has no reachable mark to land on.
+  if (coveredAtOpen) return null
   return tileBox(item, { offscreen: false })
 }
 
@@ -1005,12 +1071,17 @@ watch(fullLoaded, (loaded) => {
  */
 function close({ fly = true } = {}) {
   // Captured before the file is let go of: `current` is about to be null, and
-  // with it every proportion the picture's box is worked out from.
+  // with it every proportion the picture's box is worked out from - and the id
+  // the page's map is handed, so its album follows the file that closed.
+  const id = current.value?.id ?? null
+  const item = current.value
   if (fly) {
     flight.value?.fly({
-      src: heroSource(current.value),
+      src: heroSource(item),
       from: pictureBox(),
-      to: tileBoxBack(current.value),
+      to: tileBoxBack(item),
+      // The tile may scroll, and a map card may be panned, before it lands.
+      track: () => tileBoxBack(item),
       fromRadius: 0,
       toRadius: TILE_RADIUS,
       insets: chromeInsets(),
@@ -1018,7 +1089,7 @@ function close({ fly = true } = {}) {
   }
 
   emit('update:index', null)
-  emit('close')
+  emit('close', id)
 }
 
 /**
@@ -1682,8 +1753,14 @@ watch(open, async (isOpen) => {
     // Searching by id is the fallback only - a file can be on the page twice.
     // `NO_SOURCE` is the opener saying it has no tile at all, so skip the search.
     const source = takeOpenedFrom()
+    // Read once, for the whole session: a close drops the flag in the page, and
+    // the flight re-reads its destination every frame.
+    coveredAtOpen = props.pageCovered
+    // A page the map covers is not searched: a tile beneath it is not reachable.
     const from =
-      source === NO_SOURCE ? null : (source ?? tileFor(current.value?.id, { visible: true }))
+      source === NO_SOURCE
+        ? null
+        : (source ?? (coveredAtOpen ? null : tileFor(current.value?.id, { visible: true })))
     originTile = from ? { el: from, id: current.value?.id } : null
     heroOrigin = from ? boxOf(from) : null
     openedAt = performance.now()
@@ -2010,7 +2087,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="canReturnToText"
                 type="button"
-                class="lightbox-icon shrink-0 rounded-full p-2"
+                class="lightbox-icon icon-button shrink-0"
                 :title="t('richText.returnToText')"
                 :aria-label="t('richText.returnToText')"
                 @click="returnToText"
@@ -2033,7 +2110,7 @@ onBeforeUnmount(() => {
 
               <button
                 type="button"
-                class="lightbox-icon shrink-0 rounded-full p-2"
+                class="lightbox-icon icon-button shrink-0"
                 :aria-label="t('media.close')"
                 @click="close"
               >
@@ -2066,7 +2143,7 @@ onBeforeUnmount(() => {
             <button
               type="button"
               :disabled="!hasPrev"
-              class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
+              class="lightbox-arrow lightbox-icon icon-button transition-transform duration-200"
               :class="
                 uiVisible && hasPrev ? 'pointer-events-auto' : '-translate-x-[calc(100%+1rem)]'
               "
@@ -2088,7 +2165,7 @@ onBeforeUnmount(() => {
             <button
               type="button"
               :disabled="!hasNext"
-              class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
+              class="lightbox-arrow lightbox-icon icon-button transition-transform duration-200"
               :class="
                 uiVisible && hasNext ? 'pointer-events-auto' : 'translate-x-[calc(100%+1rem)]'
               "
@@ -2112,10 +2189,13 @@ onBeforeUnmount(() => {
                picture - `readBand()` asks it where it ended up. -->
           <div ref="band" class="flex-1" />
 
-          <div
-            ref="footer"
-            class="lightbox-bar lightbox-bar-bottom relative flex items-center justify-between gap-3 px-3 py-2 transition-transform duration-200"
-            :class="uiVisible ? 'pointer-events-auto' : 'translate-y-full'"
+          <!-- The wrapper is what the menu above is measured against, and it
+               carries no backdrop filter of its own - see the menu below. -->
+          <div class="relative">
+            <div
+              ref="footer"
+              class="lightbox-bar lightbox-bar-bottom relative flex items-center justify-between gap-3 px-3 py-2 transition-transform duration-200"
+              :class="uiVisible ? 'pointer-events-auto' : 'translate-y-full'"
             @pointerdown="onTagPointerDown"
             @pointerup="onTagPointerUp"
             @touchstart.passive="onTagTouchStart"
@@ -2176,7 +2256,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="shareable"
                 type="button"
-                class="lightbox-icon rounded-full p-2.5"
+                class="lightbox-icon icon-button"
                 :title="t('common.share')"
                 :aria-label="t('common.share')"
                 @click="share"
@@ -2206,7 +2286,7 @@ onBeforeUnmount(() => {
                   params: { date: dayDate },
                   query: dayQuery,
                 }"
-                class="lightbox-icon rounded-full p-2.5"
+                class="lightbox-icon icon-button"
                 :title="t('media.openDay')"
                 :aria-label="t('media.openDay')"
               >
@@ -2223,13 +2303,40 @@ onBeforeUnmount(() => {
                 </svg>
               </RouterLink>
 
+              <!-- Onto a map, or into a service. An icon, because this row is
+                   icons, and a menu because the two are different journeys. -->
+              <div v-if="geotagged" class="shrink-0">
+                <button
+                  ref="mapButton"
+                  type="button"
+                  class="lightbox-icon icon-button"
+                  :title="t('map.showOnMap')"
+                  :aria-label="t('map.showOnMap')"
+                  :aria-expanded="mapMenuOpen"
+                  @click="mapMenuOpen = !mapMenuOpen"
+                >
+                  <svg
+                    class="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    aria-hidden="true"
+                  >
+                    <path d="M10 18s6-5.1 6-9.5A6 6 0 0 0 4 8.5C4 12.9 10 18 10 18Z" />
+                    <circle cx="10" cy="8.5" r="2.2" />
+                  </svg>
+                </button>
+
+              </div>
+
               <a
                 v-if="download"
                 :href="download"
                 download
                 target="_blank"
                 rel="noopener noreferrer"
-                class="lightbox-icon rounded-full p-2.5"
+                class="lightbox-icon icon-button"
                 :title="t('media.download')"
                 :aria-label="t('media.download')"
               >
@@ -2250,6 +2357,41 @@ onBeforeUnmount(() => {
                 </svg>
               </a>
             </div>
+          </div>
+
+          <!--
+            The menu stands **outside** the bar on purpose: a backdrop filter
+            nested inside another one frosts its parent's backdrop rather than
+            the room, so inside the footer it came out unblurred. Out here it
+            frosts the picture really behind it, like every other panel.
+          -->
+          <Transition name="hover-card">
+            <div
+              v-if="uiVisible && mapMenuOpen"
+              ref="mapMenu"
+              class="lightbox-bar pointer-events-auto absolute bottom-full right-3 z-20 mb-2 flex min-w-44 flex-col items-stretch overflow-hidden rounded-md border border-[var(--lb-edge)] text-xs"
+            >
+              <button
+                v-if="canShowOnMap"
+                type="button"
+                class="px-3 py-2 text-left transition hover:bg-white/10"
+                @click="chooseSiteMap"
+              >
+                {{ t('map.onSite') }}
+              </button>
+              <a
+                v-for="service in mapServices"
+                :key="service.id"
+                :href="service.href"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="px-3 py-2 text-left transition hover:bg-white/10"
+                @click="mapMenuOpen = false"
+              >
+                {{ service.label }}
+              </a>
+            </div>
+          </Transition>
           </div>
         </div>
       </div>

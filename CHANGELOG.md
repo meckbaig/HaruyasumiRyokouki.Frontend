@@ -33,7 +33,7 @@ stamp, the way a grid tile marks one.
 - Hover styling in the viewer is scoped to devices that have a hover
 - The dim behind a followed reference is carried through the whole glide, extending as the page scrolls
 - A singled-out block is placed by its shape, and the day page is told the same sum
-- The hover card marks a video beside its 1/N stamp
+- The hover card marks a video beside its own 1/N stamp
 - A media reference in a note or description wraps with the words around it, so a long label no longer runs off the page on a phone
 
 ## 1.8.0 - one reference, many files

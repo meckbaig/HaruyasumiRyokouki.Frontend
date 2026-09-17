@@ -32,11 +32,13 @@ const flight = shallowRef(null)
 
 let running = null
 
-/** Cleans the scroll listener a flight leaves behind; null when none is up. */
-let stopScrollFollow = null
+/** Cleans whichever follower a flight left behind; null when none is up. */
+let stopFollow = null
 /** Pending scroll-follow frame, so scroll events coalesce to one a frame. */
 let scrollFrame = 0
 let startScrollY = 0
+/** Pending track-follow frame, so the loop below runs once a frame. */
+let followFrame = 0
 
 /** True while a flight is on screen; the viewer hides its own strip under it. */
 const active = computed(() => flight.value !== null)
@@ -129,14 +131,43 @@ function stop() {
   running = null
   flight.value = null
   document.documentElement.removeAttribute(FLYING_ATTR)
-  stopScrollFollow?.()
-  stopScrollFollow = null
+  stopFollow?.()
+  stopFollow = null
+}
+
+/**
+ * Keeps a flight glued to the mark it is landing on. The box is read at launch,
+ * and anything that moves it afterwards - the page's scroll, or a map panning
+ * under the card the viewer was opened from - would otherwise leave the picture
+ * arriving where the mark used to be. The box is re-read each frame and the
+ * flight translated by the difference: a transform only, never a layout.
+ * See docs/features/media-viewer.md.
+ */
+function followTrack(read) {
+  const at = read()
+  if (!at) return
+
+  const onFrame = () => {
+    followFrame = requestAnimationFrame(onFrame)
+    const element = mover.value
+    const now = read()
+    if (!element || !now) return
+    const dx = now.left + now.width / 2 - (at.left + at.width / 2)
+    const dy = now.top + now.height / 2 - (at.top + at.height / 2)
+    element.style.transform = `translate3d(${dx}px, ${dy}px, 0)`
+  }
+
+  followFrame = requestAnimationFrame(onFrame)
+  stopFollow = () => {
+    if (followFrame) cancelAnimationFrame(followFrame)
+    followFrame = 0
+  }
 }
 
 /** Pins a flight to its tile while the reader scrolls before it lands. The tile
  * box is captured at launch; the page scrolls on the window alone, so translating
  * the flight content by the scroll delta (a transform only, no layout) keeps it
- * glued to the tile until the handover. */
+ * glued to the tile until the handover. Used when the caller names no mark. */
 function followScroll() {
   startScrollY = window.scrollY
   const onScroll = () => {
@@ -150,7 +181,7 @@ function followScroll() {
     })
   }
   window.addEventListener('scroll', onScroll, { passive: true })
-  stopScrollFollow = () => {
+  stopFollow = () => {
     window.removeEventListener('scroll', onScroll)
     if (scrollFrame) cancelAnimationFrame(scrollFrame)
     scrollFrame = 0
@@ -160,9 +191,10 @@ function followScroll() {
 /**
  * Flies `src` from one box to the other. Boxes are viewport rectangles as
  * `getBoundingClientRect` gives them; radii are plain pixels; `insets` is the
- * page chrome the picture has to stay under.
+ * page chrome the picture has to stay under; `track` re-reads the box of the
+ * mark the flight belongs to, when that mark can move.
  */
-async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null }) {
+async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null, track = null }) {
   if (!src || !from || !to || motionReduced()) return
   stop()
 
@@ -177,7 +209,8 @@ async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null 
   flight.value = { base, tracks, clipPath: clipFor(insets), src }
   // Before the await: the room begins leaving in this same tick.
   document.documentElement.setAttribute(FLYING_ATTR, '')
-  followScroll()
+  if (track) followTrack(track)
+  else followScroll()
 
   await nextTick()
   if (!flight.value || !outer.value || !wrap.value) {
@@ -253,9 +286,9 @@ defineExpose({ active, fly, setSource, cancel: stop })
       class="pointer-events-none fixed inset-0 z-[2500]"
       :style="flight.clipPath ? { clipPath: flight.clipPath } : undefined"
     >
-      <!-- The mover is translated by the page's scroll so the flight follows its
-           tile. It sits under the frame's clip, which must stay put in the
-           viewport under the sticky page header. -->
+      <!-- The mover is translated by whatever moves the mark the flight belongs
+           to, so the flight follows it. It sits under the frame's clip, which
+           must stay put in the viewport under the sticky page header. -->
       <div ref="mover" class="absolute inset-0 will-change-transform">
         <div
           ref="outer"

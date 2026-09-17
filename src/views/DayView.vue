@@ -27,6 +27,8 @@ import { useMediaLink } from '@/composables/useMediaLink'
 import { scrollToMedia, scrollTargetFor } from '@/services/scrollToMedia'
 import { tileFor } from '@/services/mediaTiles'
 import { routeFromMedia } from '@/composables/useTripMedia'
+import { hasCoordinates } from '@/services/mapLinks'
+import { MAP_EXPAND, MAP_COLLAPSE, MAP_TALLER, MAP_SHORTER } from '@/services/mapIcons'
 import { hasOverlay } from '@/services/overlayStack'
 import { chromeInsets } from '@/services/pageChrome'
 import { useHiddenRecords } from '@/composables/useHiddenRecords'
@@ -55,6 +57,8 @@ const MAP_HIDDEN_KEY = 'haruyasumi.dayMapHidden'
 const loading = ref(false)
 const error = ref(null)
 const lightboxIndex = ref(null)
+/** True while the viewer in front was opened from the map's own album. */
+const viewerFromMap = ref(false)
 const editing = ref(null)
 const editingNote = ref(false)
 /** `{ media, x, y }` of the file right-clicked in the grid. */
@@ -209,6 +213,34 @@ function onGridOpen(item) {
   if (index >= 0) lightboxIndex.value = index
 }
 
+/** A pin's album opening full screen. Its card says there is no tile to fly from. */
+function openMapMedia(id) {
+  const index = media.value.findIndex((item) => item.id === id)
+  if (index < 0) return
+  // Opened from the album: its own picture is the mark a flight leaves towards.
+  viewerFromMap.value = true
+  lightboxIndex.value = index
+}
+
+/**
+ * A pin's "go to media": the same follow a note reference makes. A full-screen map
+ * covers the grid the reader is heading to, so it folds first and the follow waits
+ * for it to leave; the album is not handed back, the reader leaving the map.
+ * See docs/features/maps.md.
+ */
+function activateMapMedia(id) {
+  if (!mapFullscreen.value) {
+    mediaLink.write(id, false)
+    scrollToMedia([id])
+    return
+  }
+  mapFullscreen.value = false
+  window.setTimeout(() => {
+    mediaLink.write(id, false)
+    scrollToMedia([id])
+  }, MAP_REVEAL_MS)
+}
+
 /** True while a popstate is being answered, when the address is the browser's. */
 let answeringPop = false
 /** True while a popstate is returning to the note, so the link does not scroll. */
@@ -251,6 +283,110 @@ function toggleMapDefault() {
   // Reflect the new default in the current view immediately.
   mapShown.value = !mapHiddenByDefault.value
 }
+
+/* The narrow map's own two ways out of its box: taller, or filling the window. */
+const mapExpanded = ref(false)
+const mapFullscreen = ref(false)
+const tripMap = ref(null)
+const fullScreenMap = ref(null)
+/** The inline map's view and album, handed to the full-screen one. */
+const fullMapView = ref(null)
+const fullMapSelection = ref(null)
+
+function openMapFullscreen() {
+  // The view and the album are **moved**, not copied: a second card left standing
+  // on the map behind answers the keyboard and the card's own gestures first.
+  fullMapView.value = tripMap.value?.getView() ?? null
+  fullMapSelection.value = tripMap.value?.getSelection() ?? null
+  mapFullscreen.value = true
+  nextTick(() => tripMap.value?.showMedia(null))
+}
+
+/** The map the reader is looking at: the expanded one stands over the inline. */
+function activeMap() {
+  return mapFullscreen.value ? fullScreenMap.value : tripMap.value
+}
+
+/**
+ * Collapsing hands both back to the inline map - the album the reader had open,
+ * and the ground they left - once the overlay has let go, so the two never hold
+ * the same card at once. See docs/features/maps.md.
+ */
+function closeMapFullscreen() {
+  const view = fullScreenMap.value?.getView() ?? null
+  const selection = fullScreenMap.value?.getSelection() ?? null
+  mapFullscreen.value = false
+  nextTick(() => {
+    tripMap.value?.applyView(view)
+    tripMap.value?.showMedia(selection?.id ?? null)
+  })
+}
+
+/**
+ * Whether the file on show can be placed: the reader is looking at one, and it
+ * carries coordinates. The viewer offers "show on the map" on that alone.
+ * See docs/features/maps.md.
+ */
+const openMedia = computed(() =>
+  lightboxIndex.value == null ? null : (media.value[lightboxIndex.value] ?? null),
+)
+const openOnMap = computed(() => hasCoordinates(openMedia.value))
+
+/**
+ * A close hands the file that was on show to the map in front, which puts the
+ * album on it or closes the album when that file is not on the map. **Only a
+ * viewer opened from a card may move it**, and the map itself remembers that -
+ * a flag here goes stale as soon as the address carries the `?i=` pair.
+ */
+function onViewerClose(id) {
+  activeMap()?.syncViewerClose(id ?? null)
+}
+
+/*
+  A viewer can also leave with no `close` event - the browser's Back answers for
+  the address - so the map's record of it is dropped whenever the lightbox is
+  gone. A close has already spent it. See docs/features/maps.md.
+*/
+watch(lightboxIndex, (index) => {
+  if (index == null) {
+    activeMap()?.forgetViewerClose()
+    viewerFromMap.value = false
+  }
+})
+
+/**
+ * Following the viewer onto the map: the viewer has already closed and synced
+ * the album, so only the map's own two extras are left - make sure the inline
+ * map is on screen, scroll to it, and frame the pin once the unfold has settled.
+ * A full-screen map is already in front of the reader and needs neither.
+ */
+async function showMediaOnMap(id) {
+  if (!mapFullscreen.value) {
+    mapShown.value = true
+    await nextTick()
+    document
+      .querySelector('[data-day-map]')
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+  window.setTimeout(() => activeMap()?.showMedia(id, { zoom: true }), MAP_REVEAL_MS)
+}
+
+/** Longer than the fold's own 260ms, so the map is laid out before it is framed. */
+const MAP_REVEAL_MS = 320
+
+/**
+ * Taller than the default, but never taller than the window. Both ends are
+ * `min()` expressions of the same shape, which is what lets the height
+ * interpolate instead of jumping.
+ */
+const mapHeight = computed(() =>
+  mapExpanded.value ? 'min(900px, calc(100vh - 12rem))' : 'min(360px, 100vh)',
+)
+
+// The page behind an overlay must not scroll under it.
+watch(mapFullscreen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
 
 const day = computed(() => days.getDay(props.date))
 /* The editor's hide toggle removes private files here, on the fly; the cached
@@ -302,6 +438,9 @@ watch(
     load()
     // Each day starts from the persisted default.
     mapShown.value = !mapHiddenByDefault.value
+    mapExpanded.value = false
+    mapFullscreen.value = false
+    fullMapSelection.value = null
     // Another day carries its own link, or none at all.
     answered = undefined
     // The anchor named an element of the note just left.
@@ -386,6 +525,11 @@ watch(lightboxIndex, (index) => {
  * not the only one that can be up. See docs/features/ui-shell.md.
  */
 function onKeydown(event) {
+  // A pin's own album owns Escape first; `hasOverlay()` says one is up.
+  if (event.key === 'Escape' && mapFullscreen.value && !hasOverlay()) {
+    closeMapFullscreen()
+    return
+  }
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
   if (hasOverlay() || editingNote.value) return
 
@@ -402,6 +546,7 @@ function onKeydown(event) {
 
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => (document.body.style.overflow = ''))
 onMounted(() => window.addEventListener('popstate', onPopState))
 onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
 // Seeing the reference again is the one thing that spends the way back. A
@@ -608,6 +753,7 @@ function onNoteSaved() {
             :items="media"
             cascade
             show-time
+            :preview-rows="mapHiddenByDefault ? null : 4"
             :editable="auth.isEditor"
             :highlighted-id="highlightedId"
             :highlighted-ids="highlightedIds"
@@ -626,7 +772,7 @@ function onNoteSaved() {
       <Transition name="reveal">
         <div v-if="locatedMedia.length" class="reveal">
           <section class="mb-12">
-            <div class="mb-3 flex items-center justify-between gap-4">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <!-- Heading becomes a show/hide button when the map is hidden by default. -->
               <button
                 v-if="mapHiddenByDefault"
@@ -638,35 +784,111 @@ function onNoteSaved() {
               </button>
               <h2 v-else class="text-sm font-semibold text-ink-soft">{{ t('day.onMap') }}</h2>
 
-              <!-- Preference toggle, always available while the day has locations. -->
-              <label class="flex cursor-pointer items-center gap-2 text-xs text-ink-faint">
-                {{ t('day.mapDefaultHidden') }}
-                <input
-                  type="checkbox"
-                  class="peer sr-only"
-                  :checked="mapHiddenByDefault"
-                  @change="toggleMapDefault"
-                />
-                <span
-                  class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
-                  aria-hidden="true"
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <!-- The day as a range on the trip page, where the map is the page. -->
+                <RouterLink
+                  :to="{ name: 'map', query: { from: date, to: date } }"
+                  class="btn-ghost !px-2 !py-1"
+                  :title="t('day.openInMaps')"
+                  :aria-label="t('day.openInMaps')"
                 >
-                  <span
-                    class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition"
+                  <svg
+                    class="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    aria-hidden="true"
+                  >
+                    <path d="M10 18s6-5.1 6-9.5A6 6 0 0 0 4 8.5C4 12.9 10 18 10 18Z" />
+                    <circle cx="10" cy="8.5" r="2.2" />
+                  </svg>
+                </RouterLink>
+
+                <!-- Taller, then back. The icon says which way the next press goes. -->
+                <button
+                  type="button"
+                  class="btn-ghost !px-2 !py-1"
+                  :title="mapExpanded ? t('day.collapseMapHeight') : t('day.expandMapHeight')"
+                  :aria-label="mapExpanded ? t('day.collapseMapHeight') : t('day.expandMapHeight')"
+                  @click="mapExpanded = !mapExpanded"
+                >
+                  <svg
+                    class="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    aria-hidden="true"
+                  >
+                    <path
+                      :d="mapExpanded ? MAP_SHORTER : MAP_TALLER"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+
+                <!-- Fills the window without leaving the day. -->
+                <button
+                  type="button"
+                  class="btn-ghost !px-2 !py-1"
+                  :title="t('day.fullscreenMap')"
+                  :aria-label="t('day.fullscreenMap')"
+                  @click="openMapFullscreen"
+                >
+                  <svg
+                    class="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    aria-hidden="true"
+                  >
+                    <path
+                      :d="MAP_EXPAND"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+
+                <!-- Preference toggle, always available while the day has locations. -->
+                <label class="flex cursor-pointer items-center gap-2 text-xs text-ink-faint">
+                  {{ t('day.mapDefaultHidden') }}
+                  <input
+                    type="checkbox"
+                    class="peer sr-only"
+                    :checked="mapHiddenByDefault"
+                    @change="toggleMapDefault"
                   />
-                </span>
-              </label>
+                  <span
+                    class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition"
+                    />
+                  </span>
+                </label>
+              </div>
             </div>
 
             <Transition name="reveal">
               <div v-if="mapShown" class="reveal">
                 <!-- `data-no-swipe`: panning the map must not page to another day. -->
                 <TripMap
+                  ref="tripMap"
                   data-no-swipe
+                  data-day-map
+                  mode="day"
                   :media="locatedMedia"
                   :route="dayRoute"
                   :date="date"
-                  height="360px"
+                  :height="mapHeight"
+                  animated-height
+                  @open="openMapMedia"
+                  @activate="activateMapMedia"
                 />
               </div>
             </Transition>
@@ -722,12 +944,67 @@ function onNoteSaved() {
       </button>
     </Transition>
 
+    <!--
+      The map filling the window without leaving the day: a **second** map, as on
+      the trip page - a live Leaflet instance carried through a Teleport comes out
+      broken. See docs/features/maps.md.
+    -->
+    <Teleport to="body">
+      <Transition name="map-full">
+        <div v-if="mapFullscreen" class="fixed inset-0 z-[2100] flex flex-col bg-paper">
+          <TripMap
+            ref="fullScreenMap"
+            mode="day"
+            :media="locatedMedia"
+            :route="dayRoute"
+            :date="date"
+            :initial-view="fullMapView"
+            :initial-selection="fullMapSelection"
+            height="100%"
+            :framed="false"
+            wheel-zoom
+            class="min-h-0 flex-1"
+            @open="openMapMedia"
+            @activate="activateMapMedia"
+          />
+
+          <!-- The same corners-in mark the button that opened it wears. -->
+          <button
+            type="button"
+            class="btn-ghost map-float-control absolute right-4 top-4 z-[1000] !px-3 !py-2"
+            :title="t('day.exitFullscreen')"
+            :aria-label="t('day.exitFullscreen')"
+            @click="closeMapFullscreen"
+          >
+            <svg
+              class="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              aria-hidden="true"
+            >
+              <path
+                :d="MAP_COLLAPSE"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
+
     <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
     <MediaLightbox
       v-model:index="lightboxIndex"
       :items="media"
       :can-return-to-text="hasTextAnchor"
+      :can-show-on-map="openOnMap"
+      :page-covered="mapFullscreen || viewerFromMap"
       @return="returnToTextAnchor"
+      @close="onViewerClose"
+      @show-on-map="showMediaOnMap"
     />
     <MediaEditDialog
       :open="Boolean(editing)"

@@ -51,7 +51,12 @@
     "prev": "前の日",
     "next": "次の日",
     "notReady": "下書き",
-    "notFound": "この日は記録にありません。"
+    "notFound": "この日は記録にありません。",
+    "openInMaps": "地図で開く",
+    "expandMapHeight": "地図を高くする",
+    "collapseMapHeight": "地図を低くする",
+    "fullscreenMap": "全画面表示",
+    "exitFullscreen": "全画面表示を終了"
   },
   "calendar": {
     "title": "カレンダー",
@@ -72,6 +77,11 @@
     "zoomHint": "Ctrl + ホイールで拡大縮小",
     "expand": "地図を拡大",
     "collapse": "地図を縮小",
+    "showOnMap": "撮影場所",
+    "onSite": "旅の地図で見る",
+    "services": {
+      "google": "Google マップで開く"
+    },
     "pickRange": "カレンダーで開始日、続いて終了日を選ぶと、その区間だけが地図に残ります。",
     "pickEnd": "次に2日目を選んでください。1日目より前の日付なら、開始と終了は入れ替わります。"
   },
@@ -86,6 +96,7 @@
     "next": "次のファイル",
     "close": "閉じる",
     "showMore": "もっと見る",
+    "showAll": "すべて表示",
     "shownOf": "{total}件中{shown}件を表示",
     "favorite": "トップページに掲載",
     "unfavorite": "トップページから外す",

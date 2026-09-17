@@ -13,12 +13,14 @@ of its complexity is timing, not logic. Read this document before editing it.
 | --- | --- |
 | `src/components/media/MediaLightbox.vue` | Everything below except the flight. |
 | `src/components/media/HeroFlight.vue` | The flight between a tile and the picture. |
+| `src/components/common/MediaStrip.vue` | The turn on its own: the same filmstrip mechanism, for anything that is not the viewer. |
 | `src/services/motion.js` | `motionReduced()`, shared by both. |
 | `src/services/pageChrome.js` | Where the page's own floating chrome leaves off. |
 | `src/services/mediaAssets.js` | URL accessors: `miniatureSrc`, `previewSrc`, `fullScreenSrc`, `streamSrc`, `downloadSrc`, `mediaAspect`, `mediaDate`. |
 | `src/services/openedFrom.js` | Hands the viewer the element pressed, or an explicit "none". |
 | `src/services/mediaTiles.js` | `tilesFor` / `tileFor` / `boxOf` / `isOnScreen`. |
 | `src/services/overlayStack.js` | Keyboard ownership and scroll-lock arbitration. |
+| `src/services/mapLinks.js` | `MAP_SERVICES` - the one place a map-service URL is built. |
 | `src/composables/useDelayed.js` | `miniatureRetired` - when the miniature has done its job. |
 | `src/composables/useMediaLink.js` | `pageIdentity` - used to close on real navigation. |
 | `src/assets/main.css` | `.fit-media`, `lightbox-*` transitions, `[data-lightbox-flying]`. |
@@ -236,7 +238,7 @@ Owned entirely by `HeroFlight.vue`. The viewer says what to fly and between whic
 boxes; everything below is the component's business.
 
 ```js
-flight.value?.fly({ src, from, to, fromRadius, toRadius, insets })
+flight.value?.fly({ src, from, to, fromRadius, toRadius, insets, track })
 flight.value?.setSource(sharperUrl)   // mid-flight upgrade
 flight.value?.cancel()
 flight.value?.active                  // reactive; the viewer hides its strip
@@ -382,13 +384,27 @@ handover at the end of the flight is exact.
 - **Where it flies back to** (`tileBoxBack`) prefers the remembered `originTile`, even
   off-screen - the reader knows they scrolled. Any other tile must be on screen, or there
   is no destination and the plain fade does the work.
-- **A return flight follows the page if the reader scrolls before it lands.** The
-  destination box is captured in viewport coordinates at close; scroll unlocks ~120ms in
-  and the flight is 260ms, so a reader who scrolls mid-flight would otherwise watch it
-  land beside the tile. The page scrolls on the window alone, so `HeroFlight` translates
-  its content by the live scroll delta (a compositor transform - no layout, no re-raster)
-  to keep the flight pinned to the tile. It is applied below the frame's header clip, so
-  the clip itself stays put under the sticky page header.
+- **A page the map covers offers no mark.** A field map passes `page-covered`: the trip page and
+  the day page while their map fills the window, and the day page, inline, while the viewer was
+  opened from the map's own album. The viewer then neither searches the page for an origin nor
+  takes a page tile as a destination, because `isOnScreen` is pure geometry and cannot see what
+  covers the page - a tile beneath a full-screen map would count as reachable. The element an
+  opener handed over is untouched, so a grid tile and the album's card still fly to and from
+  themselves, and the grid's own flight keeps its scroll follower. Only a search with no element
+  to hand is stood down, and such a close plays the plain fade. The flag is **read once as the
+  viewer opens**, not live: the day page drops it the moment a close begins, and the flight
+  re-reads its destination every frame, so a live prop would swap the mark mid-flight.
+- **A flight follows the mark it lands on.** The destination box is captured in viewport
+  coordinates at close, and anything that moves it before the flight ends leaves the picture
+  arriving where the mark used to be. There are two such things: the page scrolls (unlocked
+  ~120ms in, against a 260ms flight), and a map card is panned or re-framed under the very
+  picture flying back to it. `fly` therefore takes a `track` callback that re-reads that box,
+  and a frame loop translates the flight by the difference of centres - a compositor
+  transform, no layout, no re-raster. The viewer passes `tileBoxBack`, the same function the
+  flight lands on, so the two cannot disagree. With no `track` the older follower runs: a
+  scroll listener translating by the live delta, for a flight pinned to the page rather than
+  to a mark that moves for its own reasons. Either transform is applied below the frame's
+  header clip, so the clip itself stays put under the sticky page header.
 - **The loading wheel waits for the flight to land.** The flying picture covers the
   middle of the window, where the wheel sits and where its fade runs, so a wheel let
   in during the flight was already opaque when the flight handed over - it snapped in
@@ -469,6 +485,7 @@ Rules that live in the markup, each of which looks arbitrary and is not.
 | The tag expander's pill is a small affordance, but the **swipe that opens and closes the list is the whole bottom bar**; a tap still toggles only from the pill. | A swipe is not a control to be aimed at, and the tags beneath it are not hurt by the overlap. **Touch runs on touch events**, not pointer events: a browser cancels the pointer stream the moment it claims a scroll, so the `pointerup` that would end the swipe never arrives on a real phone. The lifted list is clipped rather than scrollable, so no bar appears mid-expansion and the whole bar stays one gesture surface. |
 | Hover on the arrows, the icons and the tag chips is scoped to `@media (hover: hover)`. | A touch screen reports a hover that never ends: the state sticks to whatever was last tapped, which left an arrow looking held down until the reader tapped elsewhere. |
 | The "open in this day" link writes `?i=` but **not** `?o=`. | The file was already being looked at full screen; opening it again on arrival would be no arrival at all. The link is left out on that day's own page. |
+| The map button appears only for a file that **carries coordinates**, and it opens a small menu rather than acting: the day's own map where the page has one, or a service. | The three share-button rules above it hold here too, and the menu is the same shape as the share notice. |
 | A private file's share button is **removed**, not disabled. | The recipient would be sent to a day that, as far as they are concerned, does not contain it. An offer that is not there cannot be taken up by mistake; a disabled one still invites it. |
 | The title and the description are **selectable**. | They are the one thing in the viewer worth copying out - a place name to search for. Everywhere else is a gesture surface, and `.lightbox` sets `user-select: none`; `.lightbox-selectable` turns it back on for that block. A press that ends a selection must not also expand the description, so `toggleDescription` reads the selection before acting. |
 
@@ -502,6 +519,9 @@ Do not "fix" these:
    of a gesture that may have started on the previous page.
 9. The hero's mid-flight source swap stays. It is what keeps the end of the expansion
    sharp on a large display.
+10. A flight is pinned to the box it will **land on**, not to the box it started from:
+    `fly` takes a `track` that re-reads it and the flight is translated by the move. A
+    scrolling page and a panning map are the same problem, so they share one follower.
 10. Strip images are keyed by file, or a turn shows the file just left.
 11. A queued turn waits a frame, not a tick.
 12. A video is never played from a `loadedmetadata` that arrives after it was paged past.
@@ -518,8 +538,21 @@ Do not "fix" these:
 18. The miniature is unmounted `PREVIEW_FADE_MS` after the preview loads, not at `load`:
     unmounted sooner, the preview's own fade would run over the black room. It is the only
     layer that stands down, and only because it is invisible once the preview is opaque.
+19. "Show on the map" is offered on `canShowOnMap` from the page, and the icon is drawn on
+    coordinates alone. The viewer closes itself and emits `show-on-map`; it never reaches
+    for the map itself.
+20. A map-service URL is built in `services/mapLinks.js` and nowhere else.
+21. A turn is one movement, wherever it is taken from: the viewer's filmstrip and
+    `MediaStrip` use the same `SLIDE_MS` and the same curve, and both mount only the file on
+    show and its two neighbours. A step arriving mid-slide is queued, never snapped.
+22. The viewer's map menu stands **outside** the bottom bar. A backdrop filter nested inside
+    another one frosts its parent's backdrop rather than the room, so inside the bar the menu
+    came out unblurred.
+23. Ids are integers and a service URL is never built twice; both the menu and the album over
+    a pin read `MAP_SERVICES`.
 
 ## Related
 
 - Deep linking and the share button: [sharing-and-links.md](sharing-and-links.md).
+- Where the map action lands: [maps.md](maps.md).
 - Which tiles the viewer flies from, and selection: [media-grid-and-selection.md](media-grid-and-selection.md).

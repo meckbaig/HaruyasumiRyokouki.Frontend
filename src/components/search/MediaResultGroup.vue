@@ -104,8 +104,11 @@ function openAt(media) {
          below it is never jumped over. -->
     <Transition name="reveal">
       <div v-if="expanded && restShown.length" class="reveal mt-2">
+        <!-- The remainder opens on the same four rows a day does, so unfolding a
+             long day does not hand the reader the whole wall at once. -->
         <MediaGrid
           :items="restShown"
+          :preview-rows="4"
           cascade
           dimmed
           show-time

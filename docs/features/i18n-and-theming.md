@@ -97,6 +97,14 @@ chosen to read on a light page is usually dark and warm; lifted onto black it go
 An entry may set `accent-on-dark` to say what it should look like there; without one the
 accent is lightened automatically.
 
+**`lightbox-chrome` is the palette without the room, and it is not one palette.** The album
+over a map pin wears it, but its own footer stands on the card's **paper**, not on black:
+`.map-card-actions` re-derives `--lb-accent`, `--lb-text`, `--lb-muted`, `--lb-hover` and
+`--lb-bar` from the page's own ink and paper, so the buttons read in a light theme and a hover
+never paints one out. The marks over a **picture** (`.map-card-close`, `.map-card-arrows`) keep
+the dark-room values, where the disc and the blur are still the right answer. See
+[maps.md](maps.md).
+
 `--color-star` is deliberately **not** themed - a star reads as gold in every palette -
 though a theme may still override it like any token.
 
@@ -133,7 +141,12 @@ lightbox reads the same attribute before deciding whether to run a keyframe.
 In `main.css` `@layer components`. Use them instead of re-spelling Tailwind:
 
 `.field-label` · `.field-input` · `.field-hint` · `.btn-primary` · `.btn-ghost` ·
-`.btn-danger` · `.fit-media` · `.cascade-item` · `.dim-tile`
+`.btn-danger` · `.fit-media` · `.cascade-item` · `.dim-tile` · `.icon-button`
+
+`.icon-button` is the one size an icon button has anywhere - a round 2.5rem target - so the
+same mark is reached the same way in the viewer's bars, in its arrows and in the album over a
+map pin. A component that needs a larger mark still sets `h-*`/`w-*` on the icon itself,
+which wins over the class.
 
 Named transitions live below that layer: `page-{up,forward,back}`, `lightbox-*`, `modal-*`,
 `reveal*`, `soft-*`, `map-full-*`.
@@ -157,6 +170,7 @@ the reason.
 | Rule | Why |
 | --- | --- |
 | The viewer is a **dark room under every theme**, and only the accent travels across. | Photographs need one, and a pale surround competes with them. The accent is lifted towards white: a hue chosen for a light page does not carry on black - the default brick red and the purple theme are both far too dark unaltered. |
+| `lightbox-chrome` is re-derived where the chrome stands on **paper**. | The album's footer sits on the card's own paper, so it takes the accent unlifted and the hover from the ink; the marks standing on a picture keep the dark-room values. A footer wearing a palette derived for black arrived pink on light grey, and a white hover painted the control out. |
 | A plain `var(--color-accent)` line stands before the `color-mix`. | The fallback for browsers without `color-mix`; they keep the unlifted colour. |
 | An `@supports (color: oklch(from …))` block re-derives the same colours. | Relative colour syntax keeps the theme's hue **and** chroma and only raises lightness, where mixing towards white also washes the colour out. It also lets the bars take the accent's hue at a fraction of its saturation - **scaled**, not set, so a neutral theme stays neutral. Older browsers keep the flat values and lose the tint. |
 | `user-select: none` across the whole viewer. | Every gesture it offers is a press and a drag, which is also how a selection begins. Mobile Firefox is the plainest case: a double tap selects instead of zooming. |

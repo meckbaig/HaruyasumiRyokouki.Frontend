@@ -5,6 +5,12 @@ import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
 const props = defineProps({
   media: { type: Object, required: true },
   alt: { type: String, default: '' },
+  /**
+   * The box's shape, as a CSS aspect ratio - `16 / 10` for a landscape strip.
+   * Null keeps the square every wall uses.
+   * See docs/features/media-grid-and-selection.md.
+   */
+  aspect: { type: String, default: null },
 })
 
 /*
@@ -40,17 +46,16 @@ async function onLoaded(event) {
 </script>
 
 <template>
-  <div class="relative aspect-square overflow-hidden bg-edge/40">
+  <div
+    class="thumb-stage relative bg-edge/40"
+    :class="[aspect ? '' : 'aspect-square', loaded ? 'is-ready' : '']"
+    :style="aspect ? { aspectRatio: aspect } : undefined"
+  >
     <!-- Blurred miniature is the permanent base; the sharp preview settles over
-         it and stays on top, so the tile never repaints over an empty frame. -->
-    <img
-      v-if="miniature"
-      :src="miniature"
-      alt=""
-      aria-hidden="true"
-      draggable="false"
-      class="pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover blur-[10px]"
-    />
+         it and stays on top, so the tile never repaints over an empty frame.
+         The crop, the blur and the handover are shared with the map's pin and
+         pile - see docs/features/media-grid-and-selection.md. -->
+    <img v-if="miniature" :src="miniature" alt="" aria-hidden="true" draggable="false" class="thumb-base" />
     <img
       v-if="src && !failed"
       :src="src"
@@ -58,8 +63,7 @@ async function onLoaded(event) {
       loading="lazy"
       decoding="async"
       draggable="false"
-      class="pointer-events-none relative h-full w-full object-cover transition-opacity duration-300"
-      :class="loaded ? 'opacity-100' : 'opacity-0'"
+      class="thumb-shot"
       @load="onLoaded"
       @error="failed = true"
     />

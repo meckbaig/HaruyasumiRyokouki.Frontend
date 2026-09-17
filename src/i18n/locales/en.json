@@ -51,7 +51,12 @@
     "prev": "Previous day",
     "next": "Next day",
     "notReady": "Draft",
-    "notFound": "This day is not part of the timeline."
+    "notFound": "This day is not part of the timeline.",
+    "openInMaps": "Open on the map",
+    "expandMapHeight": "Make the map taller",
+    "collapseMapHeight": "Make the map shorter",
+    "fullscreenMap": "Full screen",
+    "exitFullscreen": "Leave full screen"
   },
   "calendar": {
     "title": "Calendar",
@@ -72,6 +77,11 @@
     "zoomHint": "Ctrl + scroll to zoom",
     "expand": "Expand map",
     "collapse": "Collapse map",
+    "showOnMap": "Where this was taken",
+    "onSite": "On the trip map",
+    "services": {
+      "google": "Open in Google Maps"
+    },
     "pickRange": "Pick a first day in the calendar, then a last one - the map keeps only that stretch of the route.",
     "pickEnd": "Now pick the second day. If it falls before the first, the two ends swap over."
   },
@@ -86,6 +96,7 @@
     "next": "Next file",
     "close": "Close",
     "showMore": "Show more",
+    "showAll": "Show all",
     "shownOf": "Showing {shown} of {total}",
     "favorite": "Mark for the front page",
     "unfavorite": "Remove from the front page",

@@ -1,14 +1,19 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import TripMap from '@/components/map/TripMap.vue'
 import TripCalendar from '@/components/calendar/TripCalendar.vue'
+import MediaLightbox from '@/components/media/MediaLightbox.vue'
 import ShareButton from '@/components/common/ShareButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useDaysStore } from '@/stores/days'
 import { useUiStore } from '@/stores/ui'
 import { useTripMedia, routeFromMedia } from '@/composables/useTripMedia'
+import { withMediaLink } from '@/composables/useMediaLink'
+import { hasCoordinates } from '@/services/mapLinks'
+import { hasOverlay } from '@/services/overlayStack'
+import { MAP_COLLAPSE, MAP_EXPAND } from '@/services/mapIcons'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -58,11 +63,84 @@ async function refresh() {
 }
 
 /* Fullscreen builds a **second map**; a live Leaflet instance carried through a
-   Teleport comes out broken. See docs/features/maps.md. */
+   Teleport comes out broken. The inline map's own view is handed over, so the
+   expanded one opens where the reader stood instead of re-fitting the points.
+   See docs/features/maps.md. */
 const expanded = ref(false)
+const inlineMap = ref(null)
+const fullMap = ref(null)
+/** The inline map's view and album, handed to the full-screen one. */
+const fullView = ref(null)
+const fullSelection = ref(null)
+
+function openFullscreen() {
+  // The view and the album are **moved**, not copied: a second card left standing
+  // on the map behind answers the keyboard and the card's own gestures first.
+  fullView.value = inlineMap.value?.getView() ?? null
+  fullSelection.value = inlineMap.value?.getSelection() ?? null
+  expanded.value = true
+  nextTick(() => inlineMap.value?.showMedia(null))
+}
+
+/**
+ * Collapsing hands both back to the inline map - the album the reader had open,
+ * and the ground they left - once the overlay has let go, so the two never hold
+ * the same card at once. See docs/features/maps.md.
+ */
+function closeFullscreen() {
+  const view = fullMap.value?.getView() ?? null
+  const selection = fullMap.value?.getSelection() ?? null
+  expanded.value = false
+  nextTick(() => {
+    inlineMap.value?.applyView(view)
+    inlineMap.value?.showMedia(selection?.id ?? null)
+  })
+}
+
+/* The album a pin opens: the viewer walks the same list the map is drawn from. */
+const lightboxIndex = ref(null)
+
+const openMedia = computed(() =>
+  lightboxIndex.value == null ? null : (media.value[lightboxIndex.value] ?? null),
+)
+const openOnMap = computed(() => hasCoordinates(openMedia.value))
+
+function openMapMedia(id) {
+  const index = media.value.findIndex((item) => item.id === id)
+  if (index >= 0) lightboxIndex.value = index
+}
+
+/** The map the reader is looking at: the expanded one stands over the inline. */
+function activeMap() {
+  return expanded.value ? fullMap.value : inlineMap.value
+}
+
+/*
+  Every viewer this page opens comes from a map card, so a close always syncs the
+  album. The day page, which opens one from a grid tile and a note too, gates it.
+*/
+function onViewerClose(id) {
+  activeMap()?.showMedia(id ?? null)
+}
+
+/** The viewer's own action: the same close, plus the framing it is for. */
+function showMediaOnMap(id) {
+  activeMap()?.showMedia(id, { zoom: true })
+}
+
+/** A pin's "open day": the day page, with that file singled out. */
+function openMapDay({ date, id }) {
+  if (!date) return
+  router.push({
+    name: 'day',
+    params: { date },
+    query: id == null ? {} : withMediaLink({}, id),
+  })
+}
 
 function onKeydown(event) {
-  if (event.key === 'Escape' && expanded.value) expanded.value = false
+  // A pin's own album owns Escape first; `hasOverlay()` says one is up.
+  if (event.key === 'Escape' && expanded.value && !hasOverlay()) closeFullscreen()
 }
 
 onMounted(() => document.addEventListener('keydown', onKeydown))
@@ -96,41 +174,96 @@ watch(() => ui.locale, refresh)
 
       <!--
         Wraps within itself, not only against the heading. A default range means
-        "whole route" is on show from the first frame, and three controls beside a
-        title is more than a phone has room for in one line - the last of them was
-        simply off the right-hand edge.
+        "whole route" is on show from the first frame, and the controls beside a
+        title are more than a phone has room for in one line - the last of them
+        was simply off the right-hand edge.
       -->
       <div class="flex max-w-full flex-wrap items-center gap-2">
         <button v-if="from || to" type="button" class="btn-ghost" @click="reset">
           {{ t('map.reset') }}
         </button>
-        <button type="button" class="btn-ghost" @click="expanded = true">
-          {{ t('map.expand') }}
-        </button>
         <ShareButton />
       </div>
     </header>
 
-    <TripMap :media="media" :route="routeLine" height="560px" class="mb-8" />
+    <TripMap
+      ref="inlineMap"
+      mode="map"
+      :media="media"
+      :route="routeLine"
+      height="560px"
+      class="mb-8"
+      @open="openMapMedia"
+      @open-day="openMapDay"
+    >
+      <!--
+        The expand mark belongs on the map it acts on, not in the header. The
+        slot stands after the map box and before the album, so it sits over
+        Leaflet's panes and under the card. See docs/features/maps.md.
+      -->
+      <template #controls>
+        <button
+          type="button"
+          class="btn-ghost map-float-control absolute right-4 top-4 z-[900] !px-3 !py-2"
+          :title="t('map.expand')"
+          :aria-label="t('map.expand')"
+          @click="openFullscreen"
+        >
+          <svg
+            class="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            aria-hidden="true"
+          >
+            <path :d="MAP_EXPAND" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </template>
+    </TripMap>
 
     <Teleport to="body">
       <Transition name="map-full">
         <div v-if="expanded" class="fixed inset-0 z-[2100] flex flex-col bg-paper">
           <TripMap
+            ref="fullMap"
+            mode="map"
             :media="media"
             :route="routeLine"
+            :initial-view="fullView"
+            :initial-selection="fullSelection"
             height="100%"
             :framed="false"
             wheel-zoom
             class="min-h-0 flex-1"
+            @open="openMapMedia"
+            @open-day="openMapDay"
           />
 
+          <!-- The same corners-in mark the day page's own full-screen button
+               wears, so one icon means one thing across the site. -->
           <button
             type="button"
-            class="btn-ghost absolute right-4 top-4 z-[1000] bg-paper-raised shadow-sm"
-            @click="expanded = false"
+            class="btn-ghost map-float-control absolute right-4 top-4 z-[1000] !px-3 !py-2"
+            :title="t('map.collapse')"
+            :aria-label="t('map.collapse')"
+            @click="closeFullscreen"
           >
-            {{ t('map.collapse') }}
+            <svg
+              class="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              aria-hidden="true"
+            >
+              <path
+                :d="MAP_COLLAPSE"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
           </button>
         </div>
       </Transition>
@@ -156,5 +289,16 @@ watch(() => ui.locale, refresh)
         @select="pickDate"
       />
     </section>
+
+    <!-- Opened from a pin's album; the card says there is no tile to fly from,
+         so the viewer plays its plain fade. See docs/features/maps.md. -->
+    <MediaLightbox
+      v-model:index="lightboxIndex"
+      :items="media"
+      :can-show-on-map="openOnMap"
+      :page-covered="expanded"
+      @close="onViewerClose"
+      @show-on-map="showMediaOnMap"
+    />
   </div>
 </template>

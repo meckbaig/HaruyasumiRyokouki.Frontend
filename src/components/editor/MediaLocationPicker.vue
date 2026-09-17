@@ -473,7 +473,7 @@ onBeforeUnmount(() => {
 
         <button
           type="button"
-          class="btn-ghost absolute right-4 top-4 z-[1000] bg-paper-raised shadow-sm"
+          class="btn-ghost map-float-control absolute right-4 top-4 z-[1000] shadow-sm"
           @click="expanded = false"
         >
           {{ t('editor.collapseMap') }}

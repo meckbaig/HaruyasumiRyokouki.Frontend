@@ -72,6 +72,10 @@ the "show the rest" button is the last step of that cascade. Collapsing folds th
 shut rather than dropping it, so the button below is not jumped over. See
 [media-grid-and-selection.md](media-grid-and-selection.md).
 
+The remainder opens on the same **four rows** a day page's wall does, so unfolding a long
+day does not hand the reader the whole wall at once; its own button reveals the rest. See
+**A page of rows** in [media-grid-and-selection.md](media-grid-and-selection.md).
+
 ## The cache
 
 Keyed by `locale::query` or `locale::#tag`. Locale is part of the key because the same

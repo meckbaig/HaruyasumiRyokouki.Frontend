@@ -12,6 +12,7 @@ the viewer to the text.
 | `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `linkLabel`, editor template builders. |
 | `src/components/common/RichText.vue` | Token renderer and hover card owner; emits references upward. |
 | `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar and go-to-media. |
+| `src/components/map/MapMediaCard.vue` | The card's sibling over a map pin - its own doc: [maps.md](maps.md). |
 | `src/components/layout/SteppedScrollbar.vue` | The card's bar: one record per step, draggable, drawn like the page's own. |
 | `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, and a bubble for a marked run. |
 | `src/services/textAnchor.js` | The remembered reference, `anchorSelector`, `returnToTextAnchor`. |
