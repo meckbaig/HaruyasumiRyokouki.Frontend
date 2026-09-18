@@ -144,9 +144,10 @@ In `main.css` `@layer components`. Use them instead of re-spelling Tailwind:
 `.btn-danger` · `.fit-media` · `.cascade-item` · `.dim-tile` · `.icon-button`
 
 `.icon-button` is the one size an icon button has anywhere - a round 2.5rem target - so the
-same mark is reached the same way in the viewer's bars, in its arrows and in the album over a
-map pin. A component that needs a larger mark still sets `h-*`/`w-*` on the icon itself,
-which wins over the class.
+same mark is reached the same way in the viewer's bars and in the album over a map pin. The
+viewer's paging arrows are the exception: they carry their own larger disc, because they sit
+on the picture rather than on a bar. A component that needs a larger mark still sets
+`h-*`/`w-*` on the icon itself, which wins over the class.
 
 Named transitions live below that layer: `page-{up,forward,back}`, `lightbox-*`, `modal-*`,
 `reveal*`, `soft-*`, `map-full-*`.

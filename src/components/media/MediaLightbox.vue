@@ -2143,7 +2143,7 @@ onBeforeUnmount(() => {
             <button
               type="button"
               :disabled="!hasPrev"
-              class="lightbox-arrow lightbox-icon icon-button transition-transform duration-200"
+              class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
               :class="
                 uiVisible && hasPrev ? 'pointer-events-auto' : '-translate-x-[calc(100%+1rem)]'
               "
@@ -2165,7 +2165,7 @@ onBeforeUnmount(() => {
             <button
               type="button"
               :disabled="!hasNext"
-              class="lightbox-arrow lightbox-icon icon-button transition-transform duration-200"
+              class="lightbox-arrow lightbox-icon rounded-full p-3 transition-transform duration-200"
               :class="
                 uiVisible && hasNext ? 'pointer-events-auto' : 'translate-x-[calc(100%+1rem)]'
               "

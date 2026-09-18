@@ -1437,10 +1437,10 @@
 }
 
 /*
-  One standard for an icon button, wherever it stands - the viewer's bars, its
-  arrows and the album over a pin. A round target of the same size everywhere, so
-  the same mark is reached the same way. A component's own `h-*`/`w-*` on the
-  icon still wins, which is how the viewer keeps its larger arrows.
+  One standard for an icon button, wherever it stands - the viewer's bars and the
+  album over a pin. A round target of the same size everywhere, so the same mark
+  is reached the same way. The viewer's paging arrows are the exception: they
+  keep their own larger disc, since they sit on the picture, not on a bar.
   See docs/features/ui-shell.md.
 */
 .icon-button {
