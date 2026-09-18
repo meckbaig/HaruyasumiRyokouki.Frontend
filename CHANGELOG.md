@@ -4,6 +4,22 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 2.1.0 - safe triangle hover
+
+A hover card is no longer kept open by a timeout. Where the pointer is heading decides
+it: while the hand travels towards the card the card stays, and the moment it turns away
+the card is gone. The band between the reference and the card is read as a triangle
+reaching just past the card's corners, so a hand crossing it is neither plainly coming
+nor plainly going and the card waits rather than flickers. A hand that comes to rest
+outside the card gives up after a moment, and one that comes to rest on another
+reference takes the card over.
+
+- A card opens and closes on the pointer's trajectory rather than a fixed dwell timeout
+- A hand travelling towards the card keeps it open, and one turning away closes it at once
+- The safe triangle between the reference and the card carries the hand across the gap without closing
+- A hand that stops outside the card closes it after 140 ms; a hand that stops on another reference swaps the card
+- A hand crossing a reference on the way opens nothing, because the card is due only after 50 ms of rest
+
 ## 2.0.0 - a new map
 
 A pin is no longer a plain teardrop. It carries the picture it stands for, and
@@ -44,7 +60,6 @@ the marks and the route carry a budget per device, so a whole trip stays light.
 - The marks and the route carry a per-device mode budget (desktop or mobile), so a long trip stays fast and loads no picture off screen
 - Pins gather into piles by their distance on screen and split apart again as the map is zoomed in
 - A dot under a pile marks each distinct place its files were taken
-- The fullscreen viewer's paging arrows are back to their previous size
 
 ## 1.9.0 - touch gesture updates
 
