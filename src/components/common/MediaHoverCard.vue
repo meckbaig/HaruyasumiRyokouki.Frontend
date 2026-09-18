@@ -182,8 +182,8 @@ const position = computed(() => {
     class="media-hover-card"
     :style="position"
     @click.capture="onRootClickCapture"
-    @mouseenter="emit('enter')"
-    @mouseleave="emit('leave')"
+    @pointerenter="emit('enter')"
+    @pointerleave="emit('leave', $event)"
     @wheel="onWheel"
   >
     <!-- A way out by hand, in case the timeout runs while the pointer is away. -->
