@@ -93,6 +93,19 @@ Registered in production only; in development the dev server owns the requests.
 
 The number in `package.json` is the whole mechanism.
 
+**The name describes the change, not a mood.** A reader looking back months later has to
+tell what is behind a version, and which one to roll back to for a behaviour. So a name is
+a concrete technical description of what the release carries.
+
+| Rule | Detail |
+| --- | --- |
+| Language | English, lowercase. |
+| Length | Three or four words at most - the footer prints `version · name`, and a longer one wraps on a phone. |
+| Shape | A noun phrase naming the change: `safe triangle hover`, `media references in notes`. |
+| Conjunctions | Keep `and` while the name still fits; use `+` only when it would push past the length: `viewer optimization + new tag input`. |
+| Never | A metaphor or a slogan that could belong to any release: `a livelier search`, `an app with a face`. |
+| Home | `NAMES` in `src/services/release.js`, keyed `major.minor`, and the very same string in the `CHANGELOG.md` heading. |
+
 **A fix.** `npm version patch`, then build and deploy. Patches inherit the name of the
 release they follow and get no section of their own - but a patch that carries a change a
 visitor would notice is folded into the changelog of the minor release it follows, as a
@@ -154,6 +167,8 @@ heading has to name the tag from the results because there is no dictionary to a
    release it follows, not left to the git history.
 8. The work is committed **before** the release commit; the release commit adds only the
    version, the name and the changelog.
+9. A release name describes the change it carries in three or four words, and `NAMES` and
+   the `CHANGELOG.md` heading carry the very same string.
 
 ## Related
 

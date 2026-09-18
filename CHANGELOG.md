@@ -44,8 +44,9 @@ the marks and the route carry a budget per device, so a whole trip stays light.
 - The marks and the route carry a per-device mode budget (desktop or mobile), so a long trip stays fast and loads no picture off screen
 - Pins gather into piles by their distance on screen and split apart again as the map is zoomed in
 - A dot under a pile marks each distinct place its files were taken
+- The fullscreen viewer's paging arrows are back to their previous size
 
-## 1.9.0 - smoother gestures on a phone
+## 1.9.0 - touch gesture updates
 
 The interface now answers touch where it used to answer a mouse. The tag list's swipe works
 across the whole bottom bar rather than the small pill that opens it, and it runs on touch
@@ -77,7 +78,7 @@ stamp, the way a grid tile marks one.
 - The hover card marks a video beside its own 1/N stamp
 - A media reference in a note or description wraps with the words around it, so a long label no longer runs off the page on a phone
 
-## 1.8.0 - one reference, many files
+## 1.8.0 - multi-file media references
 
 A note used to point at one file. It now points at as many as the line calls for: one
 `[media=5,7,9]` reference names every file it lists, and the address carries all of them,
@@ -104,7 +105,7 @@ back at it, on the browser's Back, the mouse's own back button and a button in t
 - The way back to the note is kept until the reference is read again, offered in the page as well as in the viewer, and survives closing or paging
 - A file opened from the hover card plays the plain fade, since its picture is a preview and not a tile
 
-## 1.7.0 - a sharper search and viewer
+## 1.7.0 - viewer preloading + search polish
 
 Turning a page in the full-screen viewer no longer waits for the picture. The neighbours'
 full-size images are fetched ahead of the turn - both sides when a file is opened, and
@@ -142,7 +143,7 @@ of the line, and the day page's arrows are redrawn to match the buttons beside t
 - The day page's prev and next arrows are icons sized with the neighbouring buttons
 - The full-screen loading wheel appears and leaves through its animation again, instead of arriving in a single frame
 
-## 1.6.0 - notes that point at things
+## 1.6.0 - media references in notes
 
 A day's note and a photograph's description are no longer plain text. They carry a
 small markup of their own: a link with a name, an address pasted bare, and a
@@ -173,7 +174,7 @@ be filled in by clicking the file in the grid below instead of typing it.
 - A card opened by a tap is dismissed by a press anywhere outside it or by the cross, not by the hover timer
 - A tap no longer also opens the picture, and a long press no longer opens the card
 
-## 1.5.0 - a livelier search
+## 1.5.0 - search visual update
 
 The search page stopped drawing boxes around what it found. A framed photograph
 reads as a control panel rather than a wall, so a matched file is now just a
@@ -197,7 +198,7 @@ grid beneath it.
 - Collapsing the rest of a day folds the block shut instead of dropping it
 - A day's note is drawn downwards from the top as it arrives, without moving the grid below
 
-## 1.4.0 - a steadier viewer
+## 1.4.0 - viewer image layer stack
 
 The viewer's picture is no longer a single image that swaps, but a stack that
 keeps every layer it has already shown. The blurred miniature stays as the base,
@@ -217,7 +218,7 @@ comes to rest on the tile it left rather than beside it.
 - A return flight follows the page if the reader scrolls before it lands, landing on the tile it left
 - A layer the browser already holds settles at full sharpness from the first frame instead of fading up
 
-## 1.3.0 - a lighter viewer
+## 1.3.0 - viewer optimization + new tag input
 
 The viewer's open and close animations now run on a dedicated element instead of re-rendering
 the image every frame. The filmstrip keys its images by file so a fast page turn does not paint
@@ -250,7 +251,7 @@ one.
 - Tags show their proper names at once when first edited, instead of their slug for a moment
 - The installed app's system bar takes the color of the theme chosen at install time
 
-## 1.2.0 - faster filing
+## 1.2.0 - editor filing + delete dialogs
 
 Everything here is about the screens used to put the archive in order. Filing a
 morning's photographs is hundreds of small decisions, and this release is mostly
@@ -284,7 +285,7 @@ than one file at a time.
 - The editor map names the two locations nearest the pin, and zooms with the
   wheel alone when full screen
 
-## 1.1.0 - smoother editing and map
+## 1.1.0 - bulk editing + map
 
 This release makes bulk editing feel a little less like fighting the 
 interface. The editor behaves more consistently when opened from different 
@@ -401,7 +402,7 @@ setting and is skipped outright when it is on.
 - The scrollbar is drawn as an overlay and no longer takes layout width
 - The installed app uses the name in the language selected on the site
 
-## 0.10.0 - pre-release: favorites and links to a photo
+## 0.10.0 - pre-release: favorites + photo links
 
 The front page opens with a wall of photos picked out by hand, drifting past and
 opening into the viewer as one album. And a photo is now something a link can
@@ -419,7 +420,7 @@ point at: shared, it arrives outlined among its neighbours, or already open.
 - A star on each file marks it for the front page (only for admins)
 - "Pending" page now shows dates on each media (only for admins)
 
-## 0.9.0 - pre-release: an app with a face
+## 0.9.0 - pre-release: installable app + logo
 
 The site can be installed on a phone and kept on the home screen, where it opens
 without browser chrome around it. It also gained a logo - which in the Japanese
@@ -472,7 +473,7 @@ with a rendition to match - replacing the mobile/desktop split.
 - Fullscreen images whatever their resolution
 - Days titled in words rather than as a date
 
-## 0.4.0 - pre-release: media served by the backend
+## 0.4.0 - pre-release: backend media URLs
 
 The frontend stopped building storage URLs. Every file arrives with its links
 ready-made, and with a tiny inline placeholder to show before anything loads.
