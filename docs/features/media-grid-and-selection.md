@@ -169,13 +169,17 @@ tag or the download link.
 
 `MediaContextMenu` **replaces** the browser's own rather than merely suppressing it - it was
 already suppressed, since a long press here means "select". It offers one action, a link to
-the picture where it sits, and one action is still worth a menu: the alternative is a
-permanent button on every tile, and the grid is meant to be photographs. It is placed at
-the click and nudged back inside the window; anything at all closes it.
+the picture where it sits - or, when the tile pressed is one of a selection, to **every**
+selected file at once, since the address already knows how to name a block (`?i=1,2,3`).
+One action is still worth a menu: the alternative is a permanent button on every tile, and
+the grid is meant to be photographs. It is placed at the click and nudged back inside the
+window; anything at all closes it.
 
 A private file's menu still **opens and says why**. The native menu has been suppressed on
 these tiles since long before this, so a right-click producing nothing would read as a
-broken page rather than as an answer.
+broken page rather than as an answer. Private files are also **left out of a shared
+selection**, and when nothing is left the menu says so rather than offering a link that
+would single out nothing.
 
 ### A tap is read from the touch, not from the click
 

@@ -44,13 +44,14 @@ export async function copyToClipboard(text) {
 }
 
 /**
- * Copies a link to one file rather than to the page as a whole, built on wherever
- * the reader is. `path` overrides that for a page that cannot resolve a file at
- * all - the front page. See docs/features/sharing-and-links.md.
+ * Copies a link to one file - or to a whole selection of them - rather than to
+ * the page as a whole, built on wherever the reader is. `path` overrides that
+ * for a page that cannot resolve a file at all - the front page.
+ * See docs/features/sharing-and-links.md.
  */
-export function copyMediaUrl(id, { open = false, path = null } = {}) {
+export function copyMediaUrl(ids, { open = false, path = null } = {}) {
   const url = new URL(path ?? window.location.href, window.location.origin)
-  const query = withMediaLink(Object.fromEntries(url.searchParams), id, open)
+  const query = withMediaLink(Object.fromEntries(url.searchParams), ids, open)
   url.search = new URLSearchParams(query).toString()
   return copyToClipboard(withLang(url.toString()))
 }

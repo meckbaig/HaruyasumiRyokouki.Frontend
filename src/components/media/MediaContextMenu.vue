@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { copyMediaUrl } from '@/services/share'
 import { isPrivate } from '@/services/privacy'
+import { useEditorStore } from '@/stores/editor'
 
 const props = defineProps({
   /** `{ media, x, y }` while a menu is up, null while none is. */
@@ -12,18 +13,41 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const { t } = useI18n()
+const editor = useEditorStore()
 
 /*
-  What a right-click on a picture offers: one action, a link to it where it sits.
-  Placed at the click, nudged back inside the window, and closed by anything at
-  all. See docs/features/media-grid-and-selection.md.
+  What a right-click on a picture offers: one action, a link to where it sits -
+  or to the whole selection it belongs to. Placed at the click, nudged back
+  inside the window, and closed by anything at all.
+  See docs/features/media-grid-and-selection.md.
 */
 const menu = ref(null)
 const size = ref({ width: 0, height: 0 })
 
-/** A private file has nothing to offer here. The menu still **opens and says
- *  why** - the native one is suppressed, so silence would read as a broken page. */
-const hidden = computed(() => isPrivate(props.target?.media))
+/**
+ * Whether the pressed tile is part of a selection: the menu then acts on the
+ * whole selection rather than on this tile alone.
+ * See docs/features/sharing-and-links.md.
+ */
+const fromSelection = computed(() => {
+  const id = props.target?.media?.id
+  return id != null && editor.selectionMode && editor.isSelected(id)
+})
+
+/**
+ * The ids a share would name - the whole selection, or this tile - with private
+ * files left out, since a private file is never shareable. Empty means the menu
+ * says why instead: the native menu is suppressed, so silence would read as a
+ * broken page. See docs/features/sharing-and-links.md.
+ */
+const shareIds = computed(() => {
+  const media = props.target?.media
+  if (media?.id == null) return []
+  const list = fromSelection.value ? editor.items : [media]
+  return list.filter((item) => item?.id != null && !isPrivate(item)).map((item) => item.id)
+})
+
+const shareable = computed(() => shareIds.value.length > 0)
 
 const position = computed(() => {
   if (!props.target) return { left: '0px', top: '0px' }
@@ -40,11 +64,11 @@ const feedback = ref(null)
 let feedbackTimer = null
 
 async function share() {
-  const id = props.target?.media?.id
+  const ids = shareIds.value
   emit('close')
-  if (id == null) return
+  if (!ids.length) return
 
-  const copied = await copyMediaUrl(id)
+  const copied = await copyMediaUrl(ids)
   feedback.value = copied ? t('common.shareCopied') : t('common.shareFailed')
   clearTimeout(feedbackTimer)
   feedbackTimer = setTimeout(() => (feedback.value = null), 2000)
@@ -108,8 +132,8 @@ onBeforeUnmount(() => {
       @pointerdown.stop
       @contextmenu.prevent
     >
-      <p v-if="hidden" class="px-3 py-2 text-xs text-ink-faint">
-        {{ t('media.hiddenNoShare') }}
+      <p v-if="!shareable" class="px-3 py-2 text-xs text-ink-faint">
+        {{ t(fromSelection ? 'media.hiddenSelectionNoShare' : 'media.hiddenNoShare') }}
       </p>
 
       <button
@@ -132,7 +156,7 @@ onBeforeUnmount(() => {
           <circle cx="14.5" cy="6.5" r="2.2" />
           <circle cx="14.5" cy="13.5" r="2.2" />
         </svg>
-        {{ t('media.shareFile') }}
+        {{ t(fromSelection ? 'media.shareSelection' : 'media.shareFile') }}
       </button>
     </div>
 

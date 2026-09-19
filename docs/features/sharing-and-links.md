@@ -24,7 +24,7 @@ tab, the map range - so sharing is "copy the current URL" plus `?lang=<current l
 | --- | --- |
 | `copyCurrentUrl()` | The address as it stands. |
 | `copyHomeUrl()` | The site root. Used by the footer. |
-| `copyMediaUrl(id, { open, path })` | The address with `?i=` (and `?o=1`) written into it. |
+| `copyMediaUrl(ids, { open, path })` | The address with `?i=` (and `?o=1`) written into it. One id, or a whole selection. |
 
 `copyToClipboard` falls back to a hidden `<textarea>` plus `execCommand('copy')` - the
 async clipboard API is unavailable on non-secure origins.
@@ -60,6 +60,11 @@ takes a `path` override, and the viewer passes the file's own day when
 **Private files have no share button at all.** A link to one would send the recipient to a
 day that, as far as they are concerned, does not contain it. The button is removed rather
 than disabled - an offer that is not there cannot be taken up by mistake.
+
+**The grid's context menu shares the selection.** A right-click on a tile that is part of
+one writes **every** selected id into the link; on a tile outside it, just that tile.
+Private files are dropped from the selection, and when nothing is left the menu says why
+rather than offering a link that would single out nothing.
 
 ### API of `useMediaLink`
 
@@ -153,7 +158,7 @@ and `AllowOverride`. On another server the rules transfer; only the syntax chang
 3. Dismissal answers a tap that did not travel, on `pointerup`; a swipe leaves the outline.
 4. `i` may name several ids; `o=1` opens the first of them, and the rest are only outlined.
 5. The front page never writes `?i=`.
-6. A private file is never shareable.
+6. A private file is never shareable, and is left out of a shared selection.
 
 ## Related
 
