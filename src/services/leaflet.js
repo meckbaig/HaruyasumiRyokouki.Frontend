@@ -423,13 +423,17 @@ export const afterIcon = pinIconOf(AFTER_COLOR, 30)
 /**
  * A base map with CARTO tiles. By default the wheel scrolls the page and only
  * Ctrl/Cmd + wheel zooms, with `onScrollHint` fired otherwise; `wheelZoom` lifts
- * that for a map filling the window. See docs/features/maps.md.
+ * that for a map filling the window. Reduced motion builds it with Leaflet's own
+ * zoom animation off, so a zoom is a plain jump. See docs/features/maps.md.
  */
 export function createBaseMap(container, { center, zoom, onScrollHint, wheelZoom = false } = {}) {
-  const map = L.map(container, { scrollWheelZoom: wheelZoom }).setView(
-    center ?? FALLBACK_CENTER,
-    zoom ?? FALLBACK_ZOOM,
-  )
+  const map = L.map(container, {
+    scrollWheelZoom: wheelZoom,
+    // Reduced motion takes Leaflet's animated zoom off: its own path waits out a
+    // 250ms fallback that no `transitionend` ends once the transitions are cut,
+    // and the marks would stand on the old view until then. See docs/features/maps.md.
+    zoomAnimation: !motionReduced(),
+  }).setView(center ?? FALLBACK_CENTER, zoom ?? FALLBACK_ZOOM)
   L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: MAX_ZOOM }).addTo(map)
   map.attributionControl.setPrefix(false);
 

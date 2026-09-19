@@ -254,7 +254,8 @@ row spreads rather than piling up.
   transform is armed from the value that shows the frame as it stands - so the first animated
   frame is the one already on screen. `zoomend` is now only a **resync** (`reposition` writes
   a plain translate, so no transform is accumulated), and nothing moves at the handover.
-  Reduced motion, and any map with Leaflet's own zoom animation off, is `zoomend` alone.
+  Reduced motion builds the map without Leaflet's own zoom animation, so there `zoomend`
+  alone is the answer. See Wheel zoom.
 - Their own pane, `ROUTE_PANE`, at z-index 450 - above the tiles and below every pin. The
   canvas takes no presses.
 - **Every arrow figure lives in this module** (`ROUTE_ARROW`): spacing, cap, size, stroke
@@ -275,6 +276,12 @@ Both the trip map and the picker make this distinction.
 
 The guarded path calls `event.preventDefault()` to stop the browser's own ctrl+wheel page
 zoom, and applies one zoom level per notch by hand.
+
+**Reduced motion drops Leaflet's own zoom animation** (`zoomAnimation: false`), so a zoom is
+a plain jump and `zoomend` fires at once. Leaflet's animated path otherwise waits out a 250ms
+fallback that no `transitionend` ever ends, because the app's reduced-motion rules cut every
+transition - and the route canvas, transformed only on `zoomanim`, would stand on the old view
+for that whole window. Any map with Leaflet's zoom animation off answers on `zoomend` alone.
 
 ### Re-framing is separate from drawing
 
@@ -652,7 +659,9 @@ which rooftop.
     `L.TileLayer` transforms its own container, so the chevrons ride the zoom with the tiles.
     The target view is drawn **once per gesture**, into a window as wide as the settled box and
     clipped to it; `zoomend` only resyncs and nothing moves at the handover. A draw per frame is
-    never the answer.
+    never the answer. Under reduced motion the map is built with Leaflet's zoom animation off
+    (`createBaseMap`), so no `zoomanim` fires and `zoomend` alone answers at once - the canvas
+    never waits out Leaflet's 250ms fallback.
 20. The turn is `MediaStrip` - the viewer's filmstrip on its own - and not a second
     implementation of it. A step arriving mid-slide is queued, never snapped. The card carries
     the viewer's **whole** guard, and its content follows the frame the strip **settles** on,
