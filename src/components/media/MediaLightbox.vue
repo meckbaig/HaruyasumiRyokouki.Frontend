@@ -1044,14 +1044,35 @@ function pictureBox() {
 }
 
 /**
- * The sharpest image the browser can paint right now. A stale `inHand` record that
- * the browser has evicted would fly empty; the preview is always present here and
- * the full is overlaid the moment it decodes.
+ * A full the browser can paint with no request of its own: the detached probe
+ * answers for the memory cache, and the element about to replace the flight also
+ * reports `complete` for a disk-cached one the probe cannot see. The probe alone
+ * flew the preview while the strip settled that full. See docs/features/media-viewer.md.
+ */
+function fullPaintable(url) {
+  if (isCached(url)) return true
+  const element = picture.value
+  return Boolean(element?.complete && element.naturalWidth && element.getAttribute('src') === url)
+}
+
+/**
+ * The sharpest image the browser can paint right now. The preview is always
+ * present here, and the full is overlaid the moment it decodes.
  */
 function heroSource(item) {
   const full = fullScreenSrc(item)
-  if (full && isCached(full)) return full
+  if (full && fullPaintable(full)) return full
   return previewSrc(item) || miniatureSrc(item)
+}
+
+/**
+ * A full the strip has already settled but the probes cannot confirm (a record
+ * the browser has since evicted) still joins the flight, faded over the preview,
+ * so the handover never cuts one to the other. See docs/features/media-viewer.md.
+ */
+function upgradeFlight(item) {
+  if (!fullLoaded.value) return
+  flight.value?.setSource(fullScreenSrc(item))
 }
 
 /*
@@ -1086,6 +1107,8 @@ function close({ fly = true } = {}) {
       toRadius: TILE_RADIUS,
       insets: chromeInsets(),
     })
+    // A full the strip already holds joins the closing flight too.
+    upgradeFlight(item)
   }
 
   emit('update:index', null)
@@ -1241,6 +1264,9 @@ watch(
         toRadius: 0,
         insets: chromeInsets(),
       })
+      // `settleLayers` may have raised `fullLoaded` before the flight existed,
+      // so the watcher below never fires for it; seed the upgrade here.
+      upgradeFlight(current.value)
     }
 
   },

@@ -355,10 +355,15 @@ handover at the end of the flight is exact.
 
 ### The rest
 
-- The source is `heroSource(item)`: the full-size image only when the browser still holds
-  it in memory (`isCached`). A stale `inHand` record cannot know the browser evicted the
-  bitmap, and a stale full would fly empty; the preview is always present here and the full
-  is overlaid the moment it decodes. A stand-in flown to full size arrives visibly soft.
+- The source is `heroSource(item)`: the full-size image when the browser can paint it with no
+  request of its own - the memory-cache probe (`isCached`), or the element about to replace the
+  flight reporting `complete` for one held only on disk. The strip settles such a full before
+  its first paint (`revealIfCached`); the memory probe alone flew the preview while the strip
+  settled that full, cutting preview to full the instant the flight ended. A full the strip has
+  settled but the probes cannot confirm still joins the flight, faded over the preview
+  (`upgradeFlight`), so the handover never cuts one to the other. The preview stays the fallback,
+  and the full is overlaid the moment it decodes. A stand-in flown to full size arrives visibly
+  soft.
 - **The source is swapped mid-flight, by a fade.** A watcher on `fullLoaded` swaps in the
   real file the moment it lands, so the last frames of the expansion are already at full
   resolution. Without it, a 400px preview finishes its journey filling a 4K display, and
@@ -550,6 +555,10 @@ Do not "fix" these:
     came out unblurred.
 23. Ids are integers and a service URL is never built twice; both the menu and the album over
     a pin read `MAP_SERVICES`.
+24. A flight's source and the layer the strip settles must agree. A full the browser can paint
+    with no request - the memory probe, or the element reporting `complete` for a disk-cached
+    one - is flown; one the strip has settled but the probes cannot confirm joins the flight
+    faded over the preview. The memory probe alone cut preview to full at the flight's end.
 
 ## Related
 
