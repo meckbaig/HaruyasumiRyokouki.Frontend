@@ -58,9 +58,9 @@ function sameIds(link, query) {
 
 /**
  * Reads and writes the pair for the current route. Writes **replace**, never
- * push - except `push`, used when following the text into the pile, which is a
- * place of its own so the browser's Back can return to the note.
- * See docs/features/sharing-and-links.md.
+ * push - except the two ways out of the text: `push` singles the files out,
+ * `depart` leaves the address alone. Each is a place of its own, so the
+ * browser's Back returns to the note. See docs/features/sharing-and-links.md.
  *
  * @param {{ suspended?: () => boolean }} [options] holds dismissal off while the
  *   viewer is open - the outline is behind it.
@@ -89,6 +89,16 @@ export function useMediaLink({ suspended = () => false } = {}) {
   function push(ids, open = true) {
     const query = withMediaLink(route.query, ids, open)
     return router.push({ path: route.path, query, hash: route.hash })
+  }
+
+  /**
+   * Adds an entry for a departure that changes **nothing** in the address - the
+   * map follow, which remembers a way back without singling files out. `force`
+   * is what makes vue-router push the location rather than skip it as a
+   * duplicate; that skip is the only reason a plain push cannot do this.
+   */
+  function depart() {
+    return router.push({ path: route.path, query: route.query, hash: route.hash, force: true })
   }
 
   function clear() {
@@ -141,5 +151,5 @@ export function useMediaLink({ suspended = () => false } = {}) {
     document.removeEventListener('pointercancel', onPointerCancel)
   })
 
-  return { link, write, push, clear }
+  return { link, write, push, depart, clear }
 }

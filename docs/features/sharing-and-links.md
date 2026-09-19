@@ -73,7 +73,7 @@ rather than offering a link that would single out nothing.
 | `readMediaLink(query)` | `{ ids, id, open }`. `id` is the first id, null unless the value is an integer. |
 | `withMediaLink(query, ids, open)` | The same query with the pair set, or removed when there are no ids. |
 | `pageIdentity(route)` | The address **with the pair removed** and the rest sorted. |
-| `useMediaLink({ suspended })` | `{ link, write, clear }` for the current route. |
+| `useMediaLink({ suspended })` | `{ link, write, push, depart, clear }` for the current route. |
 
 `pageIdentity` exists because writing `i` changes the address, and anything watching the
 address for a page change reads that as the reader being taken somewhere else. That is how
@@ -84,6 +84,11 @@ reader actually move?" must compare `pageIdentity`, never `route.fullPath`.
 arrival page under one history entry per picture. It also skips writes that would not
 change anything, because vue-router treats navigating to the same place as a reportable
 error.
+
+`push()` and `depart()` are the two exceptions, both for leaving a note: `push(ids)` writes
+the pair and adds an entry, `depart()` adds an entry and changes **nothing**. `depart` passes
+`force`, because vue-router skips a push to the location already standing as a duplicate - and
+the map follow needs the step without the `?i=` that would outline the block.
 
 The outline is dismissed by a **tap** that is not about it, with these carve-outs:
 

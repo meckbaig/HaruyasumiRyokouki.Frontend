@@ -10,6 +10,7 @@ import { formatShortTime } from '@/services/dates'
 import { GHOST_CLICK_MS } from '@/services/ghostClick'
 import { markOpenedWithoutSource } from '@/services/openedFrom'
 import { SLIDE_MS } from '@/services/motion'
+import { hasCoordinates } from '@/services/mapLinks'
 
 /**
  * The card shown beside a media reference in a text. It carries **every** file
@@ -27,9 +28,15 @@ const props = defineProps({
   anchorRect: { type: Object, default: null },
   /** Shown by a tap, so the click that called it must not reach its controls. */
   touch: { type: Boolean, default: false },
+  /**
+   * Whether the host can show a file on the day's map. Off inside the viewer,
+   * which has a map action of its own.
+   * See docs/features/rich-text-and-links.md.
+   */
+  canShowOnMap: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['open', 'close', 'enter', 'leave', 'activate'])
+const emit = defineEmits(['open', 'close', 'enter', 'leave', 'activate', 'map'])
 
 const { t } = useI18n()
 const ui = useUiStore()
@@ -267,18 +274,54 @@ const position = computed(() => {
 
             <div class="flex h-40 min-w-0 flex-1 flex-col">
               <p class="line-clamp-3 text-sm font-medium text-ink" :title="slide.title">{{ slide.title }}</p>
-              <p v-if="slide.description" class="mt-0.5 line-clamp-5 text-xs text-ink-soft">
+              <!-- Three lines, not five: the round actions below are 40px. -->
+              <p v-if="slide.description" class="mt-0.5 line-clamp-3 text-xs text-ink-soft">
                 {{ slide.description }}
               </p>
-              <!-- The way to the tile - the action the text itself takes on a
-                   mouse click, offered here where a tap shows this card instead. -->
-              <button
-                type="button"
-                class="mt-auto self-end text-xs font-medium text-accent transition hover:underline -mr-3"
-                @click="emit('activate')"
-              >
-                {{ t('richText.gotoMedia') }}
-              </button>
+              <!-- The two ways to the file, as the pin album's own round buttons:
+                   the tile the text opens on a mouse click, and the day's map for a
+                   file that carries coordinates. -->
+              <div class="mt-auto flex items-center justify-end gap-1 self-end -mr-4 -mb-1.5">
+                <button
+                  v-if="canShowOnMap && hasCoordinates(slide.media)"
+                  type="button"
+                  class="icon-button text-accent transition hover:bg-ink/10 hover:text-ink"
+                  :title="t('map.showOnMap')"
+                  :aria-label="t('map.showOnMap')"
+                  @click="emit('map', slide.media.id)"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    aria-hidden="true"
+                  >
+                    <path d="M10 18s6-5.1 6-9.5A6 6 0 0 0 4 8.5C4 12.9 10 18 10 18Z" />
+                    <circle cx="10" cy="8.5" r="2.2" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  class="icon-button text-accent transition hover:bg-ink/10 hover:text-ink"
+                  :title="t('richText.gotoMedia')"
+                  :aria-label="t('richText.gotoMedia')"
+                  @click="emit('activate')"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    aria-hidden="true"
+                  >
+                    <circle cx="10" cy="10" r="6" />
+                    <circle cx="10" cy="10" r="1.6" fill="currentColor" stroke="none" />
+                    <path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" stroke-linecap="round" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 

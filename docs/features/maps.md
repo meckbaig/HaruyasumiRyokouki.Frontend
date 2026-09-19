@@ -563,6 +563,15 @@ it has been laid out computes its zoom against a box of no size.
 This is the one place a pin **is** zoomed to, because the reader asked for that pin
 specifically. A press on a pin never zooms.
 
+**The note's card reaches the same file without the viewer.** A media reference's hover card
+offers "open on the map" for the file on show when it carries coordinates, and the day page
+answers it with the same `showMediaOnMap`, so the map is revealed, scrolled to and framed on
+that file exactly as the viewer's own action does. The step remembers the line it was followed
+from **and pushes a history entry**, so the page's own back button and the browser's Back both
+return to the note. It writes **nothing into the address**, though: the files are not outlined in
+the wall and the page is not scrolled to it, since the reader is going to the map. Only a follow
+into the pile carries a `?i=`. See [rich-text-and-links.md](rich-text-and-links.md).
+
 Long days are **paged** so the map is not a long scroll away: the day's grid opens on four
 rows and keeps the rest behind one button. With "hide the map by default" the page assumes
 the reader is not heading for the map and the grid is not paged at all. See
@@ -734,6 +743,10 @@ which rooftop.
     for an origin nor takes a grid tile as a destination, the element an opener handed over being
     untouched. The viewer reads the flag **once as it opens**, so a close that drops it cannot
     swap the mark the flight is heading for. "Go to media" folds a full-screen map first.
+36. The note card's map action is the day page's own `showMediaOnMap`, the same entry point the
+    viewer's map button uses, and it carries the file **on show**, never the reference. It
+    remembers the line and pushes a step to return from, but writes no `?i=`, so the wall is
+    neither outlined nor scrolled to.
 
 ## Related
 

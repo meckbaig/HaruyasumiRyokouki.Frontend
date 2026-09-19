@@ -21,10 +21,16 @@ const props = defineProps({
    * note, off inside the viewer, where there is nowhere to return to.
    */
   anchorable: { type: Boolean, default: false },
+  /**
+   * Whether the page can show a file on the day's map. The card is also drawn
+   * inside the viewer's description, where that action is not offered.
+   * See docs/features/rich-text-and-links.md.
+   */
+  canShowOnMap: { type: Boolean, default: false },
 })
 
-/** Both events carry `{ mediaId, index }` - the occurrence, not just the file. */
-const emit = defineEmits(['media-activate', 'media-open'])
+/** Each event carries `{ mediaId, index }` - the occurrence, not just the file. */
+const emit = defineEmits(['media-activate', 'media-open', 'media-map'])
 
 const { t } = useI18n()
 
@@ -147,6 +153,12 @@ function activate(part) {
   intent.close()
 }
 
+/** The day's map, for the file the reader is looking at in the card. */
+function showOnMap(part, mediaId) {
+  emit('media-map', reference(part, mediaId))
+  intent.close()
+}
+
 /** `mediaId` is the file the reader is looking at in the card, if there is one. */
 function open(part, mediaId) {
   emit('media-open', reference(part, mediaId))
@@ -219,11 +231,13 @@ function onClick(part, event) {
           :label="labelFor(hover.part)"
           :anchor-rect="hover.rect"
           :touch="hover.byTouch"
+          :can-show-on-map="canShowOnMap"
           @enter="onCardEnter"
           @leave="onCardLeave"
           @activate="activate(hover.part)"
           @close="intent.close()"
           @open="open(hover.part, $event)"
+          @map="showOnMap(hover.part, $event)"
         />
       </Transition>
     </Teleport>

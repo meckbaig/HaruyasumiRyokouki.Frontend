@@ -207,6 +207,20 @@ function openNoteMedia(reference) {
   if (index >= 0) lightboxIndex.value = index
 }
 
+/**
+ * Following a reference onto the day's map: the line is remembered and the step
+ * gets a history entry, so the browser's Back returns to the note. The files are
+ * **not** singled out, the reader going to the map, and the anchor names the
+ * reference's own id - a multi-file reference must still be found again.
+ * See docs/features/rich-text-and-links.md.
+ */
+function followNoteMap(reference) {
+  setTextAnchor({ mediaId: reference.ids?.[0] ?? reference.mediaId, index: reference.index })
+  mediaLink.depart()
+  onScrollCheck()
+  showMediaOnMap(reference.mediaId)
+}
+
 /** A tile press. While a reference is being picked the id goes to the field. */
 function onGridOpen(item) {
   if (resolvePick(item?.id)) return
@@ -732,8 +746,10 @@ function onNoteSaved() {
                 :text="day.note"
                 :media="media"
                 anchorable
+                can-show-on-map
                 @media-activate="activateNoteMedia"
                 @media-open="openNoteMedia"
+                @media-map="followNoteMap"
               />
             </p>
             <p v-else class="note-reveal text-sm text-ink-faint">{{ t('day.noNote') }}</p>

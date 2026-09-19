@@ -11,7 +11,7 @@ the viewer to the text.
 | --- | --- |
 | `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `linkLabel`, editor template builders. |
 | `src/components/common/RichText.vue` | Token renderer; says which reference a card belongs to and emits references upward. |
-| `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar and go-to-media. |
+| `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar, the way to the tile, and the day's map for a file that carries coordinates. |
 | `src/components/map/MapMediaCard.vue` | The card's sibling over a map pin - its own doc: [maps.md](maps.md). |
 | `src/services/hoverIntent.js` | The hover thresholds, and the geometry of a hand's trajectory: the nearest point of the card, the safe triangle, the polygon test. Pure functions. |
 | `src/composables/useHoverIntent.js` | When a card opens and closes: hover in and out, arrival at the card, a hand stopped outside it, a card shown by hand. |
@@ -147,6 +147,17 @@ A chip may name several files, so the card is a carousel rather than a single pi
 - **The card carries a way to the file's tile.** It makes the action a mouse click on the
   text makes, offered on a touch screen where the tap shows this card instead, and left on a
   mouse where it repeats what the text already does.
+- **The card also carries the day's map** when the file on show has coordinates. Both ways to
+  the file are the pin album's own round `icon-button`s, right-aligned at the foot of the text
+  column. They are **icons, not words**: two full labels wrap in the ~172px column in every
+  language, and worst on the phone, where the action is needed most. The label lives in the
+  `title` and the `aria-label`. The description is capped at **three** lines rather than five to
+  give the 40px row its room.
+- **The map button names the file on show**, not the reference: coordinates belong to a file,
+  while the tile a follow reaches belongs to the whole block.
+- **The map action is offered by the page, not assumed.** `canShowOnMap` is set only where a
+  day map exists; the card drawn inside the viewer's description leaves it off, the viewer
+  having a map action of its own. The label is the viewer's own `map.showOnMap`.
 - **A missing file still opens a card.** The id did not resolve against the page's list, so
   the card says so and shows the reference's own text.
 
@@ -154,10 +165,21 @@ A chip may name several files, so the card is a carousel rather than a single pi
 
 A mouse click on a chip singles the files out with `?i=<id,id,...>` and scrolls to the first
 of their tiles; the thumbnail in the card opens one full screen. On a touch screen the tap
-shows the card, and the card's own button singles the files out. `RichText` only reports what
-was followed - it emits `{ mediaId, ids, index }`, `mediaId` the file the reference is
-anchored by, `ids` every file it named, and `index` the occurrence, since one file may be
-referenced more than once - and the page decides what to do with it.
+shows the card, and the card's own button singles the files out; its map link, where the file
+on show has coordinates, follows the reference onto the day's map.
+
+That map follow is **not** the pile follow. The line is remembered and the step is given a
+history entry of its own, so the page's back button and the browser's Back both return to the
+note. But **no `?i=` is written**: nothing is outlined in the wall and nothing scrolls to it,
+the page going to the map. The entry is a **forced push of the location already standing** -
+`depart()` in `useMediaLink` - because vue-router skips a push to the same address as a duplicate
+and would otherwise leave the step no place to return from. The anchor is built from the
+reference's **own** first id, not the file on show, or a reference naming several files could not
+be found again, while the map itself is framed on the file on show.
+
+`RichText` only reports what was followed - it emits `{ mediaId, ids, index }`, `mediaId` the
+file the follow points at, `ids` every file it named, and `index` the occurrence, since one file
+may be referenced more than once - and the page decides what to do with it.
 
 **The address carries every id, not just the first**, so the outline and the link agree and a
 copied address names the whole block.
@@ -174,8 +196,9 @@ copied address names the whole block.
   See [media-grid-and-selection.md](media-grid-and-selection.md).
 - **Only a departure pushes a history entry.** A follow that scrolls calls `departFromText`,
   which records the anchor and pushes `?i=<ids>`; that entry is the note's, and the browser's
-  Back returns to it. Opening and paging the viewer **replace** the same entry, so a picture
-  turned to never buries the note under one more step.
+  Back returns to it. The map follow is a departure too, but pushes the location **unchanged**
+  (`depart`), so a way back exists with nothing singled out. Opening and paging the viewer
+  **replace** the same entry, so a picture turned to never buries the note under one more step.
 - **The way back is kept until the line is readable again.** Closing the viewer, paging, or a
   press elsewhere must not take it away; a settled scroll on which the reference reaches the
   band a reader actually reads - clear of the sticky header and of the bottom edge,
@@ -255,7 +278,8 @@ mirror came and went on its own, and nothing ever read it.
 14. The address names **every** id of a reference; the outline is the link's state, so the
     two agree and a copied address carries the whole block.
 15. A follow that takes the line off screen pushes a history entry, so Back returns to the
-    text.
+    text. The map follow is one of these: it pushes the location unchanged, not `?i=`, so it
+    adds a step to return from without singling anything out.
 16. The way back is spent **only** by seeing the reference again; closing the viewer or
     paging never clears it.
 17. The card steps with a real scroll. Two records are never cross-faded.
@@ -280,6 +304,12 @@ mirror came and went on its own, and nothing ever read it.
     element in place.
 28. The card's element is taken from the newest copy: a swap has two on the page for the
     length of the fade, and the one leaving must not blank the one being measured.
+29. The card's two ways to the file are one right-aligned row of round `icon-button`s in the
+    text column, labelled by `title` and `aria-label`. They are icons, not words, because two
+    full labels wrap in that column in every language, worst on a phone; the description is
+    capped at three lines to give the 40px row room. The map button follows the file **on show**,
+    appears only when that file has coordinates and the page offers a map, remembers the line
+    and pushes a step to return from, and writes **no** `?i=`: it outlines nothing.
 
 ## Related
 

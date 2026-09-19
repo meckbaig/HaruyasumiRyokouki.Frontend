@@ -77,7 +77,7 @@
     "zoomHint": "Ctrl + scroll to zoom",
     "expand": "Expand map",
     "collapse": "Collapse map",
-    "showOnMap": "Where this was taken",
+    "showOnMap": "Open on the map",
     "onSite": "On the trip map",
     "services": {
       "google": "Open in Google Maps"

@@ -312,6 +312,22 @@ const position = computed(() => {
         </button>
 
         <div class="map-card-actions">
+          <a
+            v-for="service in services"
+            :key="service.id"
+            class="lightbox-icon lightbox-arrow icon-button"
+            :href="service.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            :title="service.label"
+            :aria-label="service.label"
+          >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+              <path d="M10 18s6-5.1 6-9.5A6 6 0 0 0 4 8.5C4 12.9 10 18 10 18Z" />
+              <circle cx="10" cy="8.5" r="2.2" />
+            </svg>
+          </a>
+          
           <button
             type="button"
             class="lightbox-icon lightbox-arrow icon-button"
@@ -345,22 +361,6 @@ const position = computed(() => {
               <path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" stroke-linecap="round" />
             </svg>
           </button>
-
-          <a
-            v-for="service in services"
-            :key="service.id"
-            class="lightbox-icon lightbox-arrow icon-button"
-            :href="service.href"
-            target="_blank"
-            rel="noopener noreferrer"
-            :title="service.label"
-            :aria-label="service.label"
-          >
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-              <path d="M10 18s6-5.1 6-9.5A6 6 0 0 0 4 8.5C4 12.9 10 18 10 18Z" />
-              <circle cx="10" cy="8.5" r="2.2" />
-            </svg>
-          </a>
         </div>
       </div>
     </div>

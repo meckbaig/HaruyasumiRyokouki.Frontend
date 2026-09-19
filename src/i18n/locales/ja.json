@@ -77,7 +77,7 @@
     "zoomHint": "Ctrl + ホイールで拡大縮小",
     "expand": "地図を拡大",
     "collapse": "地図を縮小",
-    "showOnMap": "撮影場所",
+    "showOnMap": "地図で開く",
     "onSite": "旅の地図で見る",
     "services": {
       "google": "Google マップで開く"
