@@ -24,6 +24,11 @@ const props = defineProps({
   showTime: { type: Boolean, default: false },
   /** Keeps the pencil and the star on show without a cursor; see MediaTile. */
   touchControls: { type: Boolean, default: false },
+  /**
+   * Makes every tile read-only, so a press on a preview panel cannot edit. The
+   * pending queue never sets it. See MediaTile and docs/features/media-grid-and-selection.md.
+   */
+  readonly: { type: Boolean, default: false },
   /** Lets the tiles arrive one after another instead of all at once. */
   cascade: { type: Boolean, default: false },
   chunkSize: { type: Number, default: 60 },
@@ -314,6 +319,7 @@ onBeforeUnmount(() => {
         :show-date="showDate"
         :show-time="showTime"
         :touch-controls="touchControls"
+        :readonly="readonly"
         :faded="emphasis && !highlightSet.has(media.id)"
         @open="emit('open', $event)"
         @edit="emit('edit', $event)"

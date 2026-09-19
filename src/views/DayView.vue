@@ -32,6 +32,7 @@ import { MAP_EXPAND, MAP_COLLAPSE, MAP_TALLER, MAP_SHORTER } from '@/services/ma
 import { hasOverlay } from '@/services/overlayStack'
 import { chromeInsets } from '@/services/pageChrome'
 import { useHiddenRecords } from '@/composables/useHiddenRecords'
+import { useGridReadonly } from '@/composables/useGridReadonly'
 import {
   useTextAnchor,
   setTextAnchor,
@@ -392,6 +393,8 @@ const day = computed(() => days.getDay(props.date))
 /* The editor's hide toggle removes private files here, on the fly; the cached
    day is left untouched, so showing them again is instant. */
 const { withoutHidden } = useHiddenRecords()
+/* The footer's read-only wall, so a browsing editor cannot edit by accident. */
+const { readonly: gridReadonly } = useGridReadonly()
 const media = computed(() => withoutHidden(day.value?.media ?? []))
 const locatedMedia = computed(() =>
   media.value.filter(
@@ -755,6 +758,7 @@ function onNoteSaved() {
             show-time
             :preview-rows="mapHiddenByDefault ? null : 4"
             :editable="auth.isEditor"
+            :readonly="gridReadonly"
             :highlighted-id="highlightedId"
             :highlighted-ids="highlightedIds"
             :emphasis="noteEmphasis"

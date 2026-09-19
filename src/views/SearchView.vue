@@ -25,6 +25,7 @@ import { cascadeDelay } from '@/services/cascade'
 import { captionForSlug } from '@/services/tags'
 import { applyHead } from '@/services/head'
 import { useHiddenRecords } from '@/composables/useHiddenRecords'
+import { useGridReadonly } from '@/composables/useGridReadonly'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -53,6 +54,8 @@ const tab = computed(() => (TABS.includes(route.query.tab) ? route.query.tab : '
 /* The editor's hide toggle drops private files from the answer, on the fly; the
    cached results are left untouched, so showing them again is instant. */
 const { hidden: recordsHidden, withoutHidden } = useHiddenRecords()
+/* The footer's read-only wall, so a browsing editor cannot edit by accident. */
+const { readonly: gridReadonly } = useGridReadonly()
 
 const mediaDays = computed(() => {
   const groups = search.results.mediaDays
@@ -281,6 +284,7 @@ async function removeMedia(list) {
             :style="cascadeDelay(index)"
             :group="group"
             :editable="auth.isEditor"
+            :readonly="gridReadonly"
             :highlighted-id="highlightedId"
             :hide-hidden="recordsHidden"
             @open="openLightbox"

@@ -4,12 +4,14 @@ import { copyHomeUrl } from '@/services/share'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useMotionStore } from '@/stores/motion'
+import { useGridReadonly } from '@/composables/useGridReadonly'
 import * as release from '@/services/release'
 
 const { t } = useI18n()
 const ui = useUiStore()
 const auth = useAuthStore()
 const motion = useMotionStore()
+const { readonly: gridReadonly, toggle: toggleGridReadonly } = useGridReadonly()
 
 const authorName = import.meta.env.VITE_AUTHOR_NAME || 'meckbaig'
 const authorGithub = import.meta.env.VITE_AUTHOR_GITHUB || ''
@@ -52,6 +54,32 @@ async function shareSite() {
             <span class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition" />
           </span>
           {{ t('footer.forceMotion') }}
+        </label>
+
+        <!--
+          Editor-only: a read-only wall for browsing. The star, the hide control
+          and the pencil arrive half-strength on approach and say why, and a
+          press on one opens the picture instead of editing it.
+          See docs/features/media-grid-and-selection.md.
+        -->
+        <label
+          v-if="auth.isEditor"
+          class="mt-2 flex cursor-pointer items-center gap-2 text-xs text-ink-faint"
+          :title="t('footer.gridReadonlyHint')"
+        >
+          <input
+            type="checkbox"
+            class="peer sr-only"
+            :checked="gridReadonly"
+            @change="toggleGridReadonly()"
+          />
+          <span
+            class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
+            aria-hidden="true"
+          >
+            <span class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition" />
+          </span>
+          {{ t('footer.gridReadonly') }}
         </label>
       </div>
 

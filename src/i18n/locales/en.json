@@ -105,6 +105,7 @@
     "hiddenNoShare": "This file is hidden - there is no link to share",
     "hide": "Hide",
     "unhide": "Show",
+    "readonlyHint": "Read-only mode: editing is blocked",
     "hideHidden": "Hide hidden files",
     "showHidden": "Show hidden files"
   },
@@ -226,7 +227,9 @@
     "about": "About",
     "aboutText": "A personal timeline of a three-month trip across Japan: notes, photos and points on the map.",
     "developer": "Author",
-    "forceMotion": "Animate regardless of system settings"
+    "forceMotion": "Animate regardless of system settings",
+    "gridReadonly": "Read-only grid",
+    "gridReadonlyHint": "A safety mode that prevents accidental presses on the grid's editing buttons"
   },
   "errors": {
     "generic": "Something went wrong.",

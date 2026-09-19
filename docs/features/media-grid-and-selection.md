@@ -20,6 +20,8 @@ and the press-and-drag selection gesture shared by four different walls.
 | `src/components/common/SkeletonGrid.vue` | Placeholder sized from `mediaCount`. |
 | `src/composables/useHiddenRecords.js` | Editor-only "hide the hidden files" state and filter. |
 | `src/components/common/HiddenRecordsToggle.vue` | The one button that drives it, on the day and search pages. |
+| `src/composables/useGridReadonly.js` | Editor-only read-only wall: the tile's edit controls answer nothing. |
+| `src/components/layout/AppFooter.vue` | The one checkbox that drives it, beside the motion switch. |
 
 ## Two-stage image load
 
@@ -250,6 +252,29 @@ state and the filter; `HiddenRecordsToggle` is the one button. The search page's
 behind "show the rest of this day" is filtered too, or a hidden file would reappear the
 moment a day was unfolded.
 
+## The read-only wall
+
+An editor who is only reading turns the footer's "read-only grid" on
+(`haruyasumi.gridReadonly`, `useGridReadonly`; the switch sits beside the motion one). The
+tile's three editing controls - the star, the hide control and the pencil - still **arrive on
+approach** exactly as they do otherwise, but through `.hover-reveal-dim`: the same reveal at
+half strength, so the control reads as not offered rather than as refused. A marked file's
+star is the exception: it keeps the full strength it has everywhere else, on show at all
+times, and dims as the **tile** is pointed at - the mark reads unchanged until the reader
+reaches for the picture, and then plainly not offered.
+
+Hovering a dimmed control shows a `title` - read-only mode, editing is blocked - because a
+half-strength button that silently did nothing would read as broken. A press on one is **the
+tile's own**: `passThrough` sends it to `activate`, so it opens the picture exactly as a press
+anywhere else on the tile does. The cursor is deliberately left alone for the same reason -
+the control is not refused, only not offered - and the controls are never `disabled`, which
+would take a not-allowed cursor and swallow the press instead.
+
+**Only the day and search walls honour it.** The pending queue is work, not browsing, and
+keeps every control: it simply never passes the flag down (`MediaGrid` to `MediaTile`).
+Selection, the context menu's own link and opening a file are untouched, because none of
+those is an edit.
+
 ## The paint gesture
 
 `useTilePaint` owns press-and-drag selection. It belongs to the container, not the tile,
@@ -323,6 +348,12 @@ exactly those.
 12. The emphasis dim is time-boxed - extended while the page is still scrolling - and is
     not the search dim.
 13. `highlightedIds` is the link's, never a parallel state of the page's own.
+14. The read-only wall shows the star, the hide control and the pencil on approach as ever,
+    but half-strength (`.hover-reveal-dim`) and with a `title` saying why. A press on one is
+    the tile's own (`passThrough` to `activate`), so it opens the picture; the controls are
+    never `disabled` and the cursor is left alone. A marked file's star stays on show at full
+    strength and dims as the tile is pointed at. Only the day and search walls pass the flag;
+    the pending queue never does.
 
 ## Related
 

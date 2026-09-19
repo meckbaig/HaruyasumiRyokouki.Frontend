@@ -73,6 +73,9 @@ shown an empty admin screen.
 
 - The pencil, the star and the hide control on a tile.
 - The hide/show toggle for private records on the day and search pages.
+- The read-only grid switch in the footer, which shows those three controls half-strength and
+  sends their press to the tile, so it opens the picture instead of editing it.
+  See [media-grid-and-selection.md](media-grid-and-selection.md).
 - Selection mode and the floating toolbar.
 - The day-note editor.
 - The `favorite` / `private` fields being non-null at all - the server omits them for

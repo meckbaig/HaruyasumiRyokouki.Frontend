@@ -13,6 +13,8 @@ const props = defineProps({
   /** One entry of `splitSearchResults().mediaDays`. */
   group: { type: Object, required: true },
   editable: { type: Boolean, default: false },
+  /** Editor-only read-only wall, passed down to both grids. See MediaGrid. */
+  readonly: { type: Boolean, default: false },
   /** Editor-only: keeps hidden files out of the remainder this day hands back. */
   hideHidden: { type: Boolean, default: false },
   /** Id of the file a link singled out; only one group will actually hold it. */
@@ -94,6 +96,7 @@ function openAt(media) {
       cascade
       show-time
       :editable="editable"
+      :readonly="readonly"
       :highlighted-id="highlightedId"
       @open="openAt"
       @edit="emit('edit', $event)"
@@ -113,6 +116,7 @@ function openAt(media) {
           dimmed
           show-time
           :editable="editable"
+          :readonly="readonly"
           :highlighted-id="highlightedId"
           @open="openAt"
           @edit="emit('edit', $event)"

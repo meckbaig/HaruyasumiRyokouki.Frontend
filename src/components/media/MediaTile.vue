@@ -31,6 +31,13 @@ const props = defineProps({
   /** Pencil and star on show without a cursor. Required on the queue, wrong on a
    *  day. See docs/features/media-grid-and-selection.md. */
   touchControls: { type: Boolean, default: false },
+  /**
+   * A read-only wall: the controls arrive half-strength on approach (a marked
+   * star stays on show and dims on hover) with a hint saying why, and a press on
+   * one is the tile's own, so it opens the picture.
+   * See docs/features/media-grid-and-selection.md.
+   */
+  readonly: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['open', 'edit', 'context'])
@@ -40,9 +47,17 @@ const editor = useEditorStore()
 const ui = useUiStore()
 
 const root = ref(null)
-/** See `touchControls`: the same class, quietened where nothing hovers. */
+/*
+  See `touchControls`: the same class, quietened where nothing hovers. A
+  read-only control arrives the same way but half-strength, so it reads as not
+  offered rather than refused. See docs/features/media-grid-and-selection.md.
+*/
 const reveal = computed(() =>
-  props.touchControls ? 'hover-reveal' : 'hover-reveal hover-reveal-quiet',
+  props.readonly
+    ? 'hover-reveal hover-reveal-dim'
+    : props.touchControls
+      ? 'hover-reveal'
+      : 'hover-reveal hover-reveal-quiet',
 )
 const video = computed(() => isVideo(props.media))
 const hidden = computed(() => isPrivate(props.media))
@@ -68,6 +83,13 @@ const outlineClass = computed(() => {
 /* The front-page mark. A marked file keeps its star on show, unlike the pencil -
    the mark is the answer to "what have I picked out?". */
 const favorite = computed(() => props.media.favorite === true)
+/** A read-only wall keeps the star as it is, and dims it as the **tile** is
+ *  pointed at, so the mark reads unchanged while the press is not offered. */
+const starClass = computed(() =>
+  favorite.value
+    ? `text-star opacity-100 ${props.readonly ? 'group-hover:opacity-50' : ''}`
+    : `text-ink ${reveal.value}`,
+)
 const marking = ref(false)
 const hiding = ref(false)
 
@@ -78,6 +100,7 @@ const hiding = ref(false)
  * are simply ignored, and `aria-busy` says so to anyone being read to.
  */
 async function mark() {
+  if (passThrough()) return
   if (marking.value) return
   marking.value = true
   try {
@@ -92,6 +115,7 @@ async function mark() {
 /** Hiding, on the tile rather than behind the edit form.
  *  See docs/features/media-grid-and-selection.md. */
 async function hide() {
+  if (passThrough()) return
   if (hiding.value) return
   hiding.value = true
   try {
@@ -101,6 +125,23 @@ async function hide() {
   } finally {
     hiding.value = false
   }
+}
+
+/*
+  A read-only wall offers no edit: a press on a control is the tile's own press,
+  so it opens the picture exactly as a press anywhere else on the tile does.
+  See docs/features/media-grid-and-selection.md.
+*/
+function passThrough() {
+  if (!props.readonly) return false
+  activate()
+  return true
+}
+
+/** The pencil's own event, so a read-only wall can route it through `passThrough`. */
+function edit() {
+  if (passThrough()) return
+  emit('edit', props.media)
 }
 
 /** The browser's menu is **replaced**, not merely suppressed - it already was,
@@ -284,7 +325,8 @@ function activate() {
       v-if="editable && !editor.selectionMode"
       type="button"
       class="absolute left-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 shadow-sm transition"
-      :class="favorite ? 'text-star opacity-100' : `text-ink ${reveal}`"
+      :class="starClass"
+      :title="readonly ? t('media.readonlyHint') : undefined"
       :aria-busy="marking"
       :aria-pressed="favorite"
       :aria-label="favorite ? t('media.unfavorite') : t('media.favorite')"
@@ -313,6 +355,7 @@ function activate() {
       type="button"
       class="absolute left-9 top-1.5 rounded-md bg-paper/90 p-1.5 shadow-sm transition"
       :class="[hidden ? 'text-accent' : 'text-ink', reveal]"
+      :title="readonly ? t('media.readonlyHint') : undefined"
       :aria-busy="hiding"
       :aria-pressed="hidden"
       :aria-label="hidden ? t('media.unhide') : t('media.hide')"
@@ -341,8 +384,9 @@ function activate() {
       type="button"
       class="absolute right-1.5 top-1.5 rounded-md bg-paper/90 p-1.5 text-ink shadow-sm transition"
       :class="reveal"
+      :title="readonly ? t('media.readonlyHint') : undefined"
       :aria-label="t('common.edit')"
-      @click.stop="emit('edit', props.media)"
+      @click.stop="edit"
     >
       <svg
         class="h-3.5 w-3.5"

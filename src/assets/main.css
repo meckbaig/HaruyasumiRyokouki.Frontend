@@ -152,6 +152,21 @@
   }
 
   /*
+    A read-only wall's controls arrive on approach like any other, but
+    half-strength, so they read as not offered rather than as refused. The
+    cursor is left alone for the same reason.
+    See docs/features/media-grid-and-selection.md.
+  */
+  .hover-reveal-dim {
+    opacity: 0;
+  }
+
+  .group:hover .hover-reveal-dim,
+  .hover-reveal-dim:focus-visible {
+    opacity: 0.5;
+  }
+
+  /*
     The rest of a day, behind what search matched: dimmed, and lifted on hover.
     The value follows the theme's scheme and is written by stores/theme.js.
   */
