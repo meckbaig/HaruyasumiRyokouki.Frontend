@@ -1541,6 +1541,21 @@
   font-weight: 500;
 }
 
+/*
+  The site icon drawn before a link's label. Sized in `em` and aligned to the
+  text, so it cannot open the line box: a picture taller than the line would, and
+  one sitting on the baseline would push the line down.
+  See docs/features/rich-text-and-links.md.
+*/
+.rich-favicon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.3em;
+  vertical-align: -0.125em;
+  border-radius: 2px;
+}
+
 /* A reference to a file that is not on this page: marked, and plainly broken. */
 .rich-media-missing {
   color: var(--color-ink-faint);

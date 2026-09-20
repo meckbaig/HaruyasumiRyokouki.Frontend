@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import MediaHoverCard from './MediaHoverCard.vue'
 import { useHoverIntent } from '@/composables/useHoverIntent'
 import { parseRichText, linkLabel, splitParagraphs } from '@/services/richText'
+import { faviconUrl } from '@/services/favicons'
 
 /**
  * Renders the small markup day notes and media descriptions carry: links, and
@@ -86,6 +87,7 @@ const byId = computed(() => new Map(props.media.map((item) => [item.id, item])))
 const parts = computed(() => {
   const seen = new Map()
   return parseRichText(props.text).map((token, key) => {
+    if (token.type === 'link') return { ...token, key, favicon: faviconUrl(token.href) }
     if (token.type !== 'media') return { ...token, key }
     const index = seen.get(token.id) ?? 0
     seen.set(token.id, index + 1)
@@ -114,6 +116,11 @@ function labelFor(part) {
 /** What the card is opened for: the reference, and where its own chip sits. */
 function payloadFor(part, event) {
   return { part, rect: event.currentTarget.getBoundingClientRect() }
+}
+
+/** A site with no icon leaves no gap: the mark is dropped, the label stays. */
+function onIconError(event) {
+  event.currentTarget.hidden = true
 }
 
 /*
@@ -208,6 +215,9 @@ function onClick(part, event) {
     <template v-for="(group, groupIndex) in paragraphs" :key="groupIndex">
       <span :class="halfBlankLines ? 'rich-paragraph' : null">
         <template v-for="part in group" :key="part.key">
+          <!-- The icon and the label are written with no space between them:
+               the note renders under `pre-wrap`, so a literal newline would
+               become a line break. The gap is the icon's own margin. -->
           <a
             v-if="part.type === 'link'"
             :href="part.href"
@@ -215,7 +225,16 @@ function onClick(part, event) {
             rel="noopener noreferrer"
             class="rich-link"
             @click.stop
-            >{{ part.label || linkLabel(part.href) }}</a
+            ><img
+              v-if="part.favicon"
+              class="rich-favicon"
+              :src="part.favicon"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              referrerpolicy="no-referrer"
+              @error="onIconError"
+            />{{ part.label || linkLabel(part.href) }}</a
           >
           <!-- A chip wraps with the words around it, so it is an inline span wearing a
                button's role: a real `<button>` cannot break a line. -->

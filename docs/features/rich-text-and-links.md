@@ -10,6 +10,7 @@ the viewer to the text.
 | File | Role |
 | --- | --- |
 | `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `splitParagraphs`, `linkLabel`, editor template builders. |
+| `src/services/favicons.js` | `faviconUrl` - the site icon a link is shown with, built from the host alone. |
 | `src/components/common/RichText.vue` | Token renderer; says which reference a card belongs to and emits references upward. |
 | `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar, the way to the tile, and the day's map for a file that carries coordinates. |
 | `src/components/map/MapMediaCard.vue` | The card's sibling over a map pin - its own doc: [maps.md](maps.md). |
@@ -24,7 +25,7 @@ the viewer to the text.
 | `src/components/media/MediaLightbox.vue` | The return button and the description as rich text. |
 | `src/components/editor/DayEditForm.vue` | Note field, template buttons, media picking. |
 | `src/components/editor/MediaEditDialog.vue` | Description field and its template buttons. |
-| `src/assets/main.css` | `.rich-link`, `.rich-media`, `.rich-paragraph`, `.media-hover-card`, `.rich-editor*`, `.text-anchor-flash`. |
+| `src/assets/main.css` | `.rich-link`, `.rich-media`, `.rich-favicon`, `.rich-paragraph`, `.media-hover-card`, `.rich-editor*`, `.text-anchor-flash`. |
 
 ## The markup
 
@@ -33,6 +34,7 @@ the viewer to the text.
 | `[media=5]Caption[/media]` | A chip labelled "Caption" | A file resolved against the page's own list. |
 | `[media=5,7,9]Caption[/media]` | One chip for three files | Ids split by commas, **no spaces**; the chip carries them all. A space would let a caption be read as a second id. |
 | `[url=https://...]Name[/url]` | A link labelled "Name" | Opens in a new tab. |
+| `[url=/day/2026-03-13]Name[/url]` | A link labelled "Name" | A path on **this** site: it takes the app's own mark, not a site lookup, and opens in a new tab like any other link. |
 | `https://...` alone | A link | Labelled by `linkLabel`. |
 
 `linkLabel` keeps the host without `www.`, then the last path segment, the middle replaced
@@ -56,6 +58,33 @@ would have taken. Three or more newlines in a row make one gap, not several.
 
 `RichText` does this only when the page asks (`halfBlankLines`), so the viewer's
 description keeps the empty line exactly as written.
+
+## Site icons
+
+A link is shown with the icon of the site it leads to, ahead of its label. The icon is an
+`<img>` of `1em`, lifted off the baseline by `vertical-align: -0.125em` and given its own
+small margin, so it **cannot open the line box**: a picture left at its natural size, or sat
+on the baseline, would. A site that serves no icon drops the mark - `@error` hides it - and
+the label stays, so a dead icon never leaves a gap.
+
+**The icon is asked for by host alone**, through `faviconUrl` and the template in
+`src/services/favicons.js` (`VITE_FAVICON_URL`, defaulting to the DuckDuckGo icon service).
+The whole address is never sent, so a reader viewing a note does not tell the linked site that
+they were shown it; the request goes to one icon service instead. Point the variable at a
+self-hosted proxy to take that service out of the picture too, which is the only way to keep
+the hosts a note names from leaving the reader's browser at all.
+
+**A relative address is resolved against the page's own origin first.** `[url=/day/x]` is
+relative and has no host of its own, so it - and any absolute address on our own origin - is
+given the app's mark (`/haru-logo.svg`) rather than a lookup that would just ask the icon
+service about our own host. Only an address on another origin is sent to the service.
+
+This is a **front-end fetch by nature**, with the costs that follow: the icon service sees the
+host and the reader's address; a strict `img-src` in the page's CSP would block it; and an
+offline or blocked service means no icons. `referrerpolicy="no-referrer"` keeps the note's own
+address out of the request. A site's own `/favicon.ico` is the alternative and is worse on
+both counts - it is missing on most modern sites, and fetching it opens the reader's browser
+to every site a note mentions.
 
 ## Tokens, not HTML
 
@@ -324,8 +353,14 @@ mirror came and went on its own, and nothing ever read it.
     appears only when that file has coordinates and the page offers a map, remembers the line
     and pushes a step to return from, and writes **no** `?i=`: it outlines nothing.
 30. A blank line between a note's parts is a **half-line gap** drawn by `.rich-paragraph`,
-   not an empty line kept in the text. Only the day note asks for it; the viewer's
-   description is rendered exactly as before.
+    not an empty line kept in the text. Only the day note asks for it; the viewer's
+    description is rendered exactly as before.
+31. A link's site icon is fetched **by host**, never by the whole address, and is sized in `em`
+    and lifted off the baseline so it cannot open the line box. A missing icon is dropped
+    rather than left as a gap.
+32. A link is resolved against the page's own origin before its icon is chosen: a relative or
+    own-origin address takes the app's mark, and only a foreign origin reaches the icon
+    service.
 
 ## Related
 
