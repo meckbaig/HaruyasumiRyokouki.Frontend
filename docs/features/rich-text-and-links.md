@@ -9,7 +9,7 @@ the viewer to the text.
 
 | File | Role |
 | --- | --- |
-| `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `linkLabel`, editor template builders. |
+| `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `splitParagraphs`, `linkLabel`, editor template builders. |
 | `src/components/common/RichText.vue` | Token renderer; says which reference a card belongs to and emits references upward. |
 | `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar, the way to the tile, and the day's map for a file that carries coordinates. |
 | `src/components/map/MapMediaCard.vue` | The card's sibling over a map pin - its own doc: [maps.md](maps.md). |
@@ -24,7 +24,7 @@ the viewer to the text.
 | `src/components/media/MediaLightbox.vue` | The return button and the description as rich text. |
 | `src/components/editor/DayEditForm.vue` | Note field, template buttons, media picking. |
 | `src/components/editor/MediaEditDialog.vue` | Description field and its template buttons. |
-| `src/assets/main.css` | `.rich-link`, `.rich-media`, `.media-hover-card`, `.rich-editor*`, `.text-anchor-flash`. |
+| `src/assets/main.css` | `.rich-link`, `.rich-media`, `.rich-paragraph`, `.media-hover-card`, `.rich-editor*`, `.text-anchor-flash`. |
 
 ## The markup
 
@@ -46,6 +46,16 @@ long label never runs past the page edge on a phone. A chip is a `<span role="bu
 tabindex="0">`, not a `<button>`: a button is laid out atomically, so its label can never
 wrap and the whole chip is pushed to the next line. Both also carry
 `overflow-wrap: anywhere`, since a label may hold no space to break at.
+
+## Paragraphs
+
+A day note sets its parts apart with a blank line - two newlines in the source. The
+renderer splits the tokens there and draws each part as its own block, so the gap between
+two is the page's to set: `.rich-paragraph` takes `0.5lh`, half the height an empty line
+would have taken. Three or more newlines in a row make one gap, not several.
+
+`RichText` does this only when the page asks (`halfBlankLines`), so the viewer's
+description keeps the empty line exactly as written.
 
 ## Tokens, not HTML
 
@@ -310,6 +320,9 @@ mirror came and went on its own, and nothing ever read it.
     capped at three lines to give the 40px row room. The map button follows the file **on show**,
     appears only when that file has coordinates and the page offers a map, remembers the line
     and pushes a step to return from, and writes **no** `?i=`: it outlines nothing.
+30. A blank line between a note's parts is a **half-line gap** drawn by `.rich-paragraph`,
+   not an empty line kept in the text. Only the day note asks for it; the viewer's
+   description is rendered exactly as before.
 
 ## Related
 

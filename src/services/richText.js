@@ -98,6 +98,27 @@ export function parseRichText(text) {
   return tokens
 }
 
+/**
+ * Splits tokens into paragraphs at blank lines - a run of two or more newlines,
+ * which is how a day note sets its parts apart. The pieces come back whole and
+ * unjoined, so the caller draws the gap between them itself.
+ * See docs/features/rich-text-and-links.md.
+ */
+export function splitParagraphs(tokens) {
+  const groups = [[]]
+  for (const token of tokens) {
+    if (token.type !== 'text') {
+      groups[groups.length - 1].push(token)
+      continue
+    }
+    token.text.split(/\n{2,}/).forEach((run, index) => {
+      if (index > 0) groups.push([])
+      if (run) groups[groups.length - 1].push({ ...token, text: run })
+    })
+  }
+  return groups.filter((group) => group.length > 0)
+}
+
 /** Short, readable name for an address: `youtube.com/.../KwDqqZ9anRc`. */
 export function linkLabel(href) {
   try {

@@ -1547,6 +1547,20 @@
   text-decoration-style: dotted;
 }
 
+/*
+  A note's parts, drawn apart. A blank line in the source is not kept as an
+  empty line: each part becomes a block and the gap between two is set here -
+  half a line, where the empty line would have taken a whole one. Only the day
+  note asks for this. See docs/features/rich-text-and-links.md.
+*/
+.rich-paragraph {
+  display: block;
+}
+
+.rich-paragraph + .rich-paragraph {
+  margin-top: 0.5lh;
+}
+
 /* Inside the dark room the accent travels with the lightbox's own lifted one. */
 .lightbox .rich-link,
 .lightbox .rich-media {

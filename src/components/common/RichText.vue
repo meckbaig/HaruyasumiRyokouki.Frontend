@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaHoverCard from './MediaHoverCard.vue'
 import { useHoverIntent } from '@/composables/useHoverIntent'
-import { parseRichText, linkLabel } from '@/services/richText'
+import { parseRichText, linkLabel, splitParagraphs } from '@/services/richText'
 
 /**
  * Renders the small markup day notes and media descriptions carry: links, and
@@ -27,6 +27,13 @@ const props = defineProps({
    * See docs/features/rich-text-and-links.md.
    */
   canShowOnMap: { type: Boolean, default: false },
+  /**
+   * Whether a blank line between two parts of the text is drawn as a gap of its
+   * own - half a line rather than a whole one. On for the day note, where the
+   * parts read as paragraphs, off inside the viewer's description.
+   * See docs/features/rich-text-and-links.md.
+   */
+  halfBlankLines: { type: Boolean, default: false },
 })
 
 /** Each event carries `{ mediaId, index }` - the occurrence, not just the file. */
@@ -87,6 +94,17 @@ const parts = computed(() => {
     const medias = token.ids.map((id) => byId.value.get(id) ?? null)
     return { ...token, key, index, medias, media: medias.find(Boolean) ?? null }
   })
+})
+
+/*
+  The parts, grouped into the blocks a blank line divides. The keys are remade
+  here, since one token may be split across two blocks.
+  See docs/features/rich-text-and-links.md.
+*/
+const paragraphs = computed(() => {
+  const groups = props.halfBlankLines ? splitParagraphs(parts.value) : [parts.value]
+  let key = 0
+  return groups.map((group) => group.map((part) => ({ ...part, key: key++ })))
 })
 
 function labelFor(part) {
@@ -185,37 +203,43 @@ function onClick(part, event) {
 
 <template>
   <span class="rich-text">
-    <template v-for="part in parts" :key="part.key">
-      <a
-        v-if="part.type === 'link'"
-        :href="part.href"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="rich-link"
-        @click.stop
-        >{{ part.label || linkLabel(part.href) }}</a
-      >
-      <!-- A chip wraps with the words around it, so it is an inline span wearing a
-           button's role: a real `<button>` cannot break a line. -->
-      <span
-        v-else-if="part.type === 'media'"
-        class="rich-media"
-        :class="part.media ? '' : 'rich-media-missing'"
-        role="button"
-        tabindex="0"
-        :data-text-anchor="anchorable ? `${part.id}:${part.index}` : undefined"
-        @pointerdown.stop="onChipPointerDown"
-        @pointerenter="onEnter(part, $event)"
-        @pointerleave="onLeave($event)"
-        @focus="onFocus(part, $event)"
-        @blur="onBlur"
-        @keydown.enter.prevent="activate(part)"
-        @keydown.space.prevent="activate(part)"
-        @click.stop="onClick(part, $event)"
-      >
-        {{ labelFor(part) }}
+    <!-- Each block is a paragraph when the page asks for them to be drawn
+         apart; a single block otherwise, exactly as before. -->
+    <template v-for="(group, groupIndex) in paragraphs" :key="groupIndex">
+      <span :class="halfBlankLines ? 'rich-paragraph' : null">
+        <template v-for="part in group" :key="part.key">
+          <a
+            v-if="part.type === 'link'"
+            :href="part.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rich-link"
+            @click.stop
+            >{{ part.label || linkLabel(part.href) }}</a
+          >
+          <!-- A chip wraps with the words around it, so it is an inline span wearing a
+               button's role: a real `<button>` cannot break a line. -->
+          <span
+            v-else-if="part.type === 'media'"
+            class="rich-media"
+            :class="part.media ? '' : 'rich-media-missing'"
+            role="button"
+            tabindex="0"
+            :data-text-anchor="anchorable ? `${part.id}:${part.index}` : undefined"
+            @pointerdown.stop="onChipPointerDown"
+            @pointerenter="onEnter(part, $event)"
+            @pointerleave="onLeave($event)"
+            @focus="onFocus(part, $event)"
+            @blur="onBlur"
+            @keydown.enter.prevent="activate(part)"
+            @keydown.space.prevent="activate(part)"
+            @click.stop="onClick(part, $event)"
+          >
+            {{ labelFor(part) }}
+          </span>
+          <template v-else>{{ part.text }}</template>
+        </template>
       </span>
-      <template v-else>{{ part.text }}</template>
     </template>
 
     <Teleport to="body">

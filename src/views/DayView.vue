@@ -747,6 +747,7 @@ function onNoteSaved() {
                 :media="media"
                 anchorable
                 can-show-on-map
+                half-blank-lines
                 @media-activate="activateNoteMedia"
                 @media-open="openNoteMedia"
                 @media-map="followNoteMap"
