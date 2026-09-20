@@ -99,16 +99,23 @@ function measureMark() {
 function onInput(event) {
   emit('update:modelValue', event.target.value)
   emit('input', event)
+  // A line typed past the box opens it rather than hiding under the scroll.
+  fitToContent()
 }
 
 /**
- * Opens the field at the height the note needs, plus two lines of room. Only
- * ever grows: `rows` remains the floor, and typing does not resize the field
- * under the reader.
+ * Grows the field to the height its text needs, plus two lines of room. It
+ * **only ever grows**: `rows` is the floor, a height dragged by hand is kept,
+ * and a keystroke that overflows opens the box instead of hiding the line.
+ * See docs/features/rich-text-and-links.md.
  */
 function fitToContent() {
   const element = textarea.value
   if (!element) return
+
+  // What the box already stands at, so a hand-dragged one is never shrunk back
+  // to the text.
+  const standing = element.offsetHeight
 
   element.style.height = 'auto'
   const natural = element.offsetHeight
@@ -118,7 +125,8 @@ function fitToContent() {
   // With the box this short, `scrollHeight` is the whole text plus its padding.
   const content = element.scrollHeight
 
-  element.style.height = `${Math.max(natural, content + 2 * lineHeight + 2)}px`
+  const needed = Math.max(natural, content + 2 * lineHeight + 2, standing)
+  element.style.height = `${needed}px`
   syncScroll()
 }
 

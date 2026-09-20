@@ -252,8 +252,11 @@ mirror came and went on its own, and nothing ever read it.
   with a `<pre>` of the same tokens painted behind it, scrolled in step. The two layers share
   every metric - font, padding, line height, `scrollbar-gutter` - or the highlight drifts
   away from the words.
-- **The field opens at the height its text needs, plus two lines.** It only ever grows from
-  `rows`; typing does not resize it under the reader.
+- **The field opens at the height its text needs, plus two lines.** It **only ever grows**:
+  `rows` is the floor, a height dragged by hand is kept, and a keystroke that overflows the
+  box opens it instead of hiding the line under the scroll. The height the box already
+  stands at is part of the measurement, so a hand-dragged field is never shrunk back to the
+  text - which also means a switch to shorter text leaves it where it is.
 - **The field does not draw the global focus ring.** The wrapper's border already says it has
   focus, and an accent ring around the whole field read as a selected tile.
 - **A selection is a translucent tint, not a solid one.** The field's text is transparent, so
