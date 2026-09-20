@@ -186,6 +186,18 @@ function revealMore() {
   visibleCount.value = Math.min(visibleCount.value + props.chunkSize, props.items.length)
 }
 
+/**
+ * Stops the wall growing under the reader: one that reveals its own chunks is
+ * opened whole, so a jump aimed **past** it - the day's map - lands where it
+ * aimed. A paged wall is already finite and is left alone.
+ * See docs/features/media-grid-and-selection.md.
+ */
+function finishRevealing() {
+  if (props.autoReveal && previewLimit.value == null) expanded.value = true
+}
+
+defineExpose({ finishRevealing })
+
 let observer = null
 
 watch(sentinel, (element) => {

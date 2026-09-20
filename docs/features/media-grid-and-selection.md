@@ -116,6 +116,15 @@ for the id, one for the reveal.
 `IntersectionObserver` uses `rootMargin: '600px 0px'` so the next chunk starts before the
 sentinel is actually visible.
 
+### A jump past the wall
+
+A destination **below** the wall must not move while the page scrolls to it. The day's map
+is one: with the map hidden by default the wall has no `previewRows` and reveals its own
+chunks, so one arriving under the glide pushed the map down and the reader landed on grid
+that had just appeared. The day page calls the grid's `finishRevealing` before aiming the
+scroll: a wall that reveals its own chunks is opened whole, a paged wall is already finite
+and is left alone.
+
 ## Tile props and what they mean
 
 | Prop | Purpose |
@@ -358,6 +367,9 @@ exactly those.
     never `disabled` and the cursor is left alone. A marked file's star stays on show at full
     strength and dims as the tile is pointed at. Only the day and search walls pass the flag;
     the pending queue never does.
+15. A jump aimed **past** the wall settles it first (`finishRevealing`): a wall that reveals
+    its own chunks is opened whole, so the destination below it cannot move under the glide.
+    A paged wall is already finite and is left alone.
 
 ## Related
 

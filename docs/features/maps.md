@@ -577,6 +577,12 @@ rows and keeps the rest behind one button. With "hide the map by default" the pa
 the reader is not heading for the map and the grid is not paged at all. See
 [media-grid-and-selection.md](media-grid-and-selection.md).
 
+**A follow to the map settles the wall first.** With the map hidden by default the grid has
+no page and reveals its own chunks, and one arriving under the glide pushed the map past the
+point the scroll was aimed at, leaving the reader on grid that had just appeared. The page
+calls the grid's `finishRevealing` before it aims the scroll. See
+[media-grid-and-selection.md](media-grid-and-selection.md).
+
 ## The coordinate picker
 
 Reference points come from a three-day window around the file - see
@@ -747,6 +753,8 @@ which rooftop.
     viewer's map button uses, and it carries the file **on show**, never the reference. It
     remembers the line and pushes a step to return from, but writes no `?i=`, so the wall is
     neither outlined nor scrolled to.
+37. A follow to the map settles the wall before the scroll is aimed: a grid still revealing
+    its own chunks is opened whole, so the map below it cannot move under the glide.
 
 ## Related
 

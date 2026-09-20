@@ -299,6 +299,9 @@ function toggleMapDefault() {
   mapShown.value = !mapHiddenByDefault.value
 }
 
+/** The day's wall, so a jump past it can settle it first. See showMediaOnMap. */
+const grid = ref(null)
+
 /* The narrow map's own two ways out of its box: taller, or filling the window. */
 const mapExpanded = ref(false)
 const mapFullscreen = ref(false)
@@ -377,6 +380,10 @@ watch(lightboxIndex, (index) => {
  */
 async function showMediaOnMap(id) {
   if (!mapFullscreen.value) {
+    // A wall that keeps revealing chunks would push the map down as the glide
+    // passes it, so it is settled before the scroll is aimed.
+    // See docs/features/maps.md.
+    grid.value?.finishRevealing()
     mapShown.value = true
     await nextTick()
     document
@@ -770,6 +777,7 @@ function onNoteSaved() {
           <MediaGrid
             v-else-if="media.length"
             key="grid"
+            ref="grid"
             :items="media"
             cascade
             show-time
