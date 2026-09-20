@@ -70,6 +70,13 @@ The API returns every result in one response by design, so throttling happens he
 | `cascade` | Stagger arriving tiles, one after another. Used by the pending queue, the day page and each search-result group. |
 | `previewRows` | Pages the wall to that many **rows** and keeps the rest behind one "show all" button. Null keeps plain chunking. |
 
+**The stagger restarts at every batch.** A tile's `--cascade-delay` is its place **within the
+batch that just arrived**, not its index in the wall. Counting from the top held every tile a
+reveal added at the start of its keyframes for the whole 12-step delay - `cascade-in` is filled
+`both` - so pressing "show all" sat still for 420ms before the first new tile moved, which read
+as a wait on a list already in hand. The base is the count before the reveal, and it is reset
+when a fresh result set replaces the wall.
+
 ### A page of rows, and why
 
 A day page puts a map **below** its wall, and a long day put it past several screens of
@@ -370,6 +377,10 @@ exactly those.
 15. A jump aimed **past** the wall settles it first (`finishRevealing`): a wall that reveals
     its own chunks is opened whole, so the destination below it cannot move under the glide.
     A paged wall is already finite and is left alone.
+16. The cascade delay counts a tile's place **within the batch that arrived**, never its
+    index in the wall: a reveal staggered from the top waits out the whole delay before its
+    first tile moves, which is a pause on a page of rows already fetched. Every reveal moves
+    the base up to the count it started from.
 
 ## Related
 

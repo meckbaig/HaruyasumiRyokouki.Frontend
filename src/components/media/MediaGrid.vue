@@ -76,6 +76,17 @@ const visibleCount = ref(props.chunkSize)
 const sentinel = ref(null)
 /** Set once the reader - or a link - has asked for the whole wall. */
 const expanded = ref(false)
+/**
+ * The tile the last reveal started from, so an arriving batch staggers from its
+ * own first tile rather than waiting out the delay of the whole wall above it.
+ * See docs/features/media-grid-and-selection.md.
+ */
+const revealBase = ref(0)
+
+/** The stagger an arriving tile takes: its place **within its own batch**. */
+function tileDelay(index) {
+  return cascadeDelay(Math.max(index - revealBase.value, 0))
+}
 
 /** How many tiles a row holds at this width; the wall's own breakpoints. */
 const columnCount = ref(2)
@@ -140,6 +151,7 @@ watch(
     }
 
     reachFloor.value = 0
+    revealBase.value = 0
     // A fresh set starts paged - unless the address already names a file in it,
     // and then the page is off before the first tile appears.
     expanded.value = previewLimit.value != null && linkedReach.value > 0
@@ -162,6 +174,9 @@ watch(
   (reach) => {
     if (reach <= 0) return
     if (previewLimit.value != null) {
+      // A link in the address opens the page whole from the start; only one
+      // arriving later is a reveal whose tiles stagger from their own first.
+      if (!expanded.value) revealBase.value = effectiveCount.value
       expanded.value = true
       return
     }
@@ -178,6 +193,9 @@ watch(previewLimit, (limit) => {
 
 function revealMore() {
   if (!hasMore.value) return
+  // The arriving tiles stagger from their own first, so a press starts moving at
+  // once instead of after the delay the wall above them already spent.
+  revealBase.value = effectiveCount.value
   // A paged wall reveals whole, so one press reaches the map at the bottom.
   if (previewLimit.value != null) {
     expanded.value = true
@@ -193,7 +211,9 @@ function revealMore() {
  * See docs/features/media-grid-and-selection.md.
  */
 function finishRevealing() {
-  if (props.autoReveal && previewLimit.value == null) expanded.value = true
+  if (!props.autoReveal || previewLimit.value != null) return
+  revealBase.value = effectiveCount.value
+  expanded.value = true
 }
 
 defineExpose({ finishRevealing })
@@ -324,7 +344,7 @@ onBeforeUnmount(() => {
         :key="media.id ?? media.fileName"
         :data-tile-index="i"
         :class="cascade ? 'cascade-item' : ''"
-        :style="cascade ? cascadeDelay(i) : undefined"
+        :style="cascade ? tileDelay(i) : undefined"
         :media="media"
         :dimmed="dimmed"
         :editable="editable"

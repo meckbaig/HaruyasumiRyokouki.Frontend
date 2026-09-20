@@ -134,7 +134,10 @@ the last waiting several seconds for an effect meant to last a moment, and every
 the fold is being scrolled to anyway.
 
 `cascade` is used by the pending queue, the day page and each search-result group, so the
-tiles of a wall arrive one after another rather than all at once.
+tiles of a wall arrive one after another rather than all at once. The index a wall passes is a
+tile's place **within the batch that arrived**, so a reveal starts at its own first tile rather
+than waiting out the delay of the wall above it - see
+[media-grid-and-selection.md](media-grid-and-selection.md).
 
 ## Page transitions
 
