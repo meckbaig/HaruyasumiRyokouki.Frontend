@@ -498,12 +498,29 @@ function applyView(view) {
 defineExpose({ showMedia, syncViewerClose, forgetViewerClose, getView, getSelection, applyView })
 
 /*
+  The album's keys belong to it only while it is on screen. The handler listens on
+  `document`, so a map scrolled out of frame - the day page's editor below it -
+  would otherwise keep answering the arrows and stop them reaching the page.
+  See docs/features/maps.md.
+*/
+function cardOnScreen() {
+  const rect = cardRect()
+  if (!rect) return false
+  return (
+    rect.bottom > 0 &&
+    rect.top < window.innerHeight &&
+    rect.right > 0 &&
+    rect.left < window.innerWidth
+  )
+}
+
+/*
   Listened for in the **capture** phase, so the day page's own arrow keys - which
   page the whole day - never also answer a step inside the album. `hasOverlay()`
   stands aside for a dialog or the viewer, which own the keyboard themselves.
 */
 function onKeydown(event) {
-  if (!cardOpen.value || hasOverlay()) return
+  if (!cardOpen.value || hasOverlay() || !cardOnScreen()) return
 
   if (event.key === 'ArrowLeft') stepSelection(-1)
   else if (event.key === 'ArrowRight') stepSelection(1)

@@ -399,7 +399,7 @@ the movement, and reduced motion, or a map with Leaflet's zoom animation off, le
 | Stepping | The arrows, `←`/`→`, or a swipe. The card walks the pins in **capture order** and the map pans to the one chosen - it does not zoom. |
 | The turn | `MediaStrip`, which is the viewer's own filmstrip on its own: only the file on show and its two neighbours are mounted, and the track slides a whole frame aside. A step arriving mid-slide is **queued**, never snapped. The card carries the **whole** of the viewer's guard - one remembered step dispatched a frame after the settle, "ignore while turning", and a settle fallback - so a **held** arrow keeps its beat instead of running the index on and snapping the strip there. Its content - badges, open-full target, service links, primary action - reads `shownIndex`, the frame `MediaStrip` reports it **settled** on, never `props.index`, which names where a running turn is going. |
 | The frame making room | `frameCard` pans with `panBy`, keeping the zoom. The offset is **`reference - target`**, since `panBy` moves the centre by its offset and a point therefore by the negative of it. **What is centred follows the map and the action** - see above. A step re-frames at once, with its own slide, so the two are one movement; a step **inside one pile** does not pan at all, the ground on show having not changed. |
-| Keyboard ownership | The handler listens in the **capture** phase and stops the event, so the day page's own arrow keys do not also page the whole day underneath it. `hasOverlay()` stands it aside for a dialog or the viewer, which own the keyboard themselves. |
+| Keyboard ownership | The handler listens in the **capture** phase and stops the event, so the day page's own arrow keys do not also page the whole day underneath it. It answers only while the card is **inside the viewport**: a map scrolled out of frame - the editor below it - hands the arrows back to the page. `hasOverlay()` stands it aside for a dialog or the viewer, which own the keyboard themselves. |
 | The unfold | `<Transition name="map-card">` with **JavaScript** hooks. The start is the pin's rectangle and the end the card's own box, both measured in `enter`, so the card is never seen at full size first. |
 | The tail | A triangle at the frame's bottom centre - the pin's own mark - its tip at the anchor, so the two read as one mark. |
 | The close | Its own compact square target (`1.75rem`, glyph `0.875rem`) in the top-right corner, not the viewer's 40px disc, and it carries the viewer's `backdrop-filter: blur(10px)`: it stands on a picture rather than on a bar, and the colour alone left it flat against the image. |
@@ -632,8 +632,10 @@ which rooftop.
 7. Marker clicks set `bubblingMouseEvents: false`; without it the map's own click closes the
    album the same instant it opens.
 8. The album's key handler runs in the **capture** phase and stops the event it answers, so
-   the day page's arrow keys do not page the day underneath it. It is not an `overlayStack`
-   token: that would hold the page's scroll lock through the viewer opened from it.
+   the day page's arrow keys do not page the day underneath it, and only while the card's
+   rectangle meets the viewport, so a map scrolled out of frame gives the keys back. It is
+   not an `overlayStack` token: that would hold the page's scroll lock through the viewer
+   opened from it.
 9. A press on a pin never zooms; the arrows pan and keep the zoom. The one place a pin **is**
    zoomed to is `showMedia(id, { zoom: true })`, reached from the viewer's own action.
 10. Pins are grouped through `services/mapClusters.js` (`clusterByCell`), not by
