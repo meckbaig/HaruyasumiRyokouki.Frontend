@@ -4,6 +4,26 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice, and those are left to the git history. Major zero said
 the site was still finding its shape; it has found it.
 
+## 2.2.0 - vector map engine
+
+The basemap is no longer a Leaflet raster layer. Every map on the site - the trip map, the
+day map and the coordinate picker - now runs on MapLibre over vector tiles, so the map stays
+sharp as it is turned, and it follows the page's light and dark themes, where one fixed
+raster image used to stand in every theme. Leaflet is gone.
+
+The provider comes from one registry, chosen with `VITE_MAP_PROVIDER`: MapToolkit (the
+default), OpenFreeMap or CARTO. Every provider is a MapLibre style, a raster one included, so
+a change of theme cross-fades the basemap rather than swapping the tiles in one frame.
+
+The map's own furniture - the pins, the piles, the album, the route arrows and the device
+budgets - keeps the behaviour it had; only what lies under them changed.
+
+- Every map runs on one MapLibre engine over vector tiles; Leaflet is gone
+- The basemap stays sharp as it is turned, instead of a raster stretched through a zoom
+- The basemap follows the page's light and dark themes, instead of one fixed raster image
+- The provider is chosen with `VITE_MAP_PROVIDER`: `maptoolkit` (the default), `openfreemap` or `carto`
+- Every provider is a MapLibre style, a raster one included, so a change of theme cross-fades the basemap
+
 ## 2.1.0 - safe triangle hover
 
 A hover card is no longer kept open by a timeout. Where the pointer is heading decides
@@ -19,6 +39,17 @@ reference takes the card over.
 - The safe triangle between the reference and the card carries the hand across the gap without closing
 - A hand that stops outside the card closes it after 140 ms; a hand that stops on another reference swaps the card
 - A hand crossing a reference on the way opens nothing, because the card is due only after 50 ms of rest
+- Under reduced motion a map zoom is a plain jump, so the route marks no longer stand on the old view for a quarter second
+- A read-only grid switch in the footer keeps an editor who is only reading from editing by accident: the tile's star, hide control and pencil arrive at half strength and answer a press with the picture
+- Right-clicking "share" on a selection writes the whole selection into the link
+- A media reference's card offers "open on the day map" for a file that carries coordinates
+- A full-size image the browser holds on disk but not in memory no longer cuts from preview to full at the end of the viewer's flight
+- A blank line between paragraphs in a day note stands at half the height of a line
+- A follow to the map lands on the map even while the day's wall is still revealing its own chunks
+- The note and description fields grow as their text is typed
+- A link in a note carries the icon of the site it leads to, drawn before its label
+- The day page's arrows keep answering while the map is scrolled out of the viewport
+- "Show all" on the wall no longer pauses before its tiles animate in
 
 ## 2.0.0 - a new map
 

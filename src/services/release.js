@@ -4,6 +4,7 @@
  * release it follows. See docs/features/build-and-release.md.
  */
 const NAMES = {
+  '2.2': 'vector map engine',
   '2.1': 'safe triangle hover',
   '2.0': 'a new map',
   '1.9': 'touch gesture updates',
