@@ -68,7 +68,9 @@ reserved the space while the day was loading.
 ### Answering a `?i=` link
 
 The watcher on `[media, mediaLink.link]` resolves the linked file against **this day's**
-files, then either opens the viewer (`?o=1`) or scrolls to it.
+files, then either opens the viewer (`?o=1`) or scrolls to it. The grid is told which of the
+two it is (`linkOpen`): a plain `?i=` opens a paged wall whole so the scroll can reach the
+block, while an `o=1` link leaves it paged, since the viewer covers the page.
 
 - `answered` guards against answering the same file twice, and is reset when the date
   changes - the day's own map links back into the day it is on, changing nothing but the

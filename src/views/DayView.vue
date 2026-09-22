@@ -491,6 +491,9 @@ const mediaLink = useMediaLink({ suspended: () => hasOverlay() })
 const highlightedId = computed(() => mediaLink.link.value.id)
 /** Every file the link names, so the wall outlines the whole block at once. */
 const highlightedIds = computed(() => mediaLink.link.value.ids)
+/* A link that also opens the viewer leaves the wall paged: nothing scrolls to
+   it behind the full screen. See docs/features/media-grid-and-selection.md. */
+const linkOpen = computed(() => mediaLink.link.value.open)
 
 /** The file already answered for, so the same one is not answered for twice. */
 let answered
@@ -786,6 +789,7 @@ function onNoteSaved() {
             :readonly="gridReadonly"
             :highlighted-id="highlightedId"
             :highlighted-ids="highlightedIds"
+            :link-open="linkOpen"
             :emphasis="noteEmphasis"
             @open="onGridOpen"
             @edit="editing = $event"

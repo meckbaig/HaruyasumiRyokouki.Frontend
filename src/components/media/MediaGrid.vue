@@ -14,6 +14,12 @@ const props = defineProps({
   highlightedId: { type: Number, default: null },
   /** Ids a note reference named, all outlined together as one block. */
   highlightedIds: { type: Array, default: () => [] },
+  /**
+   * Whether the link that singled files out also asks for the viewer (`o=1`).
+   * Such a link never opens the wall: a full-screen viewer covers it, and the
+   * page behind is never scrolled to. See docs/features/media-grid-and-selection.md.
+   */
+  linkOpen: { type: Boolean, default: false },
   /** Dims every file not singled out, for a moment after a link is followed. */
   emphasis: { type: Boolean, default: false },
   /** Dims every tile, lifting the dim on the one the cursor is over. */
@@ -111,6 +117,13 @@ const linkedReach = computed(() => {
   return reach
 })
 
+/**
+ * Whether the address asks the wall to reach a file. A link that also opens the
+ * viewer (`o=1`) does not: its file is shown full screen over a page nobody
+ * scrolls, so opening the whole wall behind it is work no one sees.
+ */
+const linkReaches = computed(() => linkedReach.value > 0 && !props.linkOpen)
+
 /*
   The floor stays after the link is gone: the reader closed the viewer while
   looking at that tile, and folding the wall out from under them would be worse
@@ -154,7 +167,7 @@ watch(
     revealBase.value = 0
     // A fresh set starts paged - unless the address already names a file in it,
     // and then the page is off before the first tile appears.
-    expanded.value = previewLimit.value != null && linkedReach.value > 0
+    expanded.value = previewLimit.value != null && linkReaches.value
 
     if (expanded.value) visibleCount.value = items.length
     else if (previewLimit.value != null) visibleCount.value = previewLimit.value
@@ -164,15 +177,15 @@ watch(
 )
 
 /*
-  A link reaches into the wall. A **paged** wall opens whole - the reader is
-  being taken to a file, and a page cut off just past it would leave the rest
-  behind a button for no reason. An ordinary chunked wall only grows far enough
-  to hold the file named. See docs/features/media-grid-and-selection.md.
+  A link reaches into the wall. A **paged** wall opens whole - a page cut off
+  just past the file would leave the rest behind a button for no reason. A
+  chunked wall only grows to hold the named file, and a link that also opens
+  the viewer is left alone. See docs/features/media-grid-and-selection.md.
 */
 watch(
-  linkedReach,
-  (reach) => {
-    if (reach <= 0) return
+  linkReaches,
+  (reaches) => {
+    if (!reaches) return
     if (previewLimit.value != null) {
       // A link in the address opens the page whole from the start; only one
       // arriving later is a reveal whose tiles stagger from their own first.
@@ -180,7 +193,7 @@ watch(
       expanded.value = true
       return
     }
-    if (reach > reachFloor.value) reachFloor.value = reach
+    if (linkedReach.value > reachFloor.value) reachFloor.value = linkedReach.value
   },
   { immediate: true },
 )

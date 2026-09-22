@@ -96,6 +96,11 @@ numbers the grid's Tailwind classes use.
   instead grows only far enough to hold the named file, through `reachFloor`, which outlives
   the link - folding the wall away under a reader who just closed the viewer would be worse.
   See [rich-text-and-links.md](rich-text-and-links.md).
+- A link that **also opens the viewer** (`?i=<id>&o=1`) is the exception: the wall stays
+  paged. The page is covered by the full-screen viewer and nothing scrolls to the file behind
+  it, so opening every tile there is work no one sees. Only a plain `?i=` reaches into the
+  wall; the grid reads this from the `linkOpen` prop, which the day page passes from the
+  link's own `open` flag.
 - With `previewRows` set the sentinel is not observed at all; the button is the only way on,
   so `autoReveal` has nothing to do.
 
@@ -118,7 +123,8 @@ A `?i=` file must be in the DOM to be outlined or scrolled to, and the eightieth
 a day is one link away like any other. A watcher reveals up to `index + 1` - enough, no
 more - and a **paged** wall is opened whole instead, since the page's own limit is not a
 bound the link should have to respect. This is why `scrollToMedia` waits **two** ticks: one
-for the id, one for the reveal.
+for the id, one for the reveal. The watcher runs on `linkReaches` (`reaches && !linkOpen`),
+so an `o=1` link leaves both the page and the reach floor alone.
 
 `IntersectionObserver` uses `rootMargin: '600px 0px'` so the next chunk starts before the
 sentinel is actually visible.
@@ -351,7 +357,8 @@ exactly those.
 1. Any new wall of thumbnails must call `markOpenedFrom` before opening the viewer.
 2. A `previewRows` wall opens **whole** whenever a link names a file in it, at arrival or
    later. A chunked wall grows only to the named file, through `reachFloor`. A latch that
-   never let go made every wall unpaginated for the rest of the visit.
+   never let go made every wall unpaginated for the rest of the visit. A link that also
+   opens the viewer (`linkOpen`) reaches into neither: the wall stays as the reader left it.
 2. Tiles must carry `data-tile-index` (paint) and `data-media-id` (links, hero flight),
    and are looked up only through `services/mediaTiles.js`.
 3. `autoReveal` is false wherever the grid is not the whole page.

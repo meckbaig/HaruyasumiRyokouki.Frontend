@@ -40,7 +40,9 @@ was being looked at. Two parameters do:
 | `i=<id,id,...>` | A note reference may name several files at once; the address carries **every** id, comma-separated, and the whole block is outlined. |
 | `o=1` | And open the first file full screen at once. |
 
-`o` never travels alone - it is only ever written beside `i`.
+`o` never travels alone - it is only ever written beside `i`. It also leaves a **paged** wall
+paged: nothing scrolls to the file behind a full-screen viewer, so the wall is not opened
+whole for it. See [media-grid-and-selection.md](media-grid-and-selection.md).
 
 **Resolution is against what the page actually holds.** A day resolves against its files;
 a search resolves against its *matched* files, not the remainders a reader can unfold.
