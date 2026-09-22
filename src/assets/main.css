@@ -1265,7 +1265,9 @@
      over 1px of frame. See docs/features/maps.md. */
   --map-card-pad: 0;
   --map-card-border: 2px;
-  --map-card-photo-radius: 8px;
+  /* No rounding of its own: flush with the frame, the picture is cut by the
+     frame's own ring, exactly as the pin's picture is. See docs/features/maps.md. */
+  --map-card-photo-radius: 0;
 }
 
 /* The pin's own shadow, taken at the middle of the fold and given back at the

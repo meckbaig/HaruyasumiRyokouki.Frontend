@@ -599,16 +599,45 @@ function onTouchCancel() {
 
 /** The pin's box, which is where the unfold starts and the close ends. */
 function pinBox() {
-  return { width: PIN_W, height: PIN_H, photoHeight: PIN_PHOTO }
+  return {
+    width: PIN_W,
+    height: PIN_H,
+    photoWidth: PIN_PHOTO,
+    photoHeight: PIN_PHOTO,
+    pad: 0,
+    border: PIN_BORDER,
+    radius: 0,
+  }
+}
+
+/*
+  The picture on show, read off the card's own DOM. The component ref is already
+  gone while the card is leaving, which once left the close with no picture to
+  animate and let its `aspect-ratio` snap the box square in one frame.
+  See docs/features/maps.md.
+*/
+function photoOf(element) {
+  return (
+    element.querySelector('.map-card-record-active .map-card-photo') ??
+    element.querySelector('.map-card-photo') ??
+    null
+  )
 }
 
 /** The card's own box, measured once it is in the DOM. */
 function cardBox(element) {
-  const photo = cardRef.value?.photoElement() ?? null
+  const photo = photoOf(element)
+  const inner = element.querySelector('.map-card-inner')
+  const style = inner ? getComputedStyle(inner) : null
+  const photoStyle = photo ? getComputedStyle(photo) : null
   return {
     width: element.offsetWidth,
     height: element.offsetHeight,
+    photoWidth: photo?.offsetWidth ?? PIN_PHOTO,
     photoHeight: photo?.offsetHeight ?? PIN_PHOTO,
+    pad: style ? parseFloat(style.paddingTop) || 0 : 0,
+    border: style ? parseFloat(style.borderTopWidth) || 0 : PIN_BORDER,
+    radius: photoStyle ? parseFloat(photoStyle.borderTopLeftRadius) || 0 : 0,
   }
 }
 
@@ -641,11 +670,12 @@ function onCardEnter(element, done) {
   element.classList.add('is-closed')
   element.classList.remove('is-measuring')
 
-  const photo = cardRef.value?.photoElement() ?? null
+  const photo = photoOf(element)
   requestAnimationFrame(() => element.classList.remove('is-closed'))
 
   playCardMorph({
     frame: element,
+    inner: element.querySelector('.map-card-inner'),
     photo,
     from: pinBox(),
     to: morphTo,
@@ -668,11 +698,12 @@ function onCardLeave(element, done) {
     return
   }
 
-  const photo = cardRef.value?.photoElement() ?? null
+  const photo = photoOf(element)
   element.classList.add('is-closed')
 
   playCardMorph({
     frame: element,
+    inner: element.querySelector('.map-card-inner'),
     photo,
     reverse: true,
     from: pinBox(),

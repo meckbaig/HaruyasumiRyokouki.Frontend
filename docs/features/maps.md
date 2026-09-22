@@ -439,6 +439,24 @@ picture. `.map-card.is-closed` writes that box as well as animating to it, so wh
 lets go of its own fill the card is still the pin and nothing snaps. The square matters: a 16:9
 rule takes the pin's 40px picture to 22.5px and leaves the bottom gap the close was showing.
 
+**The picture's box is animated in both dimensions; its ratio is never left to do the work.**
+The crop is `object-fit: cover` inside the box, so a ratio that changes in a single frame reads
+as the picture jumping out of its frame - which is what the closed square did when it was worn
+from the first frame of a close. The morph therefore drives the box's width and height together,
+the width following the frame's own inset, so the crop interpolates with the fold.
+
+**The picture is read off the card's own DOM, not its component ref.** The ref is already
+cleared while the card is leaving, so the close once received no picture at all and let the
+closed `aspect-ratio` flip the box square in a single frame.
+
+**The inner's own inset is driven by the morph too, not left to its transition.** The ring's
+width sets the box the picture is clipped to, so a border still at the card's 1px when the fold
+released left the last frame two pixels wider than the pin, and its corners a pixel rounder.
+
+**The picture carries no rounding of its own at the closed end.** Flush with the frame, it is
+cut by the frame's own ring - the same cut the pin's picture takes - so the two cannot round
+differently; the closed `--map-card-photo-radius` is `0` for exactly that reason.
+
 **The ring and the shadow hand over at the middle; the chrome goes at the ends.** The card's
 inner box wears a wide shadow where the pin wears a tight one, and the chrome - the close, the
 arrows, the badges, the text - is not on the pin at all. The ring and the shadow change half a

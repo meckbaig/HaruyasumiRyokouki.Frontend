@@ -18,13 +18,13 @@ const EASING = 'cubic-bezier(0.2, 0.9, 0.3, 1)'
 /**
  * Plays the morph and resolves when it settles.
  *
- * @param {object} parts `frame`, `photo` and `footer` elements, any of the last
- *   two optional.
- * @param {object} from  `{ width, height, photoHeight }` - the pin's rectangle.
- * @param {object} to    The same three, measured off the laid-out card.
+ * @param {object} parts `frame`, `inner`, `photo` and `footer` elements, the
+ *   last three optional.
+ * @param {object} from  `{ width, height, photoWidth, photoHeight, pad, border, radius }`.
+ * @param {object} to    The same, measured off the laid-out card.
  * @param {boolean} reverse Plays the close instead of the open.
  */
-export function playCardMorph({ frame, photo, footer, from, to, reverse = false }) {
+export function playCardMorph({ frame, inner, photo, footer, from, to, reverse = false }) {
   if (!frame || motionReduced()) return Promise.resolve()
 
   const start = reverse ? to : from
@@ -41,10 +41,44 @@ export function playCardMorph({ frame, photo, footer, from, to, reverse = false 
     ),
   ]
 
+  if (inner) {
+    /*
+      The pin's own inset too. Left to its own transition the border was still
+      the card's 1px when the fold released, so the last frame sat two pixels
+      past the pin. See docs/features/maps.md.
+    */
+    animations.push(
+      inner.animate(
+        [
+          { padding: `${start.pad}px`, borderWidth: `${start.border}px` },
+          { padding: `${end.pad}px`, borderWidth: `${end.border}px` },
+        ],
+        options,
+      ),
+    )
+  }
+
   if (photo) {
+    /*
+      Both dimensions. The crop lives in the picture's own box, so a ratio left
+      to `aspect-ratio` flips in one frame and the picture jumps out of its
+      frame; driving the width too makes the crop follow the fold.
+      See docs/features/maps.md.
+    */
     animations.push(
       photo.animate(
-        [{ height: `${start.photoHeight}px` }, { height: `${end.photoHeight}px` }],
+        [
+          {
+            width: `${start.photoWidth}px`,
+            height: `${start.photoHeight}px`,
+            borderRadius: `${start.radius}px`,
+          },
+          {
+            width: `${end.photoWidth}px`,
+            height: `${end.photoHeight}px`,
+            borderRadius: `${end.radius}px`,
+          },
+        ],
         options,
       ),
     )
