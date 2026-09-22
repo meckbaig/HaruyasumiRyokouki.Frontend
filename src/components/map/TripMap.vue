@@ -39,7 +39,7 @@ import {
   clusterWithinBudget,
 } from '@/services/mapClusters'
 import { playCardMorph } from '@/services/cardMorph'
-import { motionReduced } from '@/services/motion'
+import { motionReduced, cameraMotion } from '@/services/motion'
 import MapMediaCard from './MapMediaCard.vue'
 import { hasOverlay } from '@/services/overlayStack'
 
@@ -355,7 +355,9 @@ function frameCard(animate = true) {
   // Below a pixel there is nothing worth moving for.
   if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return
 
-  instance.panBy([dx, dy], { animate })
+  // The app's own gate decides: a reduced reader gets no pan, and one who opted
+  // back in gets it even under the OS setting, so MapLibre must not drop it.
+  instance.panBy([dx, dy], cameraMotion(animate))
 }
 
 /**
@@ -388,8 +390,9 @@ function showMedia(id, { zoom = false } = {}) {
     center: lngLat([point.latitude, point.longitude]),
     zoom: Math.max(map.value.getZoom(), FOCUS_ZOOM),
   }
-  if (motionReduced()) map.value.jumpTo(target)
-  else map.value.easeTo({ ...target, duration: FOCUS_EASE_MS })
+  // One movement, one gate: `motionReduced()` decides and the animation is
+  // marked essential, so MapLibre cannot drop what the app chose to play.
+  map.value.easeTo({ ...target, duration: FOCUS_EASE_MS, ...cameraMotion() })
   // The one caller that pins the card to the file itself, because the reader
   // asked for that file. See docs/features/maps.md.
   select(index, { reason: 'open', ground: [point.latitude, point.longitude] })
@@ -655,6 +658,11 @@ function onCardEnter(element, done) {
   if (motionReduced()) {
     element.classList.remove('is-closed')
     done()
+    // There is no unfold to wait for, but the frame still brings the card's own
+    // centre to the middle - a press otherwise opened the album without moving
+    // the map. See docs/features/maps.md.
+    scheduleFrame()
+    nextTick(shieldUnderCard)
     return
   }
 

@@ -359,10 +359,14 @@ starts a drag only when `!e.ctrlKey`, and rotation is off on every map here, so 
 once did nothing at all. `addCtrlDragPan` re-dispatches the press without the modifier; the
 moves that follow are accepted as they are, because only a drag's start is checked.
 
-**Reduced motion is honoured where this code starts an animation itself.** MapLibre's own pan
-and zoom are continuous camera movements with no reduced-motion switch, so the one place a
-choice is made is `showMedia({ zoom: true })`: it `jumpTo`s under reduced motion and `easeTo`s
-otherwise. Nothing else needs a branch, because nothing rides a transform.
+**Reduced motion is honoured where this code starts an animation itself, and the app's gate is
+the only one.** `motionReduced()` in `services/motion.js` reads the OS setting together with the
+reader's `data-motion="always"` opt-in. **MapLibre reads `prefers-reduced-motion` too** and drops
+any camera animation not marked `essential`, so a movement the app had chosen to play was
+teleported in no frames - which is what broke the album's step for a reader who had opted back
+in. Every camera animation this app starts therefore carries `cameraMotion()` from the same
+module: it sets `animate` from the app's own gate and marks the movement `essential`, so MapLibre
+cannot override the decision. The route canvases ride no transform, so they need no branch.
 
 ### Re-framing is separate from drawing
 
@@ -423,7 +427,10 @@ ground on show having not changed.
 
 **A step re-frames at once**, on the frame after the step, not when the turn lands: the
 picture's own move and the camera's are then one movement rather than two. Only a press waits
-for the unfold, because there the card's own height is the target.
+for the unfold, because there the card's own height is the target. **Under reduced motion there
+is no unfold to wait for**, so a press frames **at once** as well: `onCardEnter`'s reduced path
+schedules the frame itself, or a press opened the album without moving the map while the arrows
+centred it.
 
 **One frame, shared.** The pin, the pile and the card take their frame, border, radius and tail
 from `--mark-frame`, `--mark-border` and `--mark-tail`, so the unfold has no seam - a white pin
@@ -868,10 +875,18 @@ which rooftop.
     plus `PIN_H`, read from `PHOTO_PIN_SIZE` and `PHOTO_PIN_TAIL`. A margin written as a
     number cuts the northernmost pin off the moment the pin is resized.
 42. A hosted style is **regenerated, never hand-edited**: the build script writes it from the
-    provider's own style. The night city's tones are constants at the top of the OpenFreeMap
-    pass and live nowhere else - no colour belongs in a component or in this document. The
-    dark scheme keeps the light one's labels, rather than falling back to a stripped provider
-    style.
+   provider's own style. The night city's tones are constants at the top of the OpenFreeMap
+   pass and live nowhere else - no colour belongs in a component or in this document. The
+   dark scheme keeps the light one's labels, rather than falling back to a stripped provider
+   style.
+43. Every camera animation this app starts goes through `cameraMotion()`: `animate` follows
+   `motionReduced()` and the movement is marked `essential`. MapLibre reads
+   `prefers-reduced-motion` itself, so without the flag it dropped an animation the app had
+   chosen to play - a teleport for a reader who had opted back in via `data-motion="always"`.
+44. A press on a pin frames the card **even under reduced motion**: reduced motion has no unfold
+   to wait for, so `onCardEnter`'s reduced path schedules the frame itself. Left to the morph
+   alone, a press opened the album on the pin without moving the map, while the arrows centred
+   it.
 
 ## Related
 
