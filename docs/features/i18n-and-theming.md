@@ -193,7 +193,7 @@ the reason.
 | A cascading fold's leave animation is longer than the fold itself. | Vue watches the root and takes the whole subtree away the instant *its* animation ends, so the fold has to outlast the last entry or the stagger is cut off and the rest vanish. The `animation` shorthand on the entries is a full override of the one they arrived under, which is what restarts a finished animation as a different one. |
 | `.cascade-item` uses `animation-fill-mode: both`. | Without it every entry is visible from the first frame and only the movement is staggered. The delay is capped by `cascadeDelay` - see [ui-shell.md](ui-shell.md). |
 | The leaving modal panel stops answering the hand at once. | Same reason as the viewer: an overlay that is merely fading still covers the window. |
-| `.leaflet-tooltip.trip-time` strips Leaflet's box, shadow and arrow. | Leaflet's styling is sized for a sentence. These carry four characters, two at a time on a map two hundred pixels tall; at that size the arrow is more mark than the thing it points at. |
+| A map pin is a DOM element the map attaches as a marker, not a `divIcon`. | There is no icon box to strip and no PNG to ship; the element is the mark. |
 
 ## Copy and the build
 

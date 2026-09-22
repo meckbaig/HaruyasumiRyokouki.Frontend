@@ -216,7 +216,7 @@ new models rather than rely on a mount-only initialisation.
 
 ## The location picker
 
-Lazy (`defineAsyncComponent`) so **Leaflet stays out of the main bundle** - this dialog is
+Lazy (`defineAsyncComponent`) so **MapLibre stays out of the main bundle** - this dialog is
 mounted app-wide via the selection toolbar. Keep it that way.
 
 Reference points come from one `GET /media/locations` over a **three-day window** around

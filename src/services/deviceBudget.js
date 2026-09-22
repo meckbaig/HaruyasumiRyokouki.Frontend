@@ -18,19 +18,20 @@ export const DESKTOP_DOTS = 1000
 
 /**
  * True on a small or coarse-pointer device. A coarse pointer is the second hint:
- * a small window on a desktop is still a desktop.
+ * a small window on a desktop is still a desktop. The map engine reads this too,
+ * for its tile cache, so the one definition lives here.
  */
-function smallDevice() {
+export function isSmallDevice() {
   if (isMobileLayout()) return true
   return Boolean(window.matchMedia?.('(pointer: coarse)').matches)
 }
 
 /** The marker budget for this device, from the layout and the pointer. */
 export function markerBudget() {
-  return smallDevice() ? MOBILE_MARKERS : DESKTOP_MARKERS
+  return isSmallDevice() ? MOBILE_MARKERS : DESKTOP_MARKERS
 }
 
 /** The dot budget for this device, read exactly as the marker one is. */
 export function dotBudget() {
-  return smallDevice() ? MOBILE_DOTS : DESKTOP_DOTS
+  return isSmallDevice() ? MOBILE_DOTS : DESKTOP_DOTS
 }

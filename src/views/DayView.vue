@@ -975,8 +975,8 @@ function onNoteSaved() {
 
     <!--
       The map filling the window without leaving the day: a **second** map, as on
-      the trip page - a live Leaflet instance carried through a Teleport comes out
-      broken. See docs/features/maps.md.
+      the trip page - a live map carried through a Teleport comes out broken.
+      See docs/features/maps.md.
     -->
     <Teleport to="body">
       <Transition name="map-full">

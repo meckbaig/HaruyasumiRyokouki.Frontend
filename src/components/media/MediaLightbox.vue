@@ -1838,8 +1838,8 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <!--
       A dark room under every theme, with the theme's accent carried through the
-      chrome - see `.lightbox` in main.css for the palette. It sits above
-      Leaflet's panes (z-index ~1000), which otherwise poke through on the day
+      chrome - see `.lightbox` in main.css for the palette. It sits above the
+      map's own layers (z-index ~1000), which otherwise poke through on the day
       page.
     -->
     <Transition name="lightbox">

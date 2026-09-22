@@ -943,31 +943,74 @@
   }
 }
 
-/* SVG teardrop pins: strip Leaflet's default white divIcon box. */
+/* MapLibre's own chrome, toned down to match the surrounding paper palette. */
+.maplibregl-map {
+  font: inherit;
+  background: var(--color-paper);
+}
+
+/* SVG teardrop pins: the map attaches the element itself, with no box of its own. */
 .trip-pin {
   background: none;
   border: 0;
 }
 
 /*
-  The time stamped over a reference pin in the location picker. Leaflet's own
-  tooltip is sized for a sentence; these carry four characters, so the box and
-  the arrow go. See docs/features/i18n-and-theming.md.
+  The map's own overlay stack, tiles upward: route chevrons, the pile grounds
+  over them, the pins over both, the controls over everything. One z-index each,
+  so a mark can never trade places with a chevron. See docs/features/maps.md.
 */
-.leaflet-tooltip.trip-time {
-  padding: 1px 5px;
-  border: 1px solid var(--color-edge);
-  border-radius: 4px;
-  background-color: var(--color-paper-raised);
-  box-shadow: none;
-  color: var(--color-ink-soft);
-  font-size: 10px;
-  font-weight: 500;
-  white-space: nowrap;
+.trip-route-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
 }
 
-.leaflet-tooltip.trip-time::before {
-  display: none;
+.trip-route-row {
+  z-index: 1;
+}
+
+.trip-route-dots {
+  z-index: 2;
+}
+
+.trip-map .maplibregl-marker {
+  z-index: 3;
+  cursor: pointer;
+}
+
+.trip-map .maplibregl-control-container {
+  z-index: 4;
+}
+
+/* The always-visible copyright line the Maptoolkit licence requires. */
+.trip-map-attribution {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background-color: rgb(255 255 255 / 0.75);
+  color: #333;
+  font-size: 11px;
+}
+
+.trip-map-attribution a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/*
+  The Maptoolkit logo the Community License requires on every map: 24px, never
+  hidden behind a collapsed attribution bar. See docs/features/maps.md.
+*/
+.trip-map-logo {
+  display: block;
+  line-height: 0;
+}
+
+.trip-map-logo img {
+  display: block;
+  height: 24px;
+  width: auto;
 }
 
 .trip-pin svg {
@@ -987,10 +1030,10 @@
 }
 
 /*
-  The crop is stated with `!important` because a mark lives inside Leaflet's
-  marker pane: the stylesheet that sizes Leaflet's own images must not be able to
-  un-crop a pin. `cover` about the centre, on every wall and on both stages - and
-  on the turned pile's two sliding layers, which are images in the same pane.
+  The crop is stated with `!important` because a mark lives in the map's own
+  marker layer: the map library's stylesheet must not be able to un-crop a pin.
+  `cover` about the centre, on every wall and on both stages - and on the turned
+  pile's two sliding layers, which are images in the same layer.
 */
 .thumb-base,
 .thumb-shot,
@@ -1029,7 +1072,7 @@
 /*
   The square photo pin the trip and day maps draw: the miniature-then-preview
   pair every wall of thumbnails uses, in a smaller frame than the teardrop.
-  Leaflet gives the outer icon box its size; everything below is the inner mark.
+  The mark states its own box; everything below is the inner mark.
 */
 .trip-photo-pin,
 .trip-photo-cluster,
@@ -1042,6 +1085,9 @@
 }
 
 .trip-photo-pin {
+  /* MapLibre sizes a marker by its element, so the mark states its own box. */
+  width: 44px;
+  height: 51px;
   background: none;
   border: 0;
 }
@@ -1114,6 +1160,9 @@
   that slides in on a turn. See docs/features/maps.md.
 */
 .trip-photo-cluster {
+  /* The pin's own box, so a pile opens into a preview by the same movement. */
+  width: 44px;
+  height: 51px;
   background: none;
   border: 0;
 }
@@ -1184,7 +1233,7 @@
   **It takes no presses of its own.** Only its controls and its text answer a
   hand, so a drag, a wheel or a pinch anywhere over the picture is still the
   map's - which is what keeps the page from scrolling and the browser from
-  zooming instead of Leaflet. A press on the picture is read from its geometry by
+  zooming instead of the map. A press on the picture is read from its geometry by
   `TripMap`, which owns the map.
 */
 .map-card {
@@ -1204,25 +1253,12 @@
   --map-card-photo-radius: 0.375rem;
 }
 
-/*
-  The card rides a zoom. Leaflet carries every marker through a zoom animation
-  with a transition on the map pane's own children, and the card is not one of
-  them: it is placed in container pixels. The same length and curve let it
-  travel with its pin; `TripMap` writes the place and drops the class at the
-  settle. See docs/features/maps.md.
-*/
-.map-card.is-zooming {
-  transition:
-    left 250ms cubic-bezier(0, 0, 0.25, 1),
-    top 250ms cubic-bezier(0, 0, 0.25, 1);
-}
-
 /* The closed state **is the pin**: the pin's own box, ring, radius and inset,
    stated as well as animated. Once the morph lets go of its own fill the card is
    still the pin, so nothing snaps at the handover and the pin underneath has the
    same rectangle. See docs/features/maps.md. */
 .map-card.is-closed {
-  /* `PHOTO_PIN_SIZE` and its 7px tail, in `services/leaflet.js`. */
+  /* `PHOTO_PIN_SIZE` and its 7px tail, in `services/mapEngine.js`. */
   width: 44px;
   height: 51px;
   /* 2px of border and no padding: the pin's own 2px ring, rather than 1px of edge

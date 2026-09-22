@@ -1,8 +1,8 @@
 /**
  * Grouping points by distance in projected pixels, shared by the pins and the
- * route dots. Pure and free of Leaflet, so the two cannot drift into separate
- * clusterings. The distance is to a cluster's running mean, never to a member,
- * so a chain of close points cannot drag a far one in. See docs/features/maps.md.
+ * route dots. Pure and free of any map library, so the two cannot drift into
+ * separate clusterings. The distance is to a cluster's running mean, never to a
+ * member, so a chain of close points cannot drag a far one in. See docs/features/maps.md.
  */
 
 /** The default merge distance, in screen pixels: about two thirds of a pin. */

@@ -1,13 +1,17 @@
 # Maps
 
-Three maps, one Leaflet setup: the trip map over a date range, the day map on a day page,
+Three maps, one MapLibre setup: the trip map over a date range, the day map on a day page,
 and the coordinate picker in the media editor.
 
 ## Files
 
 | File | Role |
 | --- | --- |
-| `src/services/leaflet.js` | Shared setup: tiles, pins, route chevrons, `animatedProjection`, `createBaseMap`. |
+| `src/services/mapEngine.js` | Shared setup: the basemap style registry, pins, piles, clock chip, `createBaseMap`, `setBaseScheme`, `Marker`. The only importer of `maplibre-gl`. |
+| `scripts/build-map-style.mjs` | Builds every hosted style: both MapToolkit ones from the published `summer.json`, and OpenFreeMap's dark scheme from its `bright`. |
+| `public/map/maptoolkit-light.json` | MapToolkit's `summer` with the terrain stripped; the light scheme points at it. |
+| `public/map/maptoolkit-dark.json` | The same with every colour's lightness inverted; the dark scheme points at it. |
+| `public/map/openfreemap-dark.json` | OpenFreeMap's `bright` recoloured for the night; the dark scheme points at it. |
 | `src/components/map/TripMap.vue` | The map component used by the trip page and the day page; owns the pin album. |
 | `src/components/map/MapMediaCard.vue` | The album over a pin: one file at a time, arrows, keyboard. |
 | `src/views/MapView.vue` | The trip page: range in the URL, calendar, fullscreen, viewer, the expand mark in the map's corner. |
@@ -17,21 +21,22 @@ and the coordinate picker in the media editor.
 | `src/services/mapLinks.js` | `hasCoordinates`, and the one place a map-service URL is built. |
 | `src/services/mapIcons.js` | The `d` strings for the map buttons: expand, collapse, taller, shorter. |
 | `src/services/cardMorph.js` | The pin-into-preview unfold, played from JavaScript. |
-| `src/services/routeArrows.js` | The whole route on two canvases in two panes, chevrons or a plain line, with a ringed dot at every distinct ground a pile holds. |
+| `src/services/routeArrows.js` | The whole route on two canvases stacked over the map box, chevrons or a plain line, with a ringed dot at every distinct ground a pile holds. |
 | `src/services/mapClusters.js` | The cell clustering the pins and the route dots share. |
-| `src/assets/main.css` | The two-stage thumbnail class the pin, the pile and the grid tile share; the card's closed geometry and the quarter-fold timing of its chrome; the card's own transition for riding a zoom; the clock above a pin or a pile. |
+| `src/assets/main.css` | The two-stage thumbnail class the pin, the pile and the grid tile share; the card's closed geometry and the quarter-fold timing of its chrome; the map's overlay z-index stack; the clock above a pin or a pile. |
 | `src/services/deviceBudget.js` | `markerBudget()` and `dotBudget()`: how many marks this device class may draw. |
 | `src/components/common/MediaStrip.vue` | The album's turn: the viewer's filmstrip on its own. |
 | `src/components/media/MediaLightbox.vue` | The viewer's "show on the map" action, which lands back here. |
 
 ## Loading
 
-**Leaflet is lazy and must stay that way.** `MediaLocationPicker` is a
+**MapLibre is lazy and must stay that way.** `MediaLocationPicker` is a
 `defineAsyncComponent` inside `MediaEditDialog`, because that dialog is mounted app-wide by
-the selection toolbar - a static import puts Leaflet (~156kB) in the main bundle for every
-visitor who never opens a map.
+the selection toolbar - a static import would put MapLibre (~1MB) in the main bundle for
+every visitor who never opens a map. `mapEngine.js` is the only module that imports it, and
+it is reached from the lazy map views and the async picker alone.
 
-Leaflet objects are large and mutate constantly, so they are held in `shallowRef` and
+MapLibre objects are large and mutate constantly, so they are held in `shallowRef` and
 `markRaw`, never in plain reactive state.
 
 ## Data
@@ -51,19 +56,102 @@ outruns the network easily.
 
 | Export | Notes |
 | --- | --- |
-| `TILE_URL`, `ATTRIBUTION` | CARTO Voyager by default - cleaner than raw OSM and keyless. Both overridable via `VITE_MAP_TILE_URL` / `VITE_MAP_ATTRIBUTION`, so a keyed provider with latin labels is a config change. |
+| `mapStyleFor(scheme)`, `setBaseScheme(map, scheme)` | The provider registry and the one place the basemap is swapped; which provider is on is `MAP_PROVIDER`. See Basemaps below. |
+| `Marker` | MapLibre's marker, re-exported so the engine module is the only importer. |
 | `PIN_PATH` | The teardrop every pin is cut from, exported so a legend can draw one. |
 | `pinIconOf(color, size)` | A teardrop with a white dot in its head - the picker's pins. |
 | `clusterIconOf(count)` | The same drop, larger, with the count in the head. Used by the picker. |
-| `photoPinIcon(media, { withTime, locale })` | The trip and day maps' pin: a **square** thumbnail, built as DOM so the miniature-then-preview pair can be attached. `withTime` stamps the file's own clock on the picture, which only a **day** map asks for. |
+| `photoPinIcon(media, { withTime, locale })` | The trip and day maps' pin: a **square** thumbnail as a DOM element the map attaches as a marker, so the miniature-then-preview pair can be attached. `withTime` stamps the file's own clock on the picture, which only a **day** map asks for. |
 | `photoClusterIcon(count)` | A square pile with the count in it, matching `photoPinIcon`. |
-| `routeArrowMarkers(route, map, { spacing, maxPerSegment })` | A row of chevrons along each stretch of the route, rotated to its bearing, in the `ROUTE_PANE` below the pins. Non-interactive. |
-| `beforeIcon` / `afterIcon` | Cool blue and warm green - see below. |
-| `FALLBACK_CENTER` / `FALLBACK_ZOOM` | Japan, roughly, when there is nothing to fit. |
+| `BEFORE_COLOR` / `AFTER_COLOR` | Cool blue and warm green; the picker builds a pin of each. |
+| `FALLBACK_CENTER` / `FALLBACK_ZOOM` | Japan, roughly, when there is nothing to fit. `[lng, lat]`. |
 
-Picker pins are inline SVG `divIcon`s, so a single marker and a cluster share one silhouette
-and both theme cleanly without shipping PNGs. `.trip-pin` in `main.css` strips Leaflet's
-default divIcon box.
+### Basemaps
+
+One registry in `services/mapEngine.js` names every provider, and the environment picks one:
+`VITE_MAP_PROVIDER` is `maptoolkit` (default), `openfreemap` or `carto`.
+
+| Provider | Kind | Light | Dark |
+| --- | --- | --- | --- |
+| MapToolkit | vector | the hosted `public/map/maptoolkit-light.json` | the hosted `public/map/maptoolkit-dark.json` |
+| OpenFreeMap | vector | `styles/bright` | the hosted `public/map/openfreemap-dark.json` |
+| CARTO | raster | `voyager` | `dark_all` |
+
+**Every provider is a MapLibre style**, so a raster provider is wrapped in a style of its
+own: one `raster` source over the tile URL and one `raster` layer. That is what makes a
+scheme change a single `setStyle`. MapLibre cross-fades the new tiles itself, so a theme
+switch is a transition rather than a swap. `VITE_MAP_STYLE_LIGHT` / `VITE_MAP_STYLE_DARK`
+override one scheme's URL, which is how a self-hosted or keyed style is swapped without a
+component changing.
+
+**The basemap follows the theme's `scheme`.** `createBaseMap` takes `scheme`, and `TripMap`
+and `MediaLocationPicker` watch `resolvedTheme.scheme` and call `setBaseScheme`. `setStyle`
+drops runtime layers, so the picker re-adds its reference lines on `style.load`.
+
+**MapToolkit's licence wants the logo and the copyright line always visible.** The map is
+built with `attributionControl: false`, and two controls of our own carry the copyright line
+bottom-right and, for MapToolkit, the logo 24px bottom-left. MapLibre's own attribution
+control collapses behind a button, which the licence does not accept. OpenFreeMap needs the
+copyright line alone.
+
+**The basemap is capped on a large viewport.** `createBaseMap` passes `pixelRatio` from
+`pixelRatioFor(container)` - `min(devicePixelRatio, 1.5)`, and `1.25` above a 1920x1080
+viewport - because painting cost scales with the framebuffer. `fadeDuration` is `150`, not
+MapLibre's `300`, and `maxTileCacheSize` plus `prefetchZoomDelta` bound a pan's refetches.
+The provider's tile, glyph and sprite hosts are `preconnect`ed before the first tile is
+asked for.
+
+Both MapToolkit styles are generated and hosted: `scripts/build-map-style.mjs` fetches the
+published `summer.json`, **strips the terrain, the contours, the road labels and the road
+shield's sprite**, and writes `public/map/maptoolkit-light.json` - 83 layers, 20 of them
+symbols, over two sources. It then writes a dark copy with **every colour's lightness
+inverted**, keeping hue and saturation, so the dark map carries summer's cartography in dark
+tones. The flags are `KEEP_TERRAIN`, `LABELS`, `CONTOURS` and `LEAN`.
+
+**OpenFreeMap's dark scheme is Bright, at night.** OpenFreeMap publishes no dark style built
+to Bright's own standard - `dark` and `fiord` are unmaintained upstream forks with a
+fraction of the labels - so the build script fetches `styles/bright` and writes a dark copy
+of it: every label, every POI and every road Bright has.
+
+**The night city is a fixed palette**, stated once as constants at the top of the OpenFreeMap
+pass in [`scripts/build-map-style.mjs`](../../scripts/build-map-style.mjs): the ground and the
+landuse fills, the buildings, the streets and the motorways. A casing takes the tone of the
+road it carries, and every landuse class that Bright tint - urban, hospital, school,
+cemetery - takes the ground tone, so nothing in a city glares. Change a tone there and the
+style is rebuilt; no component and no document carries a colour.
+
+**Everything else is the reflection of Bright** - water, parks, landcover, the labels and the
+POIs (`INVERT_FLOOR`, `INVERT_SCALE`) - except the non-road lines (rails, ferries, boundaries,
+runways, waterways), which keep a muted band above the ground (`ROAD_HUE`, `ROAD_SATURATION`,
+`ROAD_FLOOR`, `ROAD_SCALE`). The route-number **shields** are a sprite plate that cannot be
+recoloured, so they are muted with `icon-opacity`; the POI glyphs come from that same sprite,
+so the POI **names** carry the night map rather than the icons.
+
+### Why MapLibre, and not Leaflet
+
+Leaflet could not carry a vector basemap smoothly. The `maplibre-gl-leaflet` bridge drew
+MapLibre into a Leaflet pane and re-rendered it behind Leaflet's events: it throttled pan
+updates to `updateInterval` (32ms, about 30fps), pre-rendered a 1.2x-area container, and
+CSS-scaled a rasterised canvas through every zoom. That was a stray frame on each zoom, an
+occasional blank map, a zoom that swapped layers in one frame, and a pan under 60fps. A pure
+MapLibre map owns its own camera, tile cross-fade and render loop, so none of those exist.
+
+**Terrain, contours and labels were the whole cost of that provider.** `rgb-tiles` and
+`bathymetry` are DEM sources: on every pan MapLibre fetched terrain tiles and ran the
+hillshade and depth shaders. The site is a flat photo backdrop, so the relief is dropped and
+the low-zoom `naturalearth` raster is the only terrain cue left. The `contours` source is a
+second vector source fetched on every zoom, so it is dropped too; `CONTOURS=1` restores it.
+
+**The labels are the other half, and the part that still stutters.** The published style
+carries 41 symbol layers, and MapLibre places labels on the **main thread** every frame a
+tile arrives. POIs, house numbers, the road sub-labels and the road shield are dropped,
+leaving 20 over `place_label` and `water_label` alone, and `crossSourceCollisions: false` in
+`createBaseMap` drops the cross-source pass. Dropping the shield is also what lets the
+sprite go. `LABELS=full` restores every label; `LABELS=none` drops them all.
+
+Picker pins are inline SVG elements, so a single marker and a cluster share one silhouette
+and both theme cleanly without shipping PNGs. The map attaches the element itself as a
+marker, anchored by its tail.
 
 The trip and day maps draw `photoPinIcon` instead: a 44px square of the file itself, in the
 same miniature-under-preview arrangement every wall of thumbnails uses, with a white frame
@@ -73,16 +161,16 @@ has to be attached to fade it in over the miniature.
 **The picture is one shared thing.** The crop, the miniature blur, the corner and the
 `is-ready` handover are `.thumb-stage` / `.thumb-base` / `.thumb-shot` in `main.css` - the
 same classes `MediaThumb` wears - so a pin, a pile and a grid tile cannot crop or blur
-differently. A pile is a Leaflet icon and can mount no component, so the shared part is a
+differently. A pile is a DOM marker element and can mount no component, so the shared part is a
 class plus one factory (`setStagePicture`), never a second hand-written pair: that second
 implementation is exactly how the pin's crop and the pile's blur came to drift from the wall.
 
 **The figures are a fraction of the box, and the crop is not negotiable.** 10px of blur over a
 ~300px wall tile is a mush over a 44px pin, so `--thumb-blur` and `--thumb-scale` are stated
 where the mark is: 2px and 1.02 on a pin or a pile. The crop itself (`cover`, about the
-centre) is declared with `!important`, because a mark lives inside Leaflet's marker pane and
-the stylesheet that sizes Leaflet's own images must not be able to un-crop one - which is
-exactly what it did to the turned pile's two sliding layers, the one picture the pair's own
+centre) is declared with `!important`, because a mark lives in the map's own marker layer and
+the stylesheet that sizes the map's images must not be able to un-crop one - which is exactly
+what it did to the turned pile's two sliding layers, the one picture the pair's own
 rule never reached. `.trip-photo-cluster-img` is named in the guarded rule too, and the
 blur is **theirs alone**: the quiet pair takes `.thumb-base` / `.thumb-shot` like a lone pin,
 so a pile without the turn shows a preview rather than a blurred miniature of its own.
@@ -157,7 +245,7 @@ viewer does it in [media-viewer.md](media-viewer.md).
 the 44x51 frame, the tail, the ground at the bottom centre - so a pile opens into a preview by
 the same movement a single pin does. The count sits as a badge in the corner.
 
-**The turn is a mode, and it is off.** `PILE_TURN` in `services/leaflet.js`:
+**The turn is a mode, and it is off.** `PILE_TURN` in `services/mapEngine.js`:
 
 | `PILE_TURN` | Pile shows | Ticker |
 | --- | --- | --- |
@@ -188,11 +276,9 @@ cannot disagree:
   picture the reader just came back to. With the turn off there is no ticker to skip and the
   landed member simply stays.
 
-`leaflet.markercluster` did this and was removed. It mutates the `L` its own bundle holds,
-which Vite's dependency optimiser does not always make the same object the app imported - so
-`L.markerclusterGroup` came back undefined and every map threw on mount. Its two headline
-behaviours were the ones this map does not want anyway: a press that zooms, and a pile that
-fans out into a carousel of pins that no longer sit where the files are.
+MapLibre's own clustering is not used. Its headline behaviours are the ones this map does
+not want: a press that zooms, and a pile that fans out into a carousel of pins that no
+longer sit where the files are. The shared pure module keeps the pile a pin's own shape.
 
 A pile answers with the **earliest file it holds**, so the arrows that follow walk the same
 chronology a single pin does, and it never zooms. With the turn on it answers with the member
@@ -206,16 +292,15 @@ then never changed.
 
 ### The route is a row of arrows, on two canvases
 
-`services/routeArrows.js` draws the whole route onto **canvases** rather than a Leaflet marker
-per chevron: `[pin] >>>>>> [pin]`. A marker per arrow put every chevron of a trip in the DOM
+`services/routeArrows.js` draws the whole route onto **canvases** rather than a marker per
+chevron: `[pin] >>>>>> [pin]`. A marker per arrow put every chevron of a trip in the DOM
 whether or not it was on screen, which is what made a long route jank; a canvas costs one
 element and draws only what the box shows.
 
-**Two of them, in two panes.** The chevrons are drawn in `ROUTE_PANE` (450) and a pile's grounds
-one pane above, `ROUTE_DOT_PANE` (550), which is still under the marker pane (600) - because a
-dot has to be read **over** the row it terminates, and only a pane can order one draw against
-another. Both canvases share the projection, the `reposition` and the `zoomanim` transform, so a
-dot and the chevron beside it cannot drift apart.
+**Two of them, stacked over the map box.** The chevrons sit at `z-index: 1` and a pile's
+grounds at `z-index: 2`, so a dot is read **over** the row it terminates while both stay under
+every pin (`z-index: 3`). Both canvases share one projection and one redraw, so a dot and the
+chevron beside it cannot drift apart. The stack is in `main.css`.
 
 **The path is clipped to the box first**, and both the stamping and the cap work on what is
 left: the chevrons are laid at an equal distance apart, and `ROUTE_ARROW.max` is the most that
@@ -223,10 +308,9 @@ may appear **on screen**, not along the whole trip. A route zoomed into one poin
 keeps its spacing instead of spending the budget on the kilometres off frame; over the cap the
 row spreads rather than piling up.
 
-- **Redrawn on a pan as well as a zoom.** A pan moves the canvas with the tiles - it is drawn
-  in layer coordinates and pinned to the pane - but it also brings new ground into the box,
-  which has never been drawn. `move` redraws once per frame, `moveend`, `zoomend` and a resize
-  redraw once more. Clipping keeps each of those to a handful of chevrons.
+- **Redrawn on every `move`, once per frame.** MapLibre fires `move` through a pan and a zoom
+  alike, so one rAF-guarded redraw keeps the row on the view actually on screen; a resize
+  redraws too. Clipping keeps each draw to a handful of chevrons.
 - **A dot at every pile member's own distinct ground.** The chevron row is stamped along the
   files' own coordinates while a pile's mark stands on their centroid, so without them the row
   begins and ends in mid-air. One dot per **distinct** coordinate in a pile: two files shot from
@@ -235,29 +319,19 @@ row spreads rather than piling up.
   covers, and never a lone pin, whose own mark is the point the row runs to. It takes the arrows'
   own colour at 2.2px of radius with a ring of the mark's own frame (`ROUTE_ARROW.dotRadius`,
   `.dotRing`), so a dot standing among chevrons is not read as one of them. Painted in the same
-  pass and the same projection as the chevrons, so they scale and travel with the row - and in a
-  pane above it, so a chevron never covers a dot it passes. Over `dotBudget()` the grounds are
+  pass and the same projection as the chevrons, so they scale and travel with the row - and one
+  z-index above them, so a chevron never covers a dot it passes. Over `dotBudget()` the grounds
   merged by the same centroid rule at the dots' own cell figures, and the cap counts the clusters
   **the box draws**; one dot stands on each cluster's centroid, and the canvas keeps every cluster
   for a pan.
 - **The chevrons are the line**: in `arrows` mode no path is stroked at all. `ROUTE_STYLE`
   switches between `arrows` and `line`, so the plain solid line can be compared by hand.
-- **The canvas rides the zoom.** It carries Leaflet's own `leaflet-zoom-animated` class and
-  `createRouteCanvas` subscribes to `zoomanim`, writing exactly the transform
-  `L.TileLayer._animateZoom` writes: `_latLngToNewLayerPoint` of the box's own corner ground,
-  at `getZoomScale`. A pin needs none of this - a `divIcon` is a marker, and Leaflet carries
-  every marker through a zoom itself. Without it the canvas sat at the old scale for the whole
-  movement and the row was swapped in one frame at `zoomend`, which read as a redraw.
-- **The target view is drawn once per gesture**, not per frame. A zoom out scales the frame
-  down, and the settled box would then read ground the plain draw never covered; so the canvas
-  is redrawn into a window as wide as what the settled box will show, clipped to it, and the
-  transform is armed from the value that shows the frame as it stands - so the first animated
-  frame is the one already on screen. `zoomend` is now only a **resync** (`reposition` writes
-  a plain translate, so no transform is accumulated), and nothing moves at the handover.
-  Reduced motion builds the map without Leaflet's own zoom animation, so there `zoomend`
-  alone is the answer. See Wheel zoom.
-- Their own pane, `ROUTE_PANE`, at z-index 450 - above the tiles and below every pin. The
-  canvas takes no presses.
+- **Nothing rides a transform.** The chevrons are projected and drawn in **screen pixels** on
+  every `move`, so there is no CSS scale of a rasterised canvas and no stale view to resync -
+  the stray frame a transform was meant to hide cannot happen. A marker needs none of this:
+  MapLibre carries every marker itself.
+- **The canvases take no presses**, and they are clipped to the box: the distance between
+  chevrons and the cap are measured on what is on screen, never on the whole trip.
 - **Every arrow figure lives in this module** (`ROUTE_ARROW`): spacing, cap, size, stroke
   weight, line weight and an optional colour. Nothing outside it holds an arrow number.
 
@@ -267,45 +341,54 @@ row spreads rather than piling up.
 
 | `wheelZoom` | Behaviour | For |
 | --- | --- | --- |
-| `false` (default) | Wheel scrolls the page; **Ctrl/⌘ + wheel** zooms the map, and a bare wheel calls `onScrollHint` so the caller can flash a hint. | A map embedded in a scrolling page. |
-| `true` | Leaflet's own smooth wheel zoom. | A map that fills the window. |
+| `false` (default) | Wheel scrolls the page; **Ctrl/⌘ + wheel** is MapLibre's own zoom, and a bare wheel calls `onScrollHint` so the caller can flash a hint. | A map embedded in a scrolling page. |
+| `true` | The same MapLibre zoom on a bare wheel, with no modifier. | A map that fills the window. |
 
 The reason for the modifier is a page waiting to be scrolled behind the map. Full screen
 there is no page, so the modifier would be a toll on the one gesture everybody reaches for.
 Both the trip map and the picker make this distinction.
 
-The guarded path calls `event.preventDefault()` to stop the browser's own ctrl+wheel page
-zoom, and applies one zoom level per notch by hand.
+**MapLibre's scroll zoom is always on; the guard is what differs.** A guarded map holds a
+bare `wheel` in the **capture** phase and stops it before the map's own listener sees it, so
+the page scrolls and the map does not. Ctrl/⌘ + wheel is not held back, so MapLibre gives it
+its own smooth, trackpad-aware zoom and stops the browser's page zoom itself. A map built
+with `wheelZoom` skips the guard and zooms on a bare wheel.
 
-**Reduced motion drops Leaflet's own zoom animation** (`zoomAnimation: false`), so a zoom is
-a plain jump and `zoomend` fires at once. Leaflet's animated path otherwise waits out a 250ms
-fallback that no `transitionend` ever ends, because the app's reduced-motion rules cut every
-transition - and the route canvas, transformed only on `zoomanim`, would stand on the old view
-for that whole window. Any map with Leaflet's zoom animation off answers on `zoomend` alone.
+**Ctrl + drag pans, though MapLibre reserves it for rotation.** `generateMousePanHandler`
+starts a drag only when `!e.ctrlKey`, and rotation is off on every map here, so Ctrl+drag
+once did nothing at all. `addCtrlDragPan` re-dispatches the press without the modifier; the
+moves that follow are accepted as they are, because only a drag's start is checked.
+
+**Reduced motion is honoured where this code starts an animation itself.** MapLibre's own pan
+and zoom are continuous camera movements with no reduced-motion switch, so the one place a
+choice is made is `showMedia({ zoom: true })`: it `jumpTo`s under reduced motion and `easeTo`s
+otherwise. Nothing else needs a branch, because nothing rides a transform.
 
 ### Re-framing is separate from drawing
 
 `fitToContent` is kept apart from drawing the markers because it has to run **again**. A map
 built inside a box that has not been laid out yet - an overlay opening, a section
 unfolding, a tab appearing - computes its zoom against a container of no size and keeps
-that zoom for good. `invalidateSize` tells Leaflet the box changed and does nothing about
+that zoom for good. `map.resize()` tells MapLibre the box changed and does nothing about
 the framing, which is why a map sometimes sat at the wrong scale over the right centre.
 
+**The fit leaves room for a pin above its point.** A pin is anchored by its tail at the
+coordinate and stands upward, so the **top** margin is the side margin plus the pin's own
+height - `PIN_H`, from `PHOTO_PIN_SIZE` and `PHOTO_PIN_TAIL`, never a second hardcoded
+number. At the side margin alone the northernmost pin is cut off, and a taller pin in a
+later pass would widen the gap without anyone remembering why it was there.
+
 **The refit belongs to the first layout only.** A `framed` flag is set once, after the first
-fit taken with a box that has a size, and no later resize re-fits: a resize keeps the centre.
-The old gate was the reader's own `userMoved`, which meant the day page's taller map - a resize
-and nothing else - threw the view away and re-fitted the points, reading as a jump to another
-scale. The resize observer calls plain `invalidateSize()`, so Leaflet pans by the change of
-centre and the ground that was under the middle lands on the new middle. `pan: false` would
-anchor the content to the box's top-left instead, and a taller box would slide the view - the
-old comment had that claim inverted. Handing a view to the expanded map is unchanged:
-`getView()` / `initialView` still wins over any refit.
+fit taken with a box that has a size, and no later resize re-fits: a resize keeps the centre,
+because MapLibre pans by the change of centre and the ground that was under the middle lands
+on the new middle. Handing a view to the expanded map is unchanged: `getView()` /
+`initialView` still wins over any refit.
 
 ## The album over a pin
 
-`MapMediaCard` is a Vue overlay inside the map's own box, not a Leaflet popup. A popup is
-DOM handed to Leaflet, and this one has to unfold with an animation, take the keyboard and
-read the app's stores - which is a component, not a string.
+`MapMediaCard` is a Vue overlay inside the map's own box, not a map popup. A popup is DOM
+handed to the map library, and this one has to unfold with an animation, take the keyboard
+and read the app's stores - which is a component, not a string.
 
 **The pin becomes the card.** While the card stands its marker is **not drawn**
 (`paintSelection` sets `display: none` on it), so there is never a pin and a card for the same
@@ -382,13 +465,10 @@ It travels with the map instead of hanging over it: the anchor is recomputed on 
 (capped at 360px, the most it ever needs), and it is **always above the point** - the card is
 never clamped down over its pin, the frame moves instead.
 
-**It rides a zoom.** Leaflet carries every marker through a zoom animation itself, with a
-transition on the marker's own element; the card is placed in container pixels outside the
-panes, so it would stand still until `zoomend` without this. `TripMap` subscribes to `zoomanim`,
-writes the card's own `left`/`top` from `animatedProjection` - the same derivation the route
-canvas uses - and hands the card back to its anchor at the settle. A render per frame would lag
-the movement, and reduced motion, or a map with Leaflet's zoom animation off, leaves it to
-`zoomend` alone, as the canvas already follows.
+**It follows the map on every frame of a movement.** The card is placed in container pixels
+outside the map's own canvas, so `TripMap` recomputes its anchor from `map.project` on `move`,
+once per frame. There is no separate zoom path and nothing to resync at a settle: MapLibre
+fires `move` through the whole gesture, so the card is placed on the view actually on screen.
 
 | Behaviour | How |
 | --- | --- |
@@ -414,8 +494,8 @@ the map instead of the browser. On a touch screen the card's own **swipe** is wo
 same axis lock the day page's gestures use.
 
 **A gesture is decided where it begins.** A touch that starts inside the card stands the map's
-own drag down for the length of that gesture - `dragging.disable()` at `touchstart`, back with
-the last finger - because Leaflet's drag handler has already seen the same event and stopping it
+own drag down for the length of that gesture - `dragPan.disable()` at `touchstart`, back with
+the last finger - because the map's drag handler has already seen the same event and stopping it
 later cannot undo the pan it began. The card's axis lock then has the gesture to itself: a
 horizontal swipe pages the album and never moves the map, while a drag outside the card still
 pans and a two-finger pinch over the picture still zooms.
@@ -478,8 +558,8 @@ hanging above it.
 
 The inline map wears the same corner mark the day page's full-screen control does - `MAP_EXPAND`
 in `.map-float-control`, passed through `TripMap`'s `controls` slot. The slot renders after the map
-box and before the album, so the mark needs one z-index over Leaflet's panes and stays under the
-card. The header carries reset and share alone.
+box and before the album, so the mark needs one z-index over the map's own layers and stays under
+the card. The header carries reset and share alone.
 
 The range lives in the URL (`?from=&to=`) so a link shares the exact stretch. With nothing
 picked, the effective range is the whole trip, taken from `days.orderedDates` - which is why
@@ -491,8 +571,8 @@ one dark square says nothing about what the second click is for.
 
 ### Fullscreen is a second map
 
-A **new instance**, not this one teleported. A live Leaflet map carried through a
-`Teleport` comes out broken - blank tiles, and dead once it is put back. The location
+A **new instance**, not this one teleported. A live map carried through a `Teleport` comes
+out broken - blank tiles, and dead once it is put back. The location
 picker builds two for the same reason. Both are driven from the same media, so they show
 the same thing and neither knows about the other.
 
@@ -616,21 +696,25 @@ which rooftop.
 | A margin round the map does not answer a click. | Every map control sits in a corner, and a press that missed one by a few pixels used to move the pin. Placing a point is deliberate; missing a button is not. The margin is sized from the box, so it reads the same on a 220px strip and full screen. |
 | A paste of `34.304847, 133.090327` sets the point. | That is how anyone actually knows where a photograph was taken - Google Maps copies a place in exactly that form. Listened for on the **document**, since the map is not focusable, and ignored when a real input is the target, or pasting a description would move the pin. |
 | Collapsing from full screen returns the small map **to the point**, not to where it was left. | Going full screen is what people do to place a pin precisely, so the pin is what they were looking at. |
-| The inline map's wrapper is `isolate`. | Leaflet stacks its panes from 200 to 800; without a stacking context those numbers compete with the rest of the dialog, and the map painted over the tag suggestions dropping out of the field above it. |
+| The inline map's wrapper is `isolate`. | The map's own overlay layers are z-indexed; without a stacking context those numbers compete with the rest of the dialog, and the map painted over the tag suggestions dropping out of the field above it. |
 | The neighbour-pin hint draws a pin **beside** the sentence. | The muted drops are the only thing on the map nobody put there deliberately. Named on their own they explained neither which marks they were nor what they were for. |
 | The map hints occupy two fixed rows below the 220px map. | Reference points arrive after the editor opens; replacing the second row must not move the fields below. |
 
 ## Invariants
 
-1. Leaflet stays lazily imported through `MediaLocationPicker`.
-2. Leaflet instances live in `shallowRef` / `markRaw`.
-3. The pin album is a Vue component in the map's own box, never a Leaflet popup built from
-   a string.
+1. `maplibre-gl` is imported only by `services/mapEngine.js`, which is reached from the lazy
+   map views and the async picker - never the main bundle.
+2. Map instances live in `shallowRef` / `markRaw`; markers are plain objects held in a `Map`.
+3. The pin album is a Vue component in the map's own box, never a map popup built from a
+   string.
 4. Fullscreen builds a second map; never teleport a live one.
-5. `wheelZoom: true` only for a map filling the window.
+5. MapLibre's `scrollZoom` is on for **every** map; `wheelZoom` only decides whether a bare
+   wheel is held back. The guard runs in the **capture** phase, so a bare wheel never reaches
+   the map's own listener, while Ctrl/⌘ + wheel is MapLibre's own and stays smooth. Ctrl+drag
+   is re-dispatched without the modifier, because MapLibre reserves the modifier for rotation.
 6. Map ranges live in the URL.
-7. Marker clicks set `bubblingMouseEvents: false`; without it the map's own click closes the
-   album the same instant it opens.
+7. A marker is a DOM element, not the map canvas, so a press on a pin never reaches the map's
+   own click - which would close the album the same instant it opens.
 8. The album's key handler runs in the **capture** phase and stops the event it answers, so
    the day page's arrow keys do not page the day underneath it, and only while the card's
    rectangle meets the viewport, so a map scrolled out of frame gives the keys back. It is
@@ -638,9 +722,9 @@ which rooftop.
    opened from it.
 9. A press on a pin never zooms; the arrows pan and keep the zoom. The one place a pin **is**
    zoomed to is `showMedia(id, { zoom: true })`, reached from the viewer's own action.
-10. Pins are grouped through `services/mapClusters.js` (`clusterByCell`), not by
-    `leaflet.markercluster`. The distance is to a cluster's **centroid**, never to a member, so
-    a pile cannot chain across a country; a pile never fans out and never zooms.
+10. Pins are grouped through `services/mapClusters.js` (`clusterByCell`), not by MapLibre's
+    own clustering. The distance is to a cluster's **centroid**, never to a member, so a pile
+    cannot chain across a country; a pile never fans out and never zooms.
 11. The album is `pointer-events: none`; only its controls and its text take presses. A drag,
     a wheel or a pinch over the picture is the map's, which is what keeps the page from
     scrolling and Ctrl+wheel from zooming the browser.
@@ -660,25 +744,22 @@ which rooftop.
     folds it back before the pin returns.
 17. A press on the card's picture opens the viewer through `markOpenedFrom`, so the flight is
     the grid's own; the card is never a stand-in.
-18. The route is drawn on **two canvases**, in layer coordinates and pinned to their panes - the
-    chevrons in `ROUTE_PANE`, the grounds one pane above them and still below every pin. The path
-    is **clipped to the box** and both the spacing and the cap are measured on what is left, so
-    the cap counts chevrons on screen. It is redrawn on a pan as well as a zoom, because a pan
-    brings new ground into frame. `ROUTE_STYLE` picks between the chevron row and the plain
-    line, and only one is drawn. The dots at a pile's **distinct** grounds are painted on the dot
-    canvas, in the same pass and the same projection as the chevrons - never at the centroid the
-    mark covers, and never on a lone pin, whose own mark is the point the row runs to. A pile
-    whose members share one coordinate contributes no dot, and one that repeats a coordinate
-    contributes it once. Over `dotBudget()` the grounds are merged by the shared centroid rule at
-    the dots' own cell figures, and the cap counts the clusters **the box draws**; one dot stands
-    on each cluster's centroid, and the canvas keeps every cluster for a pan.
-19. The canvas is `leaflet-zoom-animated` and transformed on `zoomanim` exactly as
-    `L.TileLayer` transforms its own container, so the chevrons ride the zoom with the tiles.
-    The target view is drawn **once per gesture**, into a window as wide as the settled box and
-    clipped to it; `zoomend` only resyncs and nothing moves at the handover. A draw per frame is
-    never the answer. Under reduced motion the map is built with Leaflet's zoom animation off
-    (`createBaseMap`), so no `zoomanim` fires and `zoomend` alone answers at once - the canvas
-    never waits out Leaflet's 250ms fallback.
+18. The route is drawn on **two canvases** stacked over the map box - the chevrons at
+    `z-index: 1`, the grounds at `z-index: 2` and still below every pin. The path is **clipped
+    to the box** and both the spacing and the cap are measured on what is left, so the cap
+    counts chevrons on screen. It is redrawn on every `move`, so a pan and a zoom are the same
+    case. `ROUTE_STYLE` picks between the chevron row and the plain line, and only one is
+    drawn. The dots at a pile's **distinct** grounds are painted on the dot canvas, in the same
+    pass and the same projection as the chevrons - never at the centroid the mark covers, and
+    never on a lone pin, whose own mark is the point the row runs to. A pile whose members
+    share one coordinate contributes no dot, and one that repeats a coordinate contributes it
+    once. Over `dotBudget()` the grounds are merged by the shared centroid rule at the dots'
+    own cell figures, and the cap counts the clusters **the box draws**; one dot stands on each
+    cluster's centroid, and the canvas keeps every cluster for a pan.
+19. The canvases ride nothing: the chevrons are projected and drawn in **screen pixels** on
+    every `move`, once per frame behind an rAF guard, so the row is always on the view actually
+    on screen. There is no CSS scale of a rasterised canvas and no stale view to resync, and
+    reduced motion needs no branch here.
 20. The turn is `MediaStrip` - the viewer's filmstrip on its own - and not a second
     implementation of it. A step arriving mid-slide is queued, never snapped. The card carries
     the viewer's **whole** guard, and its content follows the frame the strip **settles** on,
@@ -686,10 +767,10 @@ which rooftop.
 21. Markers are culled to the padded box and capped at `markerBudget()`, and the cap counts
     the groups **in that box**, never the trip: what is off screen costs nothing and must not
     coarsen what is on it. A settle may widen the cell because the box changed, never because
-    a distance did. A pin's icon outlives a rebuild; the map never draws a mark per file at a
-    whole-country zoom. The dots are cut in the same pass as the pins, never on a pan, and their
-    `dotBudget()` cap counts the clusters the box draws too, so an off-screen stretch cannot
-    coarsen the visible ones.
+    a distance did. A marker's element is reused across a rebuild that keeps its key, so a zoom
+    does not make a fresh picture; the map never draws a mark per file at a whole-country zoom.
+    The dots are cut in the same pass as the pins, never on a pan, and their `dotBudget()` cap
+    counts the clusters the box draws too.
 22. The frame always brings the card's **own centre** to the middle of the box, on a press and
     on a step alike. The offset is **`reference - target`**, because `panBy` moves the centre by
     its offset. A step re-frames **at once**, so its own slide and the camera are one movement;
@@ -716,14 +797,13 @@ which rooftop.
     layers carry the miniature blur themselves; the quiet pair takes `.thumb-base` /
     `.thumb-shot`, so a pile without the turn shows a preview, as a lone pin does. The figures
     scale with the box (`--thumb-blur`, `--thumb-scale`) - a 44px mark cannot take a 300px
-    tile's - and the crop is declared `!important`, because a mark lives in Leaflet's marker
-    pane.
+    tile's - and the crop is declared `!important`, because a mark lives in the map's own
+    marker layer.
 28. The map is framed on the **first layout** only; a later resize keeps the centre, and a
-    resize is never a reason to re-fit the points. The resize observer calls plain
-    `invalidateSize()`, so Leaflet pans by the change of centre and the middle keeps its ground;
-    `pan: false` would anchor the content to the top-left and slide the view.
-29. A day pin stamps its file's clock, and the icon cache is keyed by file, mode and locale; a
-    locale change clears it. Without both, whichever map was built first owns the mark.
+    resize is never a reason to re-fit the points. The resize observer calls `map.resize()`, so
+    MapLibre pans by the change of centre and the middle keeps its ground.
+29. A day pin stamps its file's clock, and a change of locale drops the drawn markers and
+    rebuilds them. Without that, whichever map was built first owns the mark.
 30. The album has **one entry point**, `showMedia(id, { zoom })`: the viewer's close (which
     carries the id it closed on), the viewer's map action (`zoom: true`) and `initialSelection`
     all go through it, and a file the map does not hold closes the album. `getSelection()` into
@@ -733,19 +813,18 @@ which rooftop.
     map's **own card** opened the viewer: the map records that itself and answers through
     `syncViewerClose`, so the answer cannot go stale as a flag in a view did. The action re-frames
     a card that was already standing, because such a card is never re-mounted.
-31. A pin's icon cache belongs to **one map**, so two maps live at once never share a DOM node;
-    and while a card stands, the markers its rectangle covers take no press, or the press would
+31. Every map builds its own markers, so two maps live at once never share a DOM node; and
+    while a card stands, the markers its rectangle covers take no press, or the press would
     move the album to a pin under it.
-32. The card rides a zoom: it is placed in container pixels outside Leaflet's panes, so
-    `TripMap` writes its position from `animatedProjection` on `zoomanim` and hands it back to the
-    anchor at the settle. A render per frame is a frame behind; reduced motion leaves the move to
-    `zoomend`, exactly as the route canvas does.
-33. A gesture that begins on the card owns the map's own drag for its length: `dragging` is
-    disabled at `touchstart` and enabled again with the last finger, because Leaflet's drag
-    handler has already seen the same event and stopping it later cannot undo the pan it began.
+32. The card follows the map on every frame of a movement: it sits in container pixels outside
+    the map's canvas, and `TripMap` recomputes its anchor from `map.project` on `move`. There is
+    no separate zoom path and nothing to resync at a settle.
+33. A gesture that begins on the card owns the map's own drag for its length: `dragPan` is
+    disabled at `touchstart` and enabled again with the last finger, because the drag handler
+    has already seen the same event and stopping it later cannot undo the pan it began.
 34. A control a page floats over the map goes through `TripMap`'s `controls` slot, which renders
-    after the map box and before the album: one z-index stands over Leaflet's panes and under the
-    card.
+    after the map box and before the album: one z-index stands over the map's own layers and
+    under the card.
 35. On a day page the viewer is told the page is covered while the map fills the window, and,
     inline, while the viewer was opened from the map's album; it then neither searches the page
     for an origin nor takes a grid tile as a destination, the element an opener handed over being
@@ -757,6 +836,24 @@ which rooftop.
     neither outlined nor scrolled to.
 37. A follow to the map settles the wall before the scroll is aimed: a grid still revealing
     its own chunks is opened whole, so the map below it cannot move under the glide.
+38. The basemap is one registry in `services/mapEngine.js`, selected by `VITE_MAP_PROVIDER`,
+    and **every provider is a MapLibre style** - a raster one is a generated style with a
+    `raster` source. The basemap follows the theme's `scheme` through `setBaseScheme`, driven
+    from the components, never from the service.
+39. MapToolkit's attribution is a **non-collapsible** line plus a 24px logo; both stay
+    visible at every size and zoom, and neither may be hidden behind a toggle.
+40. The basemap's canvas is capped on a large viewport (`pixelRatioFor`), so a 4K map is a
+    little softer than the screen would allow. That softness is the price of holding frame
+    time; the figure is one line and verified by hand. `fadeDuration` is below MapLibre's
+    default for the same reason, and never zero, so a tile still fades in.
+41. A fit leaves the **pin's own height** above its points: the top margin is the side margin
+    plus `PIN_H`, read from `PHOTO_PIN_SIZE` and `PHOTO_PIN_TAIL`. A margin written as a
+    number cuts the northernmost pin off the moment the pin is resized.
+42. A hosted style is **regenerated, never hand-edited**: the build script writes it from the
+    provider's own style. The night city's tones are constants at the top of the OpenFreeMap
+    pass and live nowhere else - no colour belongs in a component or in this document. The
+    dark scheme keeps the light one's labels, rather than falling back to a stripped provider
+    style.
 
 ## Related
 

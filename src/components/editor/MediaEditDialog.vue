@@ -7,7 +7,7 @@ import TagPicker from './TagPicker.vue'
 import RichTextArea from '@/components/common/RichTextArea.vue'
 import TriStateCheck from './TriStateCheck.vue'
 import SimilarMediaPanel from './SimilarMediaPanel.vue'
-// Lazy so Leaflet is not pulled into the main bundle - this dialog is mounted
+// Lazy so MapLibre is not pulled into the main bundle - this dialog is mounted
 // app-wide via the selection toolbar, and the map only loads when it opens.
 const MediaLocationPicker = defineAsyncComponent(() => import('./MediaLocationPicker.vue'))
 import { editMedia, fetchMediaEdit, fetchMediaLocations } from '@/api/media'

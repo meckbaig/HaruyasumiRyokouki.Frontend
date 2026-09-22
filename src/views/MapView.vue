@@ -62,8 +62,8 @@ async function refresh() {
   reload()
 }
 
-/* Fullscreen builds a **second map**; a live Leaflet instance carried through a
-   Teleport comes out broken. The inline map's own view is handed over, so the
+/* Fullscreen builds a **second map**; a live map carried through a Teleport
+   comes out broken. The inline map's own view is handed over, so the
    expanded one opens where the reader stood instead of re-fitting the points.
    See docs/features/maps.md. */
 const expanded = ref(false)
@@ -198,8 +198,8 @@ watch(() => ui.locale, refresh)
     >
       <!--
         The expand mark belongs on the map it acts on, not in the header. The
-        slot stands after the map box and before the album, so it sits over
-        Leaflet's panes and under the card. See docs/features/maps.md.
+        slot stands after the map box and before the album, so it sits over the
+        map's own layers and under the card. See docs/features/maps.md.
       -->
       <template #controls>
         <button

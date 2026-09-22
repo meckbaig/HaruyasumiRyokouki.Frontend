@@ -10,28 +10,24 @@ import {
   markRaw,
 } from 'vue'
 import { useI18n } from 'vue-i18n'
-import L from 'leaflet'
+import { useThemeStore } from '@/stores/theme'
 import {
   createBaseMap,
+  setBaseScheme,
+  Marker,
   photoPinIcon,
   photoClusterIcon,
   advancePile,
   setPileFace,
-  clearPhotoPinIcons,
-  animatedProjection,
   PILE_CYCLE_MS,
   PILE_TURN,
-  ROUTE_PANE,
-  ROUTE_PANE_Z,
-  ROUTE_DOT_PANE,
-  ROUTE_DOT_PANE_Z,
-  ROUTE_STYLE,
   FALLBACK_CENTER,
   FALLBACK_ZOOM,
   MAX_ZOOM,
   PHOTO_PIN_SIZE,
-} from '@/services/leaflet'
-import { createRouteCanvas } from '@/services/routeArrows'
+  PHOTO_PIN_TAIL,
+} from '@/services/mapEngine'
+import { createRouteCanvas, ROUTE_STYLE } from '@/services/routeArrows'
 import { markerBudget, dotBudget } from '@/services/deviceBudget'
 import {
   CLUSTER_CELL,
@@ -71,9 +67,9 @@ const props = defineProps({
   /** Animates a change of `height`, so an expand or collapse is a movement. */
   animatedHeight: { type: Boolean, default: false },
   /**
-   * A view to open on, `{ center, zoom }`, so an expanded map starts where the
-   * inline one stood instead of re-fitting the points. Given, the map keeps the
-   * view until the reader moves it. See docs/features/maps.md.
+   * A view to open on, `{ center: [lng, lat], zoom }`, so an expanded map starts
+   * where the inline one stood instead of re-fitting the points. Given, the map
+   * keeps the view until the reader moves it. See docs/features/maps.md.
    */
   initialView: { type: Object, default: null },
   /**
@@ -87,23 +83,24 @@ const props = defineProps({
 const emit = defineEmits(['open', 'open-day', 'activate'])
 
 const { t, locale } = useI18n()
+const theme = useThemeStore()
 
 const container = ref(null)
 const cardRef = ref(null)
 const showHint = ref(false)
-// Leaflet objects are large and mutate constantly; keep them out of reactivity.
+// MapLibre objects are large and mutate constantly; keep them out of reactivity.
 const map = shallowRef(null)
-const markerLayer = shallowRef(null)
 const routeCanvas = shallowRef(null)
-/** This map's own pin-icon cache: a shared one hands one DOM node to both maps
-    at once and takes it away with whichever of them unmounts first. */
-const iconScope = {}
+
+/* Our data holds `[lat, lng]`; MapLibre wants `[lng, lat]`. One place swaps. */
+function lngLat(ground) {
+  return [ground[1], ground[0]]
+}
 
 /*
-  Pins are grouped here rather than by `leaflet.markercluster`, which mutates the
-  `L` its own bundle holds - the same object the app imported only by luck of the
-  dependency optimiser. Its two headline behaviours are also the ones this map
+  Pins are grouped here rather than by MapLibre's own clustering, which this map
   does not want: a press that zooms, and a pile that fans out into a carousel.
+  The grouping is the shared pure module, as the route dots use.
   See docs/features/maps.md.
 */
 /** The merge stops at the deepest zoom; until then the default cell applies. */
@@ -115,12 +112,16 @@ const CULL_PAD = 120
 const FOCUS_ZOOM = 14
 /** How long to wait for a view move to settle before framing anyway. */
 const FRAME_SETTLE_MS = 320
+/** How long a framed view is eased, when the reader asked for the map. */
+const FOCUS_EASE_MS = 400
 
 /** The pin's own box: the morph starts exactly here, and the close ends here. */
 const PIN_W = PHOTO_PIN_SIZE
-const PIN_TAIL = 7
+const PIN_TAIL = PHOTO_PIN_TAIL
 const PIN_BORDER = 2
 const PIN_H = PIN_W + PIN_TAIL
+/** The margin a fit leaves on every side. The pin needs its own height on top. */
+const FIT_PADDING = 40
 /** The pin's picture: its frame less the border it carries on every side. */
 const PIN_PHOTO = PIN_W - PIN_BORDER * 2
 /** The fade that hands the pin back at the end of a close. */
@@ -201,41 +202,8 @@ function sameGround(a, b) {
   return Boolean(a && b) && a[0] === b[0] && a[1] === b[1]
 }
 
-/* The album rides a zoom the way a marker does. Leaflet transitions every
-   marker's own position; the card is positioned in container pixels outside
-   the panes, so it would stand still until `zoomend` without this. The
-   position is written straight to the element: a render per frame lags it. */
-let cardZooming = false
-
-function onZoomAnim(event) {
-  if (motionReduced() || !cardOpen.value) return
-  const element = cardRef.value?.element()
-  const latlng = cardGround()
-  if (!element || !latlng) return
-
-  const { origin, at } = animatedProjection(map.value, latlng, event.zoom, event.center)
-  const target = at.subtract(origin)
-  if (!cardZooming) {
-    cardZooming = true
-    element.classList.add('is-zooming')
-  }
-  element.style.left = `${target.x}px`
-  element.style.top = `${target.y}px`
-}
-
-/** Hands the card back to its own anchor once the movement has settled. */
-function endCardZoom() {
-  if (!cardZooming) return
-  cardZooming = false
-  cardRef.value?.element()?.classList.remove('is-zooming')
-  updateCard()
-}
-
 /** Where the card hangs: its bottom edge at the ground, growing upward. */
 function updateCard() {
-  // The gesture owns the card's place while it runs: a write here would fight
-  // it, and Vue would put the card back where the view still stood.
-  if (cardZooming) return
   const instance = map.value
   const latlng = cardGround()
   if (!instance || !latlng) {
@@ -244,7 +212,7 @@ function updateCard() {
   }
   const element = instance.getContainer()
   cardBounds.value = { width: element.clientWidth, height: element.clientHeight }
-  cardAnchor.value = instance.latLngToContainerPoint(latlng)
+  cardAnchor.value = instance.project(lngLat(latlng))
 }
 
 /**
@@ -312,7 +280,7 @@ function adoptLandedMember({ hold = true } = {}) {
   if (!items || items.length < 2) return
   const cursor = marker.__pointIndices.indexOf(selectedIndex.value)
   if (cursor < 0) return
-  setPileFace(marker.getElement?.()?.firstElementChild, items, cursor)
+  setPileFace(marker.__pin, items, cursor)
   marker.__clusterCursor = cursor
   if (hold) marker.__pileHoldUntil = performance.now() + PILE_CYCLE_MS
 }
@@ -369,7 +337,7 @@ function frameCard(animate = true) {
   const height = box.clientHeight
   cardBounds.value = { width, height }
 
-  const anchor = instance.latLngToContainerPoint(ground)
+  const anchor = instance.project(lngLat(ground))
   cardAnchor.value = anchor
 
   // A step **inside one pile** is no move at all: the ground on show has not
@@ -416,11 +384,12 @@ function showMedia(id, { zoom = false } = {}) {
 
   // The one caller that zooms, to `FOCUS_ZOOM`; the album then hides the pile
   // the file sits under, so nothing stands between the reader and the file.
-  map.value.setView(
-    [point.latitude, point.longitude],
-    Math.max(map.value.getZoom(), FOCUS_ZOOM),
-    { animate: true },
-  )
+  const target = {
+    center: lngLat([point.latitude, point.longitude]),
+    zoom: Math.max(map.value.getZoom(), FOCUS_ZOOM),
+  }
+  if (motionReduced()) map.value.jumpTo(target)
+  else map.value.easeTo({ ...target, duration: FOCUS_EASE_MS })
   // The one caller that pins the card to the file itself, because the reader
   // asked for that file. See docs/features/maps.md.
   select(index, { reason: 'open', ground: [point.latitude, point.longitude] })
@@ -474,7 +443,7 @@ function forgetViewerClose() {
 function getView() {
   const instance = map.value
   if (!instance) return null
-  return { center: instance.getCenter(), zoom: instance.getZoom() }
+  return { center: instance.getCenter().toArray(), zoom: instance.getZoom() }
 }
 
 /** What the album is open on, `{ id }`, so an expanded map can adopt it. */
@@ -491,7 +460,7 @@ function getSelection() {
  */
 function applyView(view) {
   if (!view || !map.value) return
-  map.value.setView(view.center, view.zoom, { animate: false })
+  map.value.jumpTo({ center: view.center, zoom: view.zoom })
   updateCard()
 }
 
@@ -564,13 +533,13 @@ let dragSuspended = false
 function suspendDrag() {
   if (dragSuspended || !map.value) return
   dragSuspended = true
-  map.value.dragging.disable()
+  map.value.dragPan.disable()
 }
 
 function resumeDrag() {
   if (!dragSuspended) return
   dragSuspended = false
-  map.value?.dragging.enable()
+  map.value?.dragPan.enable()
 }
 
 function onTouchStart(event) {
@@ -579,9 +548,9 @@ function onTouchStart(event) {
   if (event.touches?.length !== 1) return
   const touch = event.touches[0]
   if (!insideCard(touch.clientX, touch.clientY)) return
-  // The gesture is decided here, by where it began: Leaflet's own drag handler
-  // has already seen this same `touchstart`, and stopping the event later
-  // cannot undo the pan it has begun. See docs/features/maps.md.
+  // The gesture is decided here, by where it began: the map's drag handler has
+  // already seen this same `touchstart`, and stopping the event later cannot
+  // undo the pan it has begun. See docs/features/maps.md.
   suspendDrag()
   swipe = { x: touch.clientX, y: touch.clientY, axis: null }
 }
@@ -783,7 +752,7 @@ function computeDots() {
 
   const entries = grounds.map((latlng, index) => ({
     index,
-    point: instance.latLngToContainerPoint(latlng),
+    point: instance.project(lngLat(latlng)),
   }))
 
   const centreOf = (cluster) => {
@@ -819,7 +788,8 @@ function computeDots() {
 
   return clusters.map((cluster) => {
     const at = centreOf(cluster)
-    return instance.containerPointToLatLng(L.point(at.x, at.y))
+    const latlng = instance.unproject([at.x, at.y])
+    return [latlng.lat, latlng.lng]
   })
 }
 
@@ -830,7 +800,7 @@ function renderRoute() {
 
 /** True when a group's ground is in the box, padded, so a mark is ready early. */
 function inBox(instance, latlng, width, height) {
-  const at = instance.latLngToContainerPoint(latlng)
+  const at = instance.project(lngLat(latlng))
   return (
     at.x >= -CULL_PAD && at.x <= width + CULL_PAD && at.y >= -CULL_PAD && at.y <= height + CULL_PAD
   )
@@ -896,6 +866,14 @@ function groupItems(group) {
   return group.map((index) => points.value[index])
 }
 
+/** A DOM marker whose element is the pin itself, anchored by its tail. */
+function addMarker(element, latlng) {
+  const marker = new Marker({ element, anchor: 'bottom' })
+  marker.setLngLat(lngLat(latlng))
+  marker.__pin = element
+  return marker
+}
+
 function makeMarker(group, latlng) {
   // The earliest file of a pile is the one its press opens, so the arrows that
   // follow walk the same chronology a single pin does. It never zooms.
@@ -903,38 +881,36 @@ function makeMarker(group, latlng) {
 
   if (group.length === 1) {
     const item = points.value[earliest]
-    const marker = L.marker(latlng, {
+    const element = photoPinIcon(item, {
       // A day map is read as a sequence of hours, so there a lone pin says the
       // file's own clock; the trip map says nothing. See docs/features/maps.md.
-      icon: photoPinIcon(item, {
-        withTime: props.mode === 'day',
-        locale: locale.value,
-        scope: iconScope,
-      }),
-      title: item.title ?? '',
-      // A marker's click bubbles to the map by default, which would put the
-      // album away the instant it opened.
-      bubblingMouseEvents: false,
+      withTime: props.mode === 'day',
+      locale: locale.value,
     })
+    const marker = addMarker(element, latlng)
     marker.__pointIndices = group
-    marker.on('click', () => select(earliest, { reason: 'open' }))
+    element.addEventListener('click', (event) => {
+      // A marker is not the map canvas, so a press here never reaches the map's
+      // own click - which would put the album away the instant it opened.
+      event.stopPropagation()
+      select(earliest, { reason: 'open' })
+    })
     return marker
   }
 
   const items = groupItems(group)
-  const marker = L.marker(latlng, {
-    icon: photoClusterIcon(items, {
-      withTime: props.mode === 'day',
-      locale: locale.value,
-    }),
-    bubblingMouseEvents: false,
+  const element = photoClusterIcon(items, {
+    withTime: props.mode === 'day',
+    locale: locale.value,
   })
+  const marker = addMarker(element, latlng)
   marker.__pointIndices = group
   marker.__clusterItems = items
   // The member the pile's face is on, so opening it starts on the picture that
   // is in the frame. See docs/features/maps.md.
   marker.__clusterCursor = 0
-  marker.on('click', () => {
+  element.addEventListener('click', (event) => {
+    event.stopPropagation()
     suppressClickUntil = performance.now() + 350
     select(group[marker.__clusterCursor] ?? earliest, { reason: 'open' })
   })
@@ -964,7 +940,7 @@ function refreshGroups() {
   if (!instance) return
   projected = points.value.map((item, index) => ({
     index,
-    point: instance.latLngToLayerPoint([item.latitude, item.longitude]),
+    point: instance.project(lngLat([item.latitude, item.longitude])),
   }))
   groups = computeGroups(instance.getZoom(), instance.getContainer())
   refreshGrounds()
@@ -991,7 +967,7 @@ function syncMarkers() {
 
   for (const [key, marker] of markerByKey) {
     if (wanted.has(key)) continue
-    markerLayer.value.removeLayer(marker)
+    marker.remove()
     markerByKey.delete(key)
   }
 
@@ -1000,11 +976,12 @@ function syncMarkers() {
     if (existing) {
       existing.__pointIndices = info.group
       existing.__clusterItems = groupItems(info.group)
+      existing.setLngLat(lngLat(info.latlng))
       continue
     }
     const marker = makeMarker(info.group, info.latlng)
     markerByKey.set(key, marker)
-    marker.addTo(markerLayer.value)
+    marker.addTo(instance)
   }
 
   paintSelection()
@@ -1017,13 +994,13 @@ function syncMarkers() {
 */
 function paintSelection() {
   for (const marker of markerByKey.values()) {
-    const element = marker.getElement?.()
-    if (!element?.firstElementChild) continue
-    if (!element.firstElementChild.classList.contains('trip-photo-pin')) continue
+    const pin = marker.__pin
+    const node = marker.getElement()
+    if (!node || !pin?.classList.contains('trip-photo-pin')) continue
 
     const active = marker.__pointIndices?.includes(selectedIndex.value) ?? false
-    element.style.display = active ? 'none' : ''
-    element.firstElementChild.classList.toggle('trip-photo-pin-active', active)
+    node.style.display = active ? 'none' : ''
+    pin.classList.toggle('trip-photo-pin-active', active)
   }
 
   shieldUnderCard()
@@ -1043,10 +1020,10 @@ function overlaps(a, b) {
 function shieldUnderCard() {
   const rect = cardRect()
   for (const marker of markerByKey.values()) {
-    const element = marker.getElement?.()
-    if (!element) continue
-    const covered = Boolean(rect) && overlaps(element.getBoundingClientRect(), rect)
-    element.style.pointerEvents = covered ? 'none' : ''
+    const node = marker.getElement()
+    if (!node) continue
+    const covered = Boolean(rect) && overlaps(node.getBoundingClientRect(), rect)
+    node.style.pointerEvents = covered ? 'none' : ''
   }
 }
 
@@ -1064,7 +1041,7 @@ function turnPile(marker) {
   if (!items || items.length < 2) return
   // A pile a close just landed on holds that picture for one whole cycle.
   if (marker.__pileHoldUntil && performance.now() < marker.__pileHoldUntil) return
-  const cursor = advancePile(marker.getElement?.()?.firstElementChild, items)
+  const cursor = advancePile(marker.__pin, items)
   if (typeof cursor === 'number') marker.__clusterCursor = cursor
 }
 
@@ -1087,7 +1064,6 @@ function renderMarkers() {
 
   refreshGroups()
   syncMarkers()
-  routeCanvas.value?.resize()
   renderRoute()
   fitToContent()
 }
@@ -1122,15 +1098,32 @@ function scheduleRegroup() {
 
 /*
   Framing the points, kept apart from drawing them because it has to run again -
-  `invalidateSize` says nothing about the framing. **The refit belongs to the
-  first layout only**: a later resize keeps the centre it has, instead of
-  throwing the view away and re-fitting the points, which read as a jump to
-  another scale on a resize that only changed the height.
-  See docs/features/maps.md.
+  `resize` says nothing about the framing. **The refit belongs to the first
+  layout only**: a later resize keeps the centre it has, instead of throwing the
+  view away and re-fitting the points, which read as a jump to another scale on a
+  resize that only changed the height. See docs/features/maps.md.
 */
 let framed = false
 /** A cluster press also reaches the map's own click, a moment later. */
 let suppressClickUntil = 0
+
+/** The box the given `[lat, lng]` points cover, as MapLibre's two corners. */
+function lngLatBounds(list) {
+  let minLat = Infinity
+  let maxLat = -Infinity
+  let minLng = Infinity
+  let maxLng = -Infinity
+  for (const [lat, lng] of list) {
+    if (lat < minLat) minLat = lat
+    if (lat > maxLat) maxLat = lat
+    if (lng < minLng) minLng = lng
+    if (lng > maxLng) maxLng = lng
+  }
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ]
+}
 
 function fitToContent() {
   if (!map.value) return
@@ -1138,16 +1131,27 @@ function fitToContent() {
   if (pinnedView) return
 
   const located = locatedMedia()
-  const bounds = L.latLngBounds([
+  const coords = [
     ...located.map((item) => [item.latitude, item.longitude]),
     ...props.route,
-  ])
+  ]
 
-  // `animate: false` keeps the framing a plain move, with nothing to settle.
-  if (bounds.isValid()) {
-    map.value.fitBounds(bounds, { padding: [40, 40], maxZoom: 14, animate: false })
+  // `animate: false` keeps the framing a plain move, with nothing to settle. The
+  // top margin carries the pin's own height, because a pin stands above its
+  // point - without it the northernmost pin is cut off. See docs/features/maps.md.
+  if (coords.length) {
+    map.value.fitBounds(lngLatBounds(coords), {
+      padding: {
+        top: FIT_PADDING + PIN_H,
+        bottom: FIT_PADDING,
+        left: FIT_PADDING,
+        right: FIT_PADDING,
+      },
+      maxZoom: 14,
+      animate: false,
+    })
   } else {
-    map.value.setView(FALLBACK_CENTER, FALLBACK_ZOOM, { animate: false })
+    map.value.jumpTo({ center: FALLBACK_CENTER, zoom: FALLBACK_ZOOM })
   }
   // A box that had no size when this ran has not been framed at all, so the
   // first laid-out resize still gets to do it.
@@ -1157,67 +1161,44 @@ function fitToContent() {
 let resizeObserver = null
 /** True while the view came from `initialView`, so nothing re-fits over it. */
 let pinnedView = false
-/** The frame an arrow redraw is waiting on, so a pan draws once per frame. */
-let arrowFrame = 0
 
 onMounted(() => {
   markerCap = markerBudget()
   dotCap = dotBudget()
 
+  // An expanded map opens where the inline one stood, and keeps that view until
+  // the reader moves it. See docs/features/maps.md.
+  pinnedView = Boolean(props.initialView)
+
   const instance = markRaw(
-    createBaseMap(container.value, { onScrollHint: flashHint, wheelZoom: props.wheelZoom }),
+    createBaseMap(container.value, {
+      center: props.initialView?.center,
+      zoom: props.initialView?.zoom,
+      onScrollHint: flashHint,
+      wheelZoom: props.wheelZoom,
+      scheme: theme.resolvedTheme?.scheme ?? 'light',
+    }),
   )
   map.value = instance
 
-  // An expanded map opens where the inline one stood, and keeps that view until
-  // the reader moves it. See docs/features/maps.md.
-  if (props.initialView) {
-    pinnedView = true
-    instance.setView(props.initialView.center, props.initialView.zoom, { animate: false })
-  }
-
-  // The chevrons ride above the line and below every pin; the grounds of a pile's
-  // members sit one pane above the chevrons and still below every pin.
-  const pane = instance.createPane(ROUTE_PANE)
-  pane.style.zIndex = String(ROUTE_PANE_Z)
-  pane.style.pointerEvents = 'none'
-
-  const dotPane = instance.createPane(ROUTE_DOT_PANE)
-  dotPane.style.zIndex = String(ROUTE_DOT_PANE_Z)
-  dotPane.style.pointerEvents = 'none'
-
   routeCanvas.value = createRouteCanvas(instance)
-  markerLayer.value = markRaw(L.layerGroup().addTo(instance))
 
   // A zoom changes both: the chevrons are spaced on screen, and the pins are
   // grouped by what lands on top of what.
   instance.on('zoomend', () => {
     refreshGroups()
     syncMarkers()
-    routeCanvas.value?.resize()
-    renderRoute()
   })
 
-  /*
-    A pan brings **new ground** into the box, which has never been drawn; the
-    route is redrawn once per frame while it moves, and once more when it
-    settles. Clipping to the box keeps that to a handful of chevrons.
-  */
-  instance.on('move', () => {
-    if (arrowFrame) return
-    arrowFrame = requestAnimationFrame(() => {
-      arrowFrame = 0
-      renderRoute()
-    })
-  })
+  // The album and the route both follow the box as it moves; the route canvas
+  // redraws itself on `move`, so only the card is placed here.
+  instance.on('move', () => updateCard())
 
   instance.on('moveend', () => {
     // The grouping is unchanged by a pan, but the visible set is not, and the
     // framing pan is no reason to leave the new ground bare.
-    endCardZoom()
     syncMarkers()
     updateCard()
-    renderRoute()
     scheduleRegroup()
   })
 
@@ -1236,10 +1217,6 @@ onMounted(() => {
 
     clearSelection()
   })
-  // The album travels with the pin it belongs to, and rides a zoom the way a
-  // marker does. See docs/features/maps.md.
-  instance.on('move zoom', updateCard)
-  instance.on('zoomanim', onZoomAnim)
 
   renderMarkers()
   startClusterTicker()
@@ -1252,15 +1229,10 @@ onMounted(() => {
   // (sidebar, tab switch); without this it renders as a grey box - and without
   // the first refit, one at the wrong scale. A later resize keeps the centre.
   resizeObserver = new ResizeObserver(() => {
-    // Leaflet's own default: it pans by the change of centre, so the ground that
-    // was in the middle lands on the new middle. `pan: false` would anchor the
-    // content to the box's top-left and a taller box would slide the view.
-    instance.invalidateSize()
+    instance.resize()
     if (!framed) fitToContent()
     syncMarkers()
     scheduleRegroup()
-    routeCanvas.value?.resize()
-    renderRoute()
     updateCard()
   })
   resizeObserver.observe(container.value)
@@ -1290,28 +1262,31 @@ watch(
   () => [props.media, props.route],
   () => {
     resetCard()
-    clearPhotoPinIcons(iconScope)
     renderMarkers()
   },
   { deep: false },
 )
 
 /*
-  A clock is in the reader's own language, and a pin keeps its icon between
-  rebuilds - so a change of locale drops the cached marks and draws them again.
-  The view is the reader's and stays; only the marks are remade.
+  A clock is in the reader's own language, so a change of locale drops the drawn
+  marks and rebuilds them with the reader's clock. The view is the reader's and
+  stays; only the marks are remade. See docs/features/maps.md.
 */
 watch(locale, () => {
-  clearPhotoPinIcons(iconScope)
-  for (const marker of markerByKey.values()) markerLayer.value?.removeLayer(marker)
+  for (const marker of markerByKey.values()) marker.remove()
   markerByKey.clear()
   refreshGroups()
   syncMarkers()
 })
 
+/* A theme's light/dark nature recolours the basemap, so the map follows it. */
+watch(
+  () => theme.resolvedTheme?.scheme,
+  (next) => setBaseScheme(map.value, next ?? 'light'),
+)
+
 onBeforeUnmount(() => {
   clearTimeout(hintTimer)
-  if (arrowFrame) cancelAnimationFrame(arrowFrame)
   if (groupFrame) cancelAnimationFrame(groupFrame)
   stopClusterTicker()
   document.removeEventListener('keydown', onKeydown, true)
@@ -1322,7 +1297,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('touchcancel', onTouchCancel, options)
   resizeObserver?.disconnect()
   routeCanvas.value?.remove()
-  clearPhotoPinIcons(iconScope)
   markerByKey.clear()
   map.value?.remove()
   map.value = null
@@ -1331,17 +1305,15 @@ onBeforeUnmount(() => {
 
 <template>
   <!--
-    `isolate`: Leaflet stacks its panes from 200 up to 800, and without a
-    stacking context of their own those numbers compete with the whole page -
-    which is how the map came to sit over the header and swallow the menus
-    dropping out of it. Isolating pins every one of them inside this box.
+    `isolate`: the map's own overlay layers and the album are stacked inside this
+    box, so their z-indexes never compete with the rest of the page.
 
     While an album is open the box is lifted over what follows it on the page, so
     a card taller than a short day map is not painted under the calendar.
   -->
   <div class="relative isolate" :class="cardOpen ? 'z-20' : ''">
     <!--
-      Leaflet clips its own box, and only its own: the album lives outside it, so
+      MapLibre clips its own box, and only its own: the album lives outside it, so
       a card taller than a short day map is free to overhang it. `h-full` carries
       a window-filling height down to the tiles.
     -->
@@ -1349,15 +1321,15 @@ onBeforeUnmount(() => {
       <div
         ref="container"
         :style="{ height }"
-        class="w-full"
+        class="trip-map w-full"
         :class="animatedHeight ? 'transition-[height] duration-300 ease-out' : ''"
       />
     </div>
 
     <!--
       A control a page floats over the map (the trip page's expand mark). After
-      the map box and before the album, so one z-index stands over Leaflet's
-      panes and stays under the card. See docs/features/maps.md.
+      the map box and before the album, so one z-index stands over the map's own
+      layers and stays under the card. See docs/features/maps.md.
     -->
     <slot name="controls" />
 
@@ -1402,19 +1374,3 @@ onBeforeUnmount(() => {
     </Transition>
   </div>
 </template>
-
-<style>
-/* Leaflet's own chrome, toned down to match the surrounding paper palette. */
-.leaflet-container {
-  font: inherit;
-  background: var(--color-paper);
-}
-
-/* The route canvas: one element in the route pane, aligned to the box. */
-.trip-route-canvas {
-  position: absolute;
-  left: 0;
-  top: 0;
-  pointer-events: none;
-}
-</style>

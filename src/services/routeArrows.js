@@ -3,16 +3,11 @@
  * chevron - the way a game tiles a texture along a path. A canvas draws only what
  * the box shows and costs one element.
  *
- * Two of them, in two panes: the chevrons in the route pane, the grounds of a
- * pile's members one pane above it, because a dot has to be read over the row it
- * terminates and a pane is the only thing that orders one draw against another.
- * Both share the projection and the transform, so the row and its terminals cannot
+ * Two of them, at two z-indexes over the map box: the chevrons under the grounds
+ * of a pile's members, because a dot has to be read over the row it terminates.
+ * Both share one projection and one redraw, so the row and its terminals cannot
  * drift apart. See docs/features/maps.md.
  */
-import L from 'leaflet'
-import { ROUTE_PANE, ROUTE_DOT_PANE, animatedProjection } from './leaflet'
-import { motionReduced } from './motion'
-
 /**
  * Every number the arrows use, in one place, so the row can be tuned where it is
  * drawn. **Nothing outside this module holds an arrow figure.**
@@ -35,6 +30,14 @@ export const ROUTE_ARROW = {
   /** The ring around it, in the mark's own frame colour, so it is not a chevron. */
   dotRing: 1.5,
 }
+
+/*
+  How the route between two pins is drawn. `arrows` is the row of chevrons, which
+  says which way the day went; `line` is the plain solid line, which only says
+  that the two are on the same walk. One constant, so the two can be compared by
+  hand. See docs/features/maps.md.
+*/
+export const ROUTE_STYLE = 'arrows'
 
 /** How far outside the box a chevron is still drawn, so none pops at the edge. */
 const DRAW_PAD = 24
@@ -95,33 +98,30 @@ function clipSegment(a, b, minX, minY, maxX, maxY) {
 
 /**
  * A route canvas for one map. `draw` is called on new content and on every pan;
- * `resize` when the box changes. Both are cheap because only the visible stretch
- * is ever stamped. See docs/features/maps.md.
+ * a `move` redraws once per frame, so the row can never sit on a stale view.
+ * Both are cheap because only the visible stretch is ever stamped.
+ * See docs/features/maps.md.
  */
 export function createRouteCanvas(map) {
-  /** One canvas in its own pane; both are drawn, moved and sized as one thing. */
-  function makeLayer(paneName) {
+  const container = map.getContainer()
+
+  /** One canvas, absolutely placed over the box; the z-index is the stylesheet's. */
+  function makeLayer(className) {
     const canvas = document.createElement('canvas')
-    // Leaflet's own class for an element carried through a zoom, so the chevrons
-    // ride the movement with the tiles instead of being swapped in after it.
-    canvas.className = 'trip-route-canvas leaflet-zoom-animated'
-    const pane = map.getPane(paneName)
-    if (pane) pane.appendChild(canvas)
+    canvas.className = `trip-route-canvas ${className}`
+    container.appendChild(canvas)
     return { canvas, context: canvas.getContext('2d') }
   }
 
-  const row = makeLayer(ROUTE_PANE)
-  const dots = makeLayer(ROUTE_DOT_PANE)
+  const row = makeLayer('trip-route-row')
+  const dots = makeLayer('trip-route-dots')
   const layers = [row, dots]
 
-  let origin = L.point(0, 0)
   let width = 0
   let height = 0
   let boxWidth = 0
   let boxHeight = 0
-  /** The view the canvas is last drawn for, so one gesture draws once. */
-  let drawnView = ''
-  /** What the last `draw` was asked for, so a zoom can redraw it. */
+  /** What the last `draw` was asked for, so a `move` can redraw it. */
   let lastDraw = { route: [], style: 'arrows', grounds: [] }
 
   function pixelRatio() {
@@ -142,32 +142,16 @@ export function createRouteCanvas(map) {
     }
   }
 
-  /** Sizes the canvas to the box and anchors it where the box begins. */
+  /** Sizes the canvas to the box; the canvases already begin at its corner. */
   function resize() {
-    const container = map.getContainer()
     width = container.clientWidth
     height = container.clientHeight
     sizeCanvas(width, height)
-    reposition()
   }
 
-  /*
-    Pins the canvases to where the box now begins, in pane coordinates. A pan moves
-    the pane and the canvas together, so this only has to run when the box itself
-    has moved relative to the map - which is every draw, since a pan brings new
-    ground into frame.
-  */
-  function reposition() {
-    origin = L.point(map.containerPointToLayerPoint([0, 0]))
-    for (const layer of layers) L.DomUtil.setPosition(layer.canvas, origin)
-  }
-
+  /** Screen coordinates. Our data is `[lat, lng]`; MapLibre wants `[lng, lat]`. */
   function project(latlng) {
-    return map.latLngToLayerPoint(latlng).subtract(origin)
-  }
-
-  function projected(points) {
-    return points.map((latlng) => project(latlng))
+    return map.project([latlng[1], latlng[0]])
   }
 
   /**
@@ -207,7 +191,7 @@ export function createRouteCanvas(map) {
     context.restore()
   }
 
-  /** Length of a clipped piece; the pieces are plain points, not `L.Point`. */
+  /** Length of a clipped piece; the pieces are plain points, not map points. */
   function pieceLength(from, to) {
     return Math.hypot(to.x - from.x, to.y - from.y)
   }
@@ -267,116 +251,67 @@ export function createRouteCanvas(map) {
     context.globalAlpha = 1
   }
 
-  /**
-   * Draws into one window of the plane, in pixels relative to where the box
-   * begins now. `win` is `{ x, y, width, height }`; the whole canvas is that
-   * window, so a zoom out can cover ground a plain draw never reached.
-   */
-  function paint(win, route, style, grounds) {
-    sizeCanvas(win.width, win.height)
-
-    // Both are given the same window and the same projection, so a dot and the
-    // chevron beside it cannot land apart.
+  /** Paints both canvases for the box as it stands now. */
+  function paint(route, style, grounds) {
+    if (!width || !height) resize()
     const ratio = pixelRatio()
     for (const layer of layers) {
       layer.context.setTransform(ratio, 0, 0, ratio, 0, 0)
-      layer.context.translate(-win.x, -win.y)
-      layer.context.clearRect(win.x, win.y, win.width, win.height)
+      layer.context.clearRect(0, 0, width, height)
     }
 
-    const container = map.getContainer()
-    const color = strokeColor(container)
-    paintGrounds(dots.context, grounds, color, ringColor(container))
+    paintGrounds(dots.context, grounds, strokeColor(container), ringColor(container))
     if (!route || route.length < 2) return
 
-    const points = projected(route)
-    if (style === 'line') strokeLine(row.context, points, color)
+    const points = route.map(project)
+    if (style === 'line') strokeLine(row.context, points, strokeColor(container))
     else
-      stampRow(row.context, points, color, {
-        minX: win.x - DRAW_PAD,
-        minY: win.y - DRAW_PAD,
-        maxX: win.x + win.width + DRAW_PAD,
-        maxY: win.y + win.height + DRAW_PAD,
+      stampRow(row.context, points, strokeColor(container), {
+        minX: -DRAW_PAD,
+        minY: -DRAW_PAD,
+        maxX: width + DRAW_PAD,
+        maxY: height + DRAW_PAD,
       })
+  }
+
+  /** Repaints the content last asked for, over the view now on screen. */
+  function redraw() {
+    paint(lastDraw.route, lastDraw.style, lastDraw.grounds)
   }
 
   /** Draws the route in the style asked for, over the box as it stands now. */
   function draw(route, style = 'arrows', grounds = []) {
     lastDraw = { route: route ?? [], style, grounds }
-    if (!width || !height) resize()
-    drawnView = ''
-    reposition()
-    paint({ x: 0, y: 0, width, height }, lastDraw.route, style, lastDraw.grounds)
+    redraw()
   }
 
-  /**
-   * Draws the view a zoom gesture is heading for, once per gesture. The canvas
-   * is `leaflet-zoom-animated`, so Leaflet carries it through the movement with
-   * the tiles; the transform below is the one `L.TileLayer._animateZoom` writes.
-   * A zoom out scales the frame down, and the settled box then reads ground the
-   * plain draw never covered - hence the window is widened to what the settled
-   * box will show, and the clip follows it, so the count stays the count on
-   * screen. `zoomend` resyncs, and nothing moves at that handover.
-   * See docs/features/maps.md.
-   */
-  function drawForView(view) {
-    const scale = map.getZoomScale(view.zoom, map.getZoom())
-    if (!Number.isFinite(scale) || Math.abs(scale - 1) < 0.001) return
+  /* MapLibre fires `move` through the whole gesture, so a redraw per frame keeps
+     the row on the tiles with no separate zoom path. A burst costs one frame. */
+  let frame = 0
 
-    const key = `${view.zoom}|${view.center.lat}|${view.center.lng}|${width}x${height}`
-    if (key === drawnView) return
-    drawnView = key
-
-    // The ground at the box's own corner, and where it lands at the target.
-    const { origin: containerOrigin, at: offset } = animatedProjection(
-      map,
-      map.containerPointToLatLng([0, 0]),
-      view.zoom,
-      view.center,
-    )
-    const shift = offset.subtract(containerOrigin)
-
-    const minX = Math.min(0, -shift.x / scale)
-    const minY = Math.min(0, -shift.y / scale)
-    const maxX = Math.max(width, (width - shift.x) / scale)
-    const maxY = Math.max(height, (height - shift.y) / scale)
-
-    paint(
-      { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
-      lastDraw.route,
-      lastDraw.style,
-      lastDraw.grounds,
-    )
-
-    // The movement is armed from the transform that shows the frame as it
-    // stands, so the first animated frame is the one already on screen.
-    const start = L.point(containerOrigin.x + minX, containerOrigin.y + minY)
-    const end = L.point(offset.x + scale * minX, offset.y + scale * minY)
-    for (const layer of layers) {
-      layer.canvas.style.transition = 'none'
-      L.DomUtil.setTransform(layer.canvas, start, 1)
-    }
-    // Laid out before the movement is armed, or the first frame starts nowhere.
-    void row.canvas.offsetWidth
-    for (const layer of layers) {
-      layer.canvas.style.transition = ''
-      L.DomUtil.setTransform(layer.canvas, end, scale)
-    }
+  function onMove() {
+    if (frame) return
+    frame = requestAnimationFrame(() => {
+      frame = 0
+      redraw()
+    })
   }
 
-  /** Under reduced motion the zoom is a jump, and `zoomend` says it all. */
-  function onZoomAnim(event) {
-    if (motionReduced() || !width || !height) return
-    drawForView({ zoom: event.zoom, center: event.center })
+  function onResize() {
+    resize()
+    redraw()
   }
 
-  map.on('zoomanim', onZoomAnim)
+  map.on('move', onMove)
+  map.on('resize', onResize)
 
   return {
-    resize,
+    resize: onResize,
     draw,
     remove: () => {
-      map.off('zoomanim', onZoomAnim)
+      if (frame) cancelAnimationFrame(frame)
+      map.off('move', onMove)
+      map.off('resize', onResize)
       for (const layer of layers) layer.canvas.remove()
     },
   }

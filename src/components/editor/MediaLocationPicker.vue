@@ -2,19 +2,18 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, markRaw, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
-import L from 'leaflet'
+import { useThemeStore } from '@/stores/theme'
 import {
   createBaseMap,
-  pinIcon,
-  neighborIcon,
-  beforeIcon,
-  afterIcon,
+  setBaseScheme,
+  Marker,
+  pinIconOf,
   PIN_PATH,
   PIN_COLOR,
   NEIGHBOR_COLOR,
   BEFORE_COLOR,
   AFTER_COLOR,
-} from '@/services/leaflet'
+} from '@/services/mapEngine'
 import { formatShortDateTime } from '@/services/dates'
 
 const props = defineProps({
@@ -40,6 +39,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const { t } = useI18n()
 const ui = useUiStore()
+const theme = useThemeStore()
 
 /**
  * Last map position, kept across dialog opens. Filling thousands of photos means
@@ -54,12 +54,15 @@ const expanded = ref(false)
 const showHint = ref(false)
 
 /**
- * Inline and fullscreen use *separate* Leaflet instances rather than one moved
- * between containers: reparenting a live map through a Teleport leaves it broken
- * (blank tiles, dead on collapse). Each instance is built fresh and torn down on
- * its own, and both are driven from the same `modelValue` and `points`.
+ * Inline and fullscreen use *separate* map instances rather than one moved
+ * between containers: reparenting a live map leaves it broken. Each instance is
+ * built fresh and torn down on its own, and both are driven from the same
+ * `modelValue` and `points`.
  */
 let pickers = []
+
+/** The GeoJSON source the reference lines are drawn from, re-added per style. */
+const LINES = 'picker-refs'
 
 let hintTimer = null
 function flashHint() {
@@ -70,6 +73,11 @@ function flashHint() {
 
 function valid(point) {
   return Number.isFinite(point?.lat) && Number.isFinite(point?.lng)
+}
+
+/** Our data holds `[lat, lng]`; MapLibre wants `[lng, lat]`. */
+function lngLat(lat, lng) {
+  return [lng, lat]
 }
 
 /*
@@ -88,15 +96,12 @@ const anchors = computed(() => {
  * When an anchor photograph was taken. **Always on show, never a `title`** - that
  * takes a second and never appears on a touchscreen. See docs/features/maps.md.
  */
-function timeLabel(marker, point) {
+function timeLabel(element, point) {
   if (!point.created) return
-  marker.bindTooltip(formatShortDateTime(point.created, ui.locale), {
-    permanent: true,
-    direction: 'top',
-    offset: [0, -26],
-    className: 'trip-time',
-    opacity: 1,
-  })
+  const chip = document.createElement('span')
+  chip.className = 'trip-photo-time'
+  chip.textContent = formatShortDateTime(point.created, ui.locale)
+  element.append(chip)
 }
 
 function setPoint(lat, lng) {
@@ -109,18 +114,24 @@ function clearPoint() {
 
 /*
   A margin round the map that does not answer a click: every control sits in a
-  corner, and missing one by a few pixels used to move the pin. Sized from the
-  box, not fixed. See docs/features/maps.md.
+  corner, and a press that missed one by a few pixels used to move the pin.
+  Placing a point is deliberate; missing a button is not. Sized from the box.
+  See docs/features/maps.md.
 */
 function insetOf(map) {
-  const size = map.getSize()
-  return Math.max(16, Math.min(40, Math.min(size.x, size.y) * 0.1))
+  const box = map.getContainer()
+  return Math.max(16, Math.min(40, Math.min(box.clientWidth, box.clientHeight) * 0.1))
 }
 
 function nearEdge(map, point) {
-  const size = map.getSize()
+  const box = map.getContainer()
   const inset = insetOf(map)
-  return point.x < inset || point.y < inset || point.x > size.x - inset || point.y > size.y - inset
+  return (
+    point.x < inset ||
+    point.y < inset ||
+    point.x > box.clientWidth - inset ||
+    point.y > box.clientHeight - inset
+  )
 }
 
 /*
@@ -141,31 +152,45 @@ function onPaste(event) {
 
   event.preventDefault() // stop text insertion when we have valid coordinates
   setPoint(lat, lng)
-  for (const picker of pickers) picker.map.setView([lat, lng], Math.max(picker.map.getZoom(), 15))
+  for (const picker of pickers) {
+    picker.map.jumpTo({
+      center: lngLat(lat, lng),
+      zoom: Math.max(picker.map.getZoom(), 15),
+    })
+  }
   ui.notify(t('editor.pastedPoint'), 'success')
+}
+
+/** A DOM marker whose element is the pin itself, anchored by its tail. */
+function addMarker(map, element, lat, lng) {
+  const marker = new Marker({ element, anchor: 'bottom' })
+  marker.setLngLat(lngLat(lat, lng)).addTo(map)
+  return marker
 }
 
 /** Places or moves this instance's draggable marker. */
 function placeOn(picker, lat, lng) {
   if (picker.marker) {
-    picker.marker.setLatLng([lat, lng])
-  } else {
-    // Above every reference pin, always. Leaflet stacks markers by latitude, so
-    // without this the one pin that can be dragged disappears behind a muted one
-    // standing a few metres south of it - precisely where they cluster.
-    picker.marker = L.marker([lat, lng], {
-      icon: pinIcon,
-      draggable: true,
-      zIndexOffset: 1000,
-    }).addTo(picker.map)
-    picker.marker.on('dragend', () => {
-      const { lat: dLat, lng: dLng } = picker.marker.getLatLng()
-      setPoint(dLat, dLng)
-    })
-    // Right-click takes the pin off. Leaflet suppresses the browser's own menu on
-    // the map, and a marker is part of it - so the gesture is free to mean this.
-    picker.marker.on('contextmenu', clearPoint)
+    picker.marker.setLngLat(lngLat(lat, lng))
+    return
   }
+
+  const element = pinIconOf(PIN_COLOR, 30)
+  // Right-click takes the pin off. The browser's own menu is stood down, so the
+  // gesture is free to mean this.
+  element.addEventListener('contextmenu', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    clearPoint()
+  })
+
+  const marker = new Marker({ element, anchor: 'bottom', draggable: true })
+  marker.setLngLat(lngLat(lat, lng)).addTo(picker.map)
+  marker.on('dragend', () => {
+    const { lat: dLat, lng: dLng } = marker.getLngLat()
+    setPoint(dLat, dLng)
+  })
+  picker.marker = marker
 }
 
 function clearMarker(picker) {
@@ -175,70 +200,101 @@ function clearMarker(picker) {
   }
 }
 
+/** The reference lines' GeoJSON, drawn under the pins. */
+function lineData() {
+  const usable = props.points.filter(valid)
+  const { before, after } = anchors.value
+  const features = []
+  if (usable.length > 1) {
+    features.push({
+      type: 'Feature',
+      properties: { kind: 'all' },
+      geometry: { type: 'LineString', coordinates: usable.map((point) => lngLat(point.lat, point.lng)) },
+    })
+  }
+  // The gap itself, drawn solid over the dashed path: whatever is being placed
+  // happened somewhere along this stretch, usually within sight of it.
+  if (before && after) {
+    features.push({
+      type: 'Feature',
+      properties: { kind: 'gap' },
+      geometry: {
+        type: 'LineString',
+        coordinates: [lngLat(before.lat, before.lng), lngLat(after.lat, after.lng)],
+      },
+    })
+  }
+  return { type: 'FeatureCollection', features }
+}
+
+/** Adds the line layers, on every style load: `setStyle` drops runtime layers. */
+function addLineLayers(picker) {
+  const map = picker.map
+  if (map.getSource(LINES)) return
+  map.addSource(LINES, { type: 'geojson', data: lineData() })
+  map.addLayer({
+    id: `${LINES}-gap`,
+    type: 'line',
+    source: LINES,
+    filter: ['==', ['get', 'kind'], 'gap'],
+    paint: { 'line-color': PIN_COLOR, 'line-width': 3, 'line-opacity': 0.7 },
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+  })
+  map.addLayer({
+    id: `${LINES}-all`,
+    type: 'line',
+    source: LINES,
+    filter: ['==', ['get', 'kind'], 'all'],
+    paint: {
+      'line-color': PIN_COLOR,
+      'line-width': 2,
+      'line-opacity': 0.55,
+      'line-dasharray': [5, 5],
+    },
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+  })
+}
+
+/** Pushes the current reference lines into the source, once the style is up. */
+function applyLines(picker) {
+  const source = picker.map.getSource(LINES)
+  if (source) source.setData(lineData())
+}
+
 function renderNeighborsOn(picker) {
-  picker.neighborLayer.clearLayers()
+  for (const marker of picker.neighborMarkers) marker.remove()
+  picker.neighborMarkers = []
 
   const usable = props.points.filter(valid)
+  const { before, after } = anchors.value
 
   // The line first, so the pins sit on top of it. Dots say where the trip was;
   // the line says which way it went, and that is what places a photograph.
-  if (usable.length > 1) {
-    L.polyline(
-      usable.map((point) => [point.lat, point.lng]),
-      { color: PIN_COLOR, weight: 2, opacity: 0.55, dashArray: '5 5', interactive: false },
-    ).addTo(picker.neighborLayer)
-  }
-
-  /*
-    The gap itself, drawn solid over the dashed path: whatever is being placed
-    happened somewhere along this stretch, and usually within sight of it.
-  */
-  const { before, after } = anchors.value
-  if (before && after) {
-    L.polyline(
-      [
-        [before.lat, before.lng],
-        [after.lat, after.lng],
-      ],
-      { color: PIN_COLOR, weight: 3, opacity: 0.7, interactive: false },
-    ).addTo(picker.neighborLayer)
-  }
+  applyLines(picker)
 
   for (const point of usable) {
     if (point === before || point === after) continue
-    L.marker([point.lat, point.lng], { icon: neighborIcon, interactive: false }).addTo(
-      picker.neighborLayer,
+    picker.neighborMarkers.push(
+      addMarker(picker.map, pinIconOf(NEIGHBOR_COLOR, 26), point.lat, point.lng),
     )
   }
 
   // The anchors last and larger, so neither is lost under a neighbour standing
   // a few metres south of it.
   if (before) {
-    const marker = L.marker([before.lat, before.lng], {
-      icon: beforeIcon,
-      interactive: false,
-      zIndexOffset: 500,
-    }).addTo(picker.neighborLayer)
-    timeLabel(marker, before)
+    const element = pinIconOf(BEFORE_COLOR, 30)
+    timeLabel(element, before)
+    picker.neighborMarkers.push(addMarker(picker.map, element, before.lat, before.lng))
   }
   if (after) {
-    const marker = L.marker([after.lat, after.lng], {
-      icon: afterIcon,
-      interactive: false,
-      zIndexOffset: 600,
-    }).addTo(picker.neighborLayer)
-    timeLabel(marker, after)
+    const element = pinIconOf(AFTER_COLOR, 30)
+    timeLabel(element, after)
+    picker.neighborMarkers.push(addMarker(picker.map, element, after.lat, after.lng))
   }
 
   // Last, and in the accent: these are the files in hand, not the scenery.
-  // `zIndexOffset` keeps them above the anchors, which otherwise paint over the
-  // selection a few metres south of it - the same clash the draggable pin avoids.
   for (const point of props.ownPoints.filter(valid)) {
-    L.marker([point.lat, point.lng], {
-      icon: pinIcon,
-      interactive: false,
-      zIndexOffset: 700,
-    }).addTo(picker.neighborLayer)
+    picker.neighborMarkers.push(addMarker(picker.map, pinIconOf(PIN_COLOR, 30), point.lat, point.lng))
   }
 }
 
@@ -251,12 +307,12 @@ let framed = false
 
 function bestView() {
   if (valid(props.modelValue)) {
-    return { center: [props.modelValue.lat, props.modelValue.lng], zoom: 15 }
+    return { center: lngLat(props.modelValue.lat, props.modelValue.lng), zoom: 15 }
   }
 
   // A selection's own points are the subject of the map, so they frame it.
   const own = props.ownPoints.filter(valid)
-  if (own.length) return { bounds: own.map((point) => [point.lat, point.lng]) }
+  if (own.length) return { bounds: own.map((point) => lngLat(point.lat, point.lng)) }
 
   const points = props.points.filter(valid)
   if (!points.length) return null
@@ -267,19 +323,31 @@ function bestView() {
   const last = before[before.length - 1]
   const first = after[0]
 
-  if (last && first)
-    return {
-      bounds: [
-        [last.lat, last.lng],
-        [first.lat, first.lng],
-      ],
-    }
-  if (last) return { center: [last.lat, last.lng], zoom: 15 }
-  if (first) return { center: [first.lat, first.lng], zoom: 15 }
+  if (last && first) return { bounds: [lngLat(last.lat, last.lng), lngLat(first.lat, first.lng)] }
+  if (last) return { center: lngLat(last.lat, last.lng), zoom: 15 }
+  if (first) return { center: lngLat(first.lat, first.lng), zoom: 15 }
 
   // A selection has no single moment to be before or after, so the whole of what
   // is known about that stretch of the day is the honest frame.
-  return { bounds: points.map((point) => [point.lat, point.lng]) }
+  return { bounds: points.map((point) => lngLat(point.lat, point.lng)) }
+}
+
+/** The box the given `[lng, lat]` corners cover, as MapLibre's two corners. */
+function corners(list) {
+  let minLat = Infinity
+  let maxLat = -Infinity
+  let minLng = Infinity
+  let maxLng = -Infinity
+  for (const [lng, lat] of list) {
+    if (lat < minLat) minLat = lat
+    if (lat > maxLat) maxLat = lat
+    if (lng < minLng) minLng = lng
+    if (lng > maxLng) maxLng = lng
+  }
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ]
 }
 
 function frameInline() {
@@ -291,14 +359,12 @@ function frameInline() {
   framed = true
 
   if (view.bounds) {
-    const bounds = L.latLngBounds(view.bounds)
     // `maxZoom` matters most for the two-point case: a photograph taken seconds
     // after the last one gives a gap of a few metres, and framing that exactly
     // puts the map on a rooftop with no idea which rooftop.
-    if (bounds.isValid())
-      picker.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: false })
+    picker.map.fitBounds(corners(view.bounds), { padding: 50, maxZoom: 16, animate: false })
   } else {
-    picker.map.setView(view.center, view.zoom, { animate: false })
+    picker.map.jumpTo({ center: view.center, zoom: view.zoom })
   }
 }
 
@@ -314,16 +380,24 @@ function buildPicker(el, { wheelZoom = false } = {}) {
       zoom: lastView.zoom,
       onScrollHint: flashHint,
       wheelZoom,
+      scheme: theme.resolvedTheme?.scheme ?? 'light',
     }),
   )
-  const picker = { map, neighborLayer: markRaw(L.layerGroup().addTo(map)), marker: null }
+  const picker = { map, neighborMarkers: [], marker: null }
+
+  // `setStyle` drops runtime layers, so the reference lines are re-added on
+  // every style load, initial and on a theme change alike.
+  map.on('style.load', () => {
+    addLineLayers(picker)
+    applyLines(picker)
+  })
 
   map.on('click', (event) => {
-    if (nearEdge(map, event.containerPoint)) return
-    setPoint(event.latlng.lat, event.latlng.lng)
+    if (nearEdge(map, event.point)) return
+    setPoint(event.lngLat.lat, event.lngLat.lng)
   })
   map.on('moveend', () => {
-    lastView.center = map.getCenter()
+    lastView.center = map.getCenter().toArray()
     lastView.zoom = map.getZoom()
   })
 
@@ -344,6 +418,14 @@ onMounted(() => {
   frameInline()
   document.addEventListener('paste', onPaste)
 })
+
+/* A theme's light/dark nature recolours every live picker's basemap. */
+watch(
+  () => theme.resolvedTheme?.scheme,
+  (next) => {
+    for (const picker of pickers) setBaseScheme(picker.map, next ?? 'light')
+  },
+)
 
 // Keep every live map in step when the point changes (map click, drag, or the
 // parent editing the coordinate inputs by hand).
@@ -374,7 +456,7 @@ watch(expanded, async (isOpen) => {
     await nextTick()
     // The overlay element only exists once expanded; build a fresh map in it.
     fullscreenPicker = buildPicker(fullscreenEl.value, { wheelZoom: true })
-    requestAnimationFrame(() => fullscreenPicker?.map.invalidateSize())
+    requestAnimationFrame(() => fullscreenPicker?.map.resize())
   } else if (fullscreenPicker) {
     destroyPicker(fullscreenPicker)
     fullscreenPicker = null
@@ -383,15 +465,15 @@ watch(expanded, async (isOpen) => {
     // the reader was looking at when they collapsed.
     const inline = pickers[0]
     if (inline && props.modelValue) {
-      inline.map.setView(
-        [props.modelValue.lat, props.modelValue.lng],
-        Math.max(inline.map.getZoom(), 14),
-      )
+      inline.map.jumpTo({
+        center: lngLat(props.modelValue.lat, props.modelValue.lng),
+        zoom: Math.max(inline.map.getZoom(), 14),
+      })
     }
-    // The box was under an overlay while it was collapsed; Leaflet has to be
+    // The box was under an overlay while it was collapsed; the map has to be
     // told its size again or it paints half a map.
     await nextTick()
-    inline?.map.invalidateSize()
+    inline?.map.resize()
   }
 })
 
@@ -416,10 +498,13 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <!-- Inline map: always mounted, never reparented. `isolate` pins Leaflet's
-         200-800 pane z-indexes inside this box. See docs/features/maps.md. -->
+    <!-- Inline map: always mounted, never reparented. `isolate` keeps the map's
+         own overlay layers inside this box. See docs/features/maps.md. -->
     <div class="relative isolate">
-      <div ref="inlineEl" class="h-[220px] w-full overflow-hidden rounded-md ring-1 ring-edge" />
+      <div
+        ref="inlineEl"
+        class="trip-map h-[220px] w-full overflow-hidden rounded-md ring-1 ring-edge"
+      />
       <Transition
         enter-from-class="opacity-0"
         enter-active-class="transition duration-150"
@@ -469,7 +554,7 @@ onBeforeUnmount(() => {
     <!-- Fullscreen map: a separate instance in a body-level overlay. -->
     <Teleport to="body">
       <div v-if="expanded" class="fixed inset-0 z-[2100] flex flex-col bg-paper">
-        <div ref="fullscreenEl" class="min-h-0 flex-1" />
+        <div ref="fullscreenEl" class="trip-map min-h-0 flex-1" />
 
         <button
           type="button"

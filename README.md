@@ -34,7 +34,8 @@ All configuration is through `.env` (see `.env.example`).
 | `VITE_API_BASE_URL` | API base path, `/v1` in development |
 | `BACKEND_ORIGIN` | Dev proxy target (never bundled) |
 | `VITE_BASE_MAP_FROM` / `_TO` | Default map range |
-| `VITE_MAP_TILE_URL`, `VITE_MAP_ATTRIBUTION` | Map tiles; defaults to keyless CARTO Voyager |
+| `VITE_MAP_PROVIDER` | Basemap: `maptoolkit` (default), `openfreemap` or `carto` |
+| `VITE_MAP_STYLE_LIGHT` / `_DARK`, `VITE_MAP_ATTRIBUTION` | Basemap style and attribution overrides |
 | `VITE_AUTHOR_NAME`, `VITE_AUTHOR_GITHUB` | Footer links |
 
 `VITE_*` values are baked into the bundle at build time.
@@ -124,7 +125,7 @@ still waiting to be filed.
 | Search, highlighting, tag suggestions | `src/views/SearchView.vue` | [search.md](docs/features/search.md) |
 | Tags, dictionary, coining | `src/services/tags.js` | [tags.md](docs/features/tags.md) |
 | Similarity, tag collecting | `src/services/similarity.js` | [similarity.md](docs/features/similarity.md) |
-| Maps, pins, coordinate picker | `src/services/leaflet.js` | [maps.md](docs/features/maps.md) |
+| Maps, pins, coordinate picker | `src/services/mapEngine.js` | [maps.md](docs/features/maps.md) |
 | Media editing, bulk saves, translation | `src/components/editor/MediaEditDialog.vue` | [media-editor.md](docs/features/media-editor.md) |
 | Day notes, drafts, pending queue | `src/components/editor/DayEditForm.vue` | [day-editor-and-pending.md](docs/features/day-editor-and-pending.md) |
 | Rich text in notes, media references, hover cards | `src/components/common/RichText.vue` | [rich-text-and-links.md](docs/features/rich-text-and-links.md) |

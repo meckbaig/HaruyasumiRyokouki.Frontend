@@ -19,7 +19,8 @@
 | `VITE_API_BASE_URL` | API base path; `/v1` in development. |
 | `BACKEND_ORIGIN` | Dev proxy target. **Read only by `vite.config.js`, never bundled.** |
 | `VITE_BASE_MAP_FROM` / `_TO` | Default map range. |
-| `VITE_MAP_TILE_URL` / `VITE_MAP_ATTRIBUTION` | Tiles; defaults to keyless CARTO Voyager. |
+| `VITE_MAP_PROVIDER` | Basemap provider: `maptoolkit` (default), `openfreemap`, `carto`. |
+| `VITE_MAP_STYLE_LIGHT` / `_DARK`, `VITE_MAP_ATTRIBUTION` | Basemap style and attribution overrides. |
 | `VITE_AUTHOR_NAME` / `VITE_AUTHOR_GITHUB` | Footer links. |
 
 Only `VITE_*` reaches the bundle, and it is **baked in at build time** - changing one means
