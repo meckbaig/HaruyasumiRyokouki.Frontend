@@ -8,9 +8,11 @@ import { isVideo } from '@/services/mediaType'
 import { markOpenedFrom } from '@/services/openedFrom'
 import { GHOST_CLICK_MS } from '@/services/ghostClick'
 import { isPrivate, togglePrivate } from '@/services/privacy'
+import { isExplicit } from '@/services/explicit'
 import { toggleFavorite } from '@/services/favorites'
 import { useEditorStore } from '@/stores/editor'
 import { useUiStore } from '@/stores/ui'
+import { useExplicitReveal } from '@/composables/useExplicitReveal'
 
 const props = defineProps({
   media: { type: Object, required: true },
@@ -45,6 +47,7 @@ const emit = defineEmits(['open', 'edit', 'context'])
 const { t } = useI18n()
 const editor = useEditorStore()
 const ui = useUiStore()
+const { isCovered, reveal: revealExplicit } = useExplicitReveal()
 
 const root = ref(null)
 /*
@@ -61,6 +64,10 @@ const reveal = computed(() =>
 )
 const video = computed(() => isVideo(props.media))
 const hidden = computed(() => isPrivate(props.media))
+/** An 18+ file's preview stays behind its blurred miniature until uncovered. */
+const covered = computed(() => isCovered(props.media))
+/** The 18+ mark, so the corner can say the file carries explicit content. */
+const explicit = computed(() => isExplicit(props.media))
 /* The stamp in the corner, in two halves: the date stays, the time joins it on
    approach. **One badge, not two** - they land in the same corner. */
 const stampDate = computed(() =>
@@ -92,6 +99,11 @@ const starClass = computed(() =>
 )
 const marking = ref(false)
 const hiding = ref(false)
+
+/** Uncovers an 18+ file's preview, in place, without opening the viewer. */
+function showExplicit() {
+  revealExplicit(props.media)
+}
 
 /**
  * A request in flight is not a reason to disable the button: a disabled control
@@ -263,7 +275,7 @@ function activate() {
              hidden mark comes first and carries a word.
              See docs/features/media-grid-and-selection.md. -->
         <span
-          v-if="video || hidden"
+          v-if="video || hidden || explicit"
           class="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1"
         >
           <span
@@ -286,6 +298,13 @@ function activate() {
               <path d="M3 13 13 3" stroke-linecap="round" />
             </svg>
             {{ t('media.hidden') }}
+          </span>
+
+          <span
+            v-if="explicit"
+            class="flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-paper"
+          >
+            {{ t('media.explicitBadge') }}
           </span>
 
           <span
@@ -316,6 +335,26 @@ function activate() {
         </span>
       </div>
     </button>
+
+    <!--
+      An 18+ file stays behind its blurred miniature until this is pressed. A
+      sibling of the tile button, never a control inside it: it must not open the
+      viewer. Shown on approach like the pencil. See docs/features/explicit-content.md.
+    -->
+    <div
+      v-if="covered"
+      class="pointer-events-none absolute inset-0 flex items-center justify-center"
+    >
+      <button
+        type="button"
+        class="hover-reveal pointer-events-auto rounded-full bg-ink/70 px-3 py-1.5 text-xs font-medium text-paper shadow-sm backdrop-blur transition"
+        :title="t('media.explicitHint')"
+        :aria-label="t('media.revealExplicit')"
+        @click.stop="showExplicit"
+      >
+        {{ t('media.revealExplicit') }}
+      </button>
+    </div>
 
     <!--
       Star on the left, pencil on the right. A marked file shows its star at all

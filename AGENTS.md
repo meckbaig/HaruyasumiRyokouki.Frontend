@@ -21,6 +21,7 @@ Documentation lives in [docs/](docs/) and is written for you.
 | Search, highlighting | [search.md](docs/features/search.md) |
 | Tags | [tags.md](docs/features/tags.md) |
 | Similarity, tag collecting | [similarity.md](docs/features/similarity.md) |
+| 18+ files: blur, uncover control, badge | [explicit-content.md](docs/features/explicit-content.md) |
 | Maps, coordinate picker | [maps.md](docs/features/maps.md) |
 | Media edit dialog | [media-editor.md](docs/features/media-editor.md) |
 | Day notes, pending queue | [day-editor-and-pending.md](docs/features/day-editor-and-pending.md) |

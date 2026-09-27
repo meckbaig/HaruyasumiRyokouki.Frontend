@@ -1059,6 +1059,24 @@
   transform: scale(var(--thumb-scale, 1.05));
 }
 
+/*
+  A covered 18+ miniature, in one definition: a box that clips it, and an image
+  that covers, over-scales past the blur edge and blurs. The viewer's ground
+  layer, a filmstrip neighbour and the flight all wear it, so a handover cannot
+  disagree. See docs/features/explicit-content.md.
+*/
+.explicit-mini {
+  overflow: hidden;
+}
+
+.explicit-mini-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.1);
+  filter: blur(32px);
+}
+
 /* Transparent until it is whole, so the stage never shows an empty frame. */
 .thumb-shot {
   opacity: 0;
@@ -1823,6 +1841,52 @@
 
 .lb-spinner-leave-active {
   animation: lb-spinner-out 150ms ease-in both;
+}
+
+/*
+  The 18+ uncover control, standing in the middle of the darkened picture. A pill
+  rather than a bare icon: it is a sentence the reader is being asked, not a glyph.
+  See docs/features/explicit-content.md.
+*/
+.lb-reveal {
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background-color: var(--lb-bar);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--lb-accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+
+@media (hover: hover) {
+  .lb-reveal:hover {
+    background-color: var(--lb-hover);
+  }
+}
+
+/* Arrives and leaves with the picture's own motion, never a jump between states. */
+@keyframes lb-reveal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes lb-reveal-out {
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+.lb-reveal-enter-active {
+  animation: lb-reveal-in 200ms ease-out;
+}
+
+.lb-reveal-leave-active {
+  animation: lb-reveal-out 150ms ease-in both;
 }
 
 /*

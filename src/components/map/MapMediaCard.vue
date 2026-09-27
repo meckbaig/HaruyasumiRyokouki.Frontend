@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
+import { isExplicit } from '@/services/explicit'
 import MediaThumb from '@/components/media/MediaThumb.vue'
 import MediaStrip from '@/components/common/MediaStrip.vue'
 import { pickTranslation } from '@/services/translations'
@@ -238,6 +239,12 @@ const position = computed(() => {
                     class="rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
                   >
                     {{ shownIndex + 1 }}/{{ count }}
+                  </span>
+                  <span
+                    v-if="isExplicit(item)"
+                    class="rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-paper"
+                  >
+                    {{ t('media.explicitBadge') }}
                   </span>
                   <span
                     v-if="isVideoItem(item)"

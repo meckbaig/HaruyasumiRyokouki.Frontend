@@ -192,9 +192,19 @@ function followScroll() {
  * Flies `src` from one box to the other. Boxes are viewport rectangles as
  * `getBoundingClientRect` gives them; radii are plain pixels; `insets` is the
  * page chrome the picture has to stay under; `track` re-reads the box of the
- * mark the flight belongs to, when that mark can move.
+ * mark the flight belongs to, when that mark can move; `blur` marks a covered
+ * 18+ file, whose miniature must fly already blurred.
  */
-async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null, track = null }) {
+async function fly({
+  src,
+  from,
+  to,
+  fromRadius = 0,
+  toRadius = 0,
+  insets = null,
+  track = null,
+  blur = false,
+}) {
   if (!src || !from || !to || motionReduced()) return
   stop()
 
@@ -206,7 +216,7 @@ async function fly({ src, from, to, fromRadius = 0, toRadius = 0, insets = null,
   const tracks = buildTracks(base, from, to, fromRadius, toRadius)
   // Rendered holding the first sample, or the frame before the animation would
   // be the untransformed base box.
-  flight.value = { base, tracks, clipPath: clipFor(insets), src }
+  flight.value = { base, tracks, clipPath: clipFor(insets), src, blur }
   // Before the await: the room begins leaving in this same tick.
   document.documentElement.setAttribute(FLYING_ATTR, '')
   if (track) followTrack(track)
@@ -311,11 +321,22 @@ defineExpose({ active, fly, setSource, cancel: stop })
             :style="{ transform: flight.tracks.counter[0].transform }"
           >
             <img
+              v-if="!flight.blur"
               :src="flight.src"
               alt=""
               aria-hidden="true"
               draggable="false"
               class="h-full w-full object-contain"
+            />
+            <!-- A covered 18+ file flies as its blurred miniature, through the
+                 same presentation the wall and the viewer settle it into. -->
+            <img
+              v-else
+              :src="flight.src"
+              alt=""
+              aria-hidden="true"
+              draggable="false"
+              class="explicit-mini-img"
             />
             <img
               v-if="flight.overlay"

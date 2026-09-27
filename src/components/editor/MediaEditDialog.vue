@@ -22,6 +22,7 @@ import { useDelayed } from '@/composables/useDelayed'
 import { insertTemplate } from '@/composables/useTemplateInsert'
 import { mediaTemplate, urlTemplate } from '@/services/richText'
 import { isPrivate } from '@/services/privacy'
+import { EXPLICIT_SLUG } from '@/services/explicit'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -90,6 +91,8 @@ const coordsTouched = ref(false)
 */
 const tagSlugs = ref([])
 const tagsTouched = ref(false)
+/** The 18+ mark on the tag list, so the blur it brings can be announced as it is set. */
+const hasExplicit = computed(() => tagSlugs.value.includes(EXPLICIT_SLUG))
 const knownTags = computed(() => {
   const bySlug = new Map()
   for (const media of editList.value) {
@@ -756,7 +759,13 @@ async function save() {
         <p v-if="translated" class="rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
           {{ t('editor.translationReview') }}
         </p>
-        
+
+        <!-- Stands beside the translation notice: both are the editor being told
+             what a save will do before it is made - here, that the picture will
+             be blurred for every visitor. See docs/features/explicit-content.md. -->
+        <p v-if="hasExplicit" class="rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
+          {{ t('editor.explicitWarning') }}
+        </p>
 
       <!-- The panel stays mounted so its slow request runs in the background. -->
       <SimilarMediaPanel v-if="open && single" :media="single" :tag-slugs="tagSlugs" />

@@ -2,9 +2,11 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { markOpenedFrom } from '@/services/openedFrom'
+import { isExplicit } from '@/services/explicit'
 import { miniatureSrc, previewSrc, mediaAspect } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
 import { useMotionStore } from '@/stores/motion'
+import { useExplicitReveal } from '@/composables/useExplicitReveal'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -14,6 +16,7 @@ const emit = defineEmits(['open'])
 
 const { t } = useI18n()
 const motion = useMotionStore()
+const { isCovered } = useExplicitReveal()
 
 /*
   An exhibition wall that drifts past. A real scroll container underneath, with
@@ -326,18 +329,30 @@ function open(event, index) {
             decoding="async"
             draggable="false"
             class="relative h-full w-full object-cover transition-opacity duration-300"
-            :class="loaded[media.id] ? 'opacity-100' : 'opacity-0'"
+            :class="loaded[media.id] && !isCovered(media) ? 'opacity-100' : 'opacity-0'"
             @load="onPreview(media)"
           />
 
+          <!-- One row in the bottom-left corner, as on a grid tile. -->
           <span
-            v-if="isVideo(media)"
-            class="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+            v-if="isVideo(media) || isExplicit(media)"
+            class="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1"
           >
-            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-              <path d="M3.5 2.5v7l6-3.5z" />
-            </svg>
-            {{ t('media.video') }}
+            <span
+              v-if="isExplicit(media)"
+              class="rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-paper"
+            >
+              {{ t('media.explicitBadge') }}
+            </span>
+            <span
+              v-if="isVideo(media)"
+              class="flex items-center gap-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+            >
+              <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M3.5 2.5v7l6-3.5z" />
+              </svg>
+              {{ t('media.video') }}
+            </span>
           </span>
         </button>
       </div>

@@ -1,4 +1,4 @@
-<script setup>
+t<script setup>
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -13,6 +13,7 @@ import {
 } from '@/services/mediaAssets'
 import { isVideo } from '@/services/mediaType'
 import { isPrivate } from '@/services/privacy'
+import { useExplicitReveal } from '@/composables/useExplicitReveal'
 import { pickTranslation } from '@/services/translations'
 import { useUiStore } from '@/stores/ui'
 import { isMobileLayout } from '@/services/display'
@@ -66,6 +67,16 @@ let lastFocused = null
 const open = computed(() => props.index !== null && props.index >= 0)
 const current = computed(() => (open.value ? (props.items[props.index] ?? null) : null))
 const video = computed(() => isVideo(current.value))
+const { isCovered, reveal } = useExplicitReveal()
+/*
+  An 18+ file keeps its preview and full-size layers dark until the reader
+  uncovers it: only the blurred miniature is drawn. See docs/features/explicit-content.md.
+*/
+const covered = computed(() => isCovered(current.value))
+
+function showExplicit() {
+  reveal(current.value)
+}
 /* Text from whichever shape the list holds - the pending queue passes edit
    models, whose flat fields do not exist. */
 const text = computed(() => pickTranslation(current.value, ui.locale))
@@ -203,6 +214,9 @@ function haveFullSize(item) {
 }
 
 function stripSrc(item) {
+  // A covered neighbour turns past as its blurred miniature too, so a slide
+  // never flashes the file it is hiding.
+  if (isCovered(item)) return miniatureSrc(item)
   if (haveFullSize(item)) return fullScreenSrc(item)
   return previewSrc(item) || miniatureSrc(item)
 }
@@ -264,7 +278,12 @@ const PREVIEW_FADE_MS = 300
  * carrying a filter: a full screen of `blur(24px)`, redone inside every raster
  * of a magnified picture. See docs/features/media-viewer.md.
  */
-const miniatureRetired = useDelayed(() => previewLoaded.value, PREVIEW_FADE_MS)
+// Held back while the file is covered: the preview is loaded but not shown, and
+// the miniature is the only thing on screen. See docs/features/explicit-content.md.
+const miniatureRetired = useDelayed(
+  () => previewLoaded.value && !covered.value,
+  PREVIEW_FADE_MS,
+)
 
 const SPINNER_DELAY = 50
 
@@ -279,6 +298,9 @@ function stopSpinner() {
 
 function armSpinner() {
   stopSpinner()
+  // Nothing to await while the file is covered: the sharp layers are loaded but
+  // deliberately dark, so a wheel would only be something to watch.
+  if (covered.value) return
   if (!fullScreen.value || fullLoaded.value) return
 
   /*
@@ -299,7 +321,9 @@ function armSpinner() {
  * covers the middle of the window, so a wheel faded in under it is already
  * opaque when the strip arrives. See docs/features/media-viewer.md.
  */
-const spinnerShown = computed(() => showSpinner.value && chromeReady.value && !flight.value?.active)
+const spinnerShown = computed(
+  () => showSpinner.value && chromeReady.value && !flight.value?.active && !covered.value,
+)
 
 /**
  * Aspect ratio of the open file. The API states it, so the fit is known before a
@@ -1060,6 +1084,11 @@ function fullPaintable(url) {
  * present here, and the full is overlaid the moment it decodes.
  */
 function heroSource(item) {
+  // A covered file flies as its blurred miniature: the preview and the full-size
+  // layer are exactly what must not be shown. Including it keeps the picture in
+  // the opening and closing flight without spending a second layer on a file
+  // whose sharper one is already on show. See docs/features/explicit-content.md.
+  if (isCovered(item)) return miniatureSrc(item)
   const full = fullScreenSrc(item)
   if (full && fullPaintable(full)) return full
   return previewSrc(item) || miniatureSrc(item)
@@ -1072,6 +1101,9 @@ function heroSource(item) {
  */
 function upgradeFlight(item) {
   if (!fullLoaded.value) return
+  // A covered file stays on its miniature: showing the sharp one mid-flight would
+  // give away the very picture the reader has not asked for.
+  if (isCovered(item)) return
   flight.value?.setSource(fullScreenSrc(item))
 }
 
@@ -1083,7 +1115,7 @@ function upgradeFlight(item) {
   asked to - which is what makes swapping the source safely invisible.
 */
 watch(fullLoaded, (loaded) => {
-  if (loaded) flight.value?.setSource(fullScreenSrc(current.value))
+  if (loaded && !covered.value) flight.value?.setSource(fullScreenSrc(current.value))
 })
 
 /**
@@ -1106,6 +1138,8 @@ function close({ fly = true } = {}) {
       fromRadius: 0,
       toRadius: TILE_RADIUS,
       insets: chromeInsets(),
+      // Closing to a tile it never uncovered: the miniature flies blurred back.
+      blur: isCovered(item),
     })
     // A full the strip already holds joins the closing flight too.
     upgradeFlight(item)
@@ -1263,6 +1297,8 @@ watch(
         fromRadius: TILE_RADIUS,
         toRadius: 0,
         insets: chromeInsets(),
+        // A covered file flies pre-blurred, so the opening never shows it sharp.
+        blur: isCovered(current.value),
       })
       // `settleLayers` may have raised `fullLoaded` before the flight existed,
       // so the watcher below never fires for it; seed the upgrade here.
@@ -1895,7 +1931,23 @@ onBeforeUnmount(() => {
                 class="flex h-full w-full items-center justify-center"
                 :style="neighbourFit(prevItem)"
               >
+                <div
+                  v-if="isCovered(prevItem)"
+                  class="explicit-mini"
+                  :class="prevFit.class"
+                  :style="prevFit.style"
+                  aria-hidden="true"
+                >
+                  <img
+                    :key="prevItem.id ?? prevItem.fileName"
+                    :src="miniatureSrc(prevItem)"
+                    alt=""
+                    draggable="false"
+                    class="explicit-mini-img"
+                  />
+                </div>
                 <img
+                  v-else
                   :key="prevItem.id ?? prevItem.fileName"
                   :src="stripSrc(prevItem)"
                   alt=""
@@ -1958,7 +2010,7 @@ onBeforeUnmount(() => {
                   class="relative z-[30] object-contain"
                   :class="[
                     fitClass,
-                    fullLoaded ? 'opacity-100' : 'opacity-0',
+                    fullLoaded && !covered ? 'opacity-100' : 'opacity-0',
                     flight?.active ? '' : 'transition-opacity duration-300',
                   ]"
                   :style="aspectStyle"
@@ -1977,7 +2029,7 @@ onBeforeUnmount(() => {
                   class="pointer-events-none absolute left-1/2 top-1/2 z-[20] -translate-x-1/2 -translate-y-1/2 object-contain"
                   :class="[
                     fitClass,
-                    previewLoaded ? 'opacity-100' : 'opacity-0',
+                    previewLoaded && !covered ? 'opacity-100' : 'opacity-0',
                     'transition-opacity duration-300',
                   ]"
                   :style="aspectStyle"
@@ -1996,7 +2048,7 @@ onBeforeUnmount(() => {
                     :src="miniature"
                     alt=""
                     draggable="false"
-                    class="h-full w-full scale-110 object-cover blur-[24px]"
+                    class="explicit-mini-img"
                   />
                 </div>
               </div>
@@ -2010,7 +2062,23 @@ onBeforeUnmount(() => {
                 class="flex h-full w-full items-center justify-center"
                 :style="neighbourFit(nextItem)"
               >
+                <div
+                  v-if="isCovered(nextItem)"
+                  class="explicit-mini"
+                  :class="nextFit.class"
+                  :style="nextFit.style"
+                  aria-hidden="true"
+                >
+                  <img
+                    :key="nextItem.id ?? nextItem.fileName"
+                    :src="miniatureSrc(nextItem)"
+                    alt=""
+                    draggable="false"
+                    class="explicit-mini-img"
+                  />
+                </div>
                 <img
+                  v-else
                   :key="nextItem.id ?? nextItem.fileName"
                   :src="stripSrc(nextItem)"
                   alt=""
@@ -2042,6 +2110,29 @@ onBeforeUnmount(() => {
             </span>
           </Transition>
         </div>
+
+        <!--
+          An 18+ file's own reveal, standing in the middle of the room: the
+          picture stays behind its miniature until it is pressed. Above the
+          picture, under the chrome; held back until the opening flight lands,
+          where the wheel is held back too. See docs/features/explicit-content.md.
+        -->
+        <Transition name="lb-reveal">
+          <div
+            v-if="covered && chromeReady && !flight?.active"
+            class="pointer-events-none absolute inset-0 z-[40] flex items-center justify-center"
+          >
+            <button
+              type="button"
+              class="lb-reveal pointer-events-auto"
+              :title="t('media.explicitHint')"
+              :aria-label="t('media.revealExplicit')"
+              @click="showExplicit"
+            >
+              {{ t('media.revealExplicit') }}
+            </button>
+          </div>
+        </Transition>
 
         <!--
         Chrome floating over the picture. The bars **slide, never fade** - a

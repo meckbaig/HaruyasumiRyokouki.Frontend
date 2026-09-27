@@ -98,6 +98,9 @@ across tiles, a bulk editor that only writes what was actually changed, optional
 translation to review before saving, local drafts of day notes, and a queue of everything
 still waiting to be filed.
 
+**Explicit content.** A file tagged 18+ shows only its blurred miniature - grid, map and
+viewer - until the reader uncovers it in place.
+
 ## Where things live
 
 | Directory | Contents |
@@ -125,6 +128,7 @@ still waiting to be filed.
 | Search, highlighting, tag suggestions | `src/views/SearchView.vue` | [search.md](docs/features/search.md) |
 | Tags, dictionary, coining | `src/services/tags.js` | [tags.md](docs/features/tags.md) |
 | Similarity, tag collecting | `src/services/similarity.js` | [similarity.md](docs/features/similarity.md) |
+| 18+ blur, uncover control, badge | `src/services/explicit.js` | [explicit-content.md](docs/features/explicit-content.md) |
 | Maps, pins, coordinate picker | `src/services/mapEngine.js` | [maps.md](docs/features/maps.md) |
 | Media editing, bulk saves, translation | `src/components/editor/MediaEditDialog.vue` | [media-editor.md](docs/features/media-editor.md) |
 | Day notes, drafts, pending queue | `src/components/editor/DayEditForm.vue` | [day-editor-and-pending.md](docs/features/day-editor-and-pending.md) |

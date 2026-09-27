@@ -109,7 +109,10 @@
     "unhide": "Show",
     "readonlyHint": "Read-only mode: editing is blocked",
     "hideHidden": "Hide hidden files",
-    "showHidden": "Show hidden files"
+    "showHidden": "Show hidden files",
+    "revealExplicit": "Show",
+    "explicitHint": "This file is tagged 18+ - press to show the image",
+    "explicitBadge": "Explicit"
   },
   "language": {
     "label": "Language",
@@ -223,7 +226,8 @@
     "pointAfter": "nearest shot after",
     "pastedPoint": "Coordinates pasted",
     "pasteHint": "Coordinates copied from Google Maps can be pasted here with Ctrl+V.",
-    "clearPointHint": "Right-click the pin to take it off."
+    "clearPointHint": "Right-click the pin to take it off.",
+    "explicitWarning": "This file is tagged 18+ - visitors see its image blurred until they uncover it."
   },
   "footer": {
     "about": "About",

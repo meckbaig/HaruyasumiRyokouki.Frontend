@@ -42,6 +42,7 @@ import { playCardMorph } from '@/services/cardMorph'
 import { motionReduced, cameraMotion } from '@/services/motion'
 import MapMediaCard from './MapMediaCard.vue'
 import { hasOverlay } from '@/services/overlayStack'
+import { useExplicitReveal } from '@/composables/useExplicitReveal'
 
 const props = defineProps({
   /** Media that carry coordinates; anything without them is filtered out here. */
@@ -84,6 +85,7 @@ const emit = defineEmits(['open', 'open-day', 'activate'])
 
 const { t, locale } = useI18n()
 const theme = useThemeStore()
+const { revealVersion } = useExplicitReveal()
 
 const container = ref(null)
 const cardRef = ref(null)
@@ -1107,6 +1109,14 @@ function renderMarkers() {
   fitToContent()
 }
 
+/** Drops the drawn marks and builds them again, keeping the view. */
+function rebuildMarkers() {
+  for (const marker of markerByKey.values()) marker.remove()
+  markerByKey.clear()
+  refreshGroups()
+  syncMarkers()
+}
+
 /**
  * A pan changes no distance, but it does change **what the box draws**: a drag
  * into a denser part of the trip may need a wider cell. A settle only ever widens
@@ -1311,12 +1321,14 @@ watch(
   marks and rebuilds them with the reader's clock. The view is the reader's and
   stays; only the marks are remade. See docs/features/maps.md.
 */
-watch(locale, () => {
-  for (const marker of markerByKey.values()) marker.remove()
-  markerByKey.clear()
-  refreshGroups()
-  syncMarkers()
-})
+watch(locale, rebuildMarkers)
+
+/*
+  The reader uncovered an 18+ file, so a lone pin or a quiet pile showing it draws
+  the preview again. Rare enough to rebuild every mark, as a locale change does.
+  See docs/features/explicit-content.md.
+*/
+watch(revealVersion, rebuildMarkers)
 
 /* A theme's light/dark nature recolours the basemap, so the map follows it. */
 watch(

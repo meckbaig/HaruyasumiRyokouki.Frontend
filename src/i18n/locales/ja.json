@@ -109,7 +109,10 @@
     "unhide": "公開する",
     "readonlyHint": "読み取り専用モード: 編集はできません",
     "hideHidden": "非公開ファイルを隠す",
-    "showHidden": "非公開ファイルを表示"
+    "showHidden": "非公開ファイルを表示",
+    "revealExplicit": "表示",
+    "explicitHint": "18+ のファイルです - 押すと画像を表示します",
+    "explicitBadge": "過激"
   },
   "language": {
     "label": "言語",
@@ -223,7 +226,8 @@
     "pointAfter": "直後の写真",
     "pastedPoint": "座標を貼り付けました",
     "pasteHint": "Google マップからコピーした座標は Ctrl+V でここに貼り付けられます。",
-    "clearPointHint": "ピンを右クリックすると外せます。"
+    "clearPointHint": "ピンを右クリックすると外せます。",
+    "explicitWarning": "18+ のタグが付いています - 閲覧者には、開くまで画像はぼかして表示されます。"
   },
   "footer": {
     "about": "このサイトについて",

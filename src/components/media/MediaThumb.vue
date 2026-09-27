@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { miniatureSrc, previewSrc } from '@/services/mediaAssets'
+import { useExplicitReveal } from '@/composables/useExplicitReveal'
 
 const props = defineProps({
   media: { type: Object, required: true },
@@ -18,10 +19,17 @@ const props = defineProps({
   empty frame for as long as the network takes.
   See docs/features/media-grid-and-selection.md.
 */
+const { isCovered } = useExplicitReveal()
 const miniature = computed(() => miniatureSrc(props.media))
 const src = computed(() => previewSrc(props.media))
 const loaded = ref(false)
 const failed = ref(false)
+/*
+  An 18+ file shows only its blurred miniature until the reader uncovers it, so
+  the preview is held at opacity 0 - **loaded, never shown**, the fetch itself is
+  left alone. See docs/features/explicit-content.md.
+*/
+const covered = computed(() => isCovered(props.media))
 
 watch(src, () => {
   loaded.value = false
@@ -48,7 +56,7 @@ async function onLoaded(event) {
 <template>
   <div
     class="thumb-stage relative bg-edge/40"
-    :class="[aspect ? '' : 'aspect-square', loaded ? 'is-ready' : '']"
+    :class="[aspect ? '' : 'aspect-square', loaded && !covered ? 'is-ready' : '']"
     :style="aspect ? { aspectRatio: aspect } : undefined"
   >
     <!-- Blurred miniature is the permanent base; the sharp preview settles over

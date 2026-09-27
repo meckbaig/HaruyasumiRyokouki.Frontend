@@ -1,6 +1,7 @@
 import { Map, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { miniatureSrc, previewSrc } from './mediaAssets'
+import { isExplicitCovered } from './explicit'
 import { formatShortTime } from './dates'
 import { isSmallDevice } from './deviceBudget'
 
@@ -204,7 +205,10 @@ function setStagePicture(stage, media) {
     base = stageImage('thumb-base', miniature)
     nodes.push(base)
   }
-  if (preview) {
+  // A covered 18+ mark never settles its preview onto the map: the blurred
+  // miniature is all a pin or a pile shows until the reader uncovers it. There is
+  // no uncover control on a mark this small. See docs/features/explicit-content.md.
+  if (preview && !isExplicitCovered(media)) {
     shot = stageImage('thumb-shot', preview)
     nodes.push(shot)
   }
