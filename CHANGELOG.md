@@ -1,8 +1,29 @@
 # Changelog
 
 Feature releases only. The third segment carries fixes and small changes that a
-visitor would not notice, and those are left to the git history. Major zero said
-the site was still finding its shape; it has found it.
+visitor would not notice; they are gathered under the feature release they follow.
+Major zero said the site was still finding its shape; it has found it.
+
+## 2.3.0 - embedded youtube video
+
+A video no longer has to be a file we hold. The pending queue carries a button of its own:
+paste a YouTube link and the clip is filed as an **external** file - the server keeps the
+address, never the bytes - and the media editor opens on it straight away, ready to be placed
+in a day like anything else.
+
+Wherever the site shows that clip it plays in YouTube's own player, embedded in the frame a
+hosted video would stream into, with the preview standing over it and fading as the player
+arrives so the frame never blinks. The clip sits in its day, on the map and in the search as
+any record does; the tiles that mark it wear the YouTube logo instead of a plain play
+triangle, which is how an embedded clip is told from a hosted one at a glance.
+
+- A video is added to the pending queue by pasting a YouTube link
+- The link is stored as an external file (`source`); the video itself is never copied
+- The imported video opens in the media editor at once, ready to be filed into a day
+- An external video plays in YouTube's own player, embedded where a hosted video streams
+- The preview stands over the embedded player and fades as it arrives, so the frame never blinks
+- A tile marking an external video carries the YouTube logo, so the two are told apart at a glance
+- `POST /v1/media/youtube` and the `source` field join the contract
 
 ## 2.2.0 - vector map engine
 
@@ -23,6 +44,14 @@ budgets - keeps the behaviour it had; only what lies under them changed.
 - The basemap follows the page's light and dark themes, instead of one fixed raster image
 - The provider is chosen with `VITE_MAP_PROVIDER`: `maptoolkit` (the default), `openfreemap` or `carto`
 - Every provider is a MapLibre style, a raster one included, so a change of theme cross-fades the basemap
+- The map preview's close animation folds back into its pin
+- The album's pan no longer teleports with "force animations" on, and a press centres under reduced motion
+- Opening `?i=ID&o=1` no longer opens the whole day wall
+- 18+ files are blurred for visitors automatically until they uncover them
+- The Media button edits an existing embed instead of adding a duplicate link
+- A trash button unwraps a media or URL reference while keeping its text
+- Text inside reference markup renders in the normal text colour
+- A reference to missing or hidden media says so
 
 ## 2.1.0 - safe triangle hover
 
