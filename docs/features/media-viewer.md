@@ -109,6 +109,30 @@ hand, and a fresh probe cannot see a fetch that has just finished. So the warm's
 `onload` records the URL in `fullCached`, and `watch(current)` settles the full layer from
 that record the moment the file is reached - sharp on the first frame of the turn.
 
+## External video (embedded)
+
+A video whose `source` names a provider (`isEmbeddedVideo` in `src/services/mediaType.js`)
+is one the server only points at: it holds a link, not bytes, and `stream` is the origin's
+embed page rather than a playable file. Such a file is shown in an `<iframe>` - the
+origin's own player - not in a native `<video>`.
+
+The embed is sized and placed **exactly** like the native player: the same `fitClass` /
+`fitBoxStyle`, under the same `zoomStyle` transform, inside the same `.lightbox-cell`
+container. So every animation, the filmstrip, the hero flight and the gestures around it
+are unchanged. `videoUrls.preview` stays **over** the iframe until the embed's document has
+loaded (`embedLoaded`, set on the iframe's `load`) and then fades away, so the frame never
+blinks while the origin's player lays itself out; it is `pointer-events-none`, so the
+player is live underneath from the first frame. `videoUrls.preview` and `miniature` feed
+the strip and the flight exactly as for a hosted video. The link comes from
+`videoUrls.stream` (through `streamSrc`), which for an external file is the embed page.
+
+A press on the iframe is the player's own - an iframe swallows pointer events itself, so
+the frame never sees them - and the space around it behaves as beside any player.
+`onPlayer()` matches `iframe` as well as `video`.
+
+The deployed page must allow the embed origin in `frame-src` if a
+`Content-Security-Policy` is set; the app itself ships none.
+
 ## Fitting: where the picture goes
 
 The cell is the whole window, so scale 1 means "as large as the window allows". The two
@@ -559,6 +583,12 @@ Do not "fix" these:
     with no request - the memory probe, or the element reporting `complete` for a disk-cached
     one - is flown; one the strip has settled but the probes cannot confirm joins the flight
     faded over the preview. The memory probe alone cut preview to full at the flight's end.
+25. A video with a non-null `source` is embedded in an `<iframe>`, never streamed, and is
+    sized and transformed exactly like the native player so the animations and gestures
+    around it do not change. Which sources embed is decided by `EMBED_SOURCES` in
+    `services/mediaType.js`, keyed on the field rather than the provider name.
+26. The preview stays over an embedded video until the iframe's `load`, then fades, and it
+    is `pointer-events-none` throughout so the player is live from the first frame.
 
 ## Related
 

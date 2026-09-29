@@ -5,6 +5,7 @@ import { useUiStore } from '@/stores/ui'
 import MediaThumb from '@/components/media/MediaThumb.vue'
 import SteppedScrollbar from '@/components/layout/SteppedScrollbar.vue'
 import { pickTranslation } from '@/services/translations'
+import VideoBadge from '@/components/media/VideoBadge.vue'
 import { isVideo } from '@/services/mediaType'
 import { formatShortTime } from '@/services/dates'
 import { GHOST_CLICK_MS } from '@/services/ghostClick'
@@ -252,15 +253,7 @@ const position = computed(() => {
                   {{ i + 1 }}/{{ count }}
                 </span>
 
-                <span
-                  v-if="slide.video"
-                  class="flex items-center gap-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
-                >
-                  <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-                    <path d="M3.5 2.5v7l6-3.5z" />
-                  </svg>
-                  {{ t('media.video') }}
-                </span>
+                <VideoBadge v-if="slide.video" :media="slide.media" />
               </span>
 
               <!-- Stamped on the picture, the way a day's own tiles do it. -->

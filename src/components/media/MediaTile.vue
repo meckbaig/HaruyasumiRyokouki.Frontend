@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaThumb from './MediaThumb.vue'
+import VideoBadge from './VideoBadge.vue'
 import { mediaDate } from '@/services/mediaAssets'
 import { formatShortDate, formatShortTime } from '@/services/dates'
 import { isVideo } from '@/services/mediaType'
@@ -307,15 +308,7 @@ function activate() {
             {{ t('media.explicitBadge') }}
           </span>
 
-          <span
-            v-if="video"
-            class="flex items-center gap-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
-          >
-            <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-              <path d="M3.5 2.5v7l6-3.5z" />
-            </svg>
-            {{ t('media.video') }}
-          </span>
+          <VideoBadge v-if="video" :media="media" />
         </span>
 
         <span

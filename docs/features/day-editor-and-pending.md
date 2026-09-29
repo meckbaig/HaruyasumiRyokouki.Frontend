@@ -10,8 +10,10 @@ that lists everything still waiting to be filled in.
 | `src/components/editor/DayEditForm.vue` | The note form: language tabs, thumbnails, drafts. |
 | `src/services/dayDrafts.js` | Unsaved notes in `localStorage`. |
 | `src/views/AdminPendingView.vue` | The queue: unfiled media above, unwritten days below. |
+| `src/components/editor/YoutubeImportDialog.vue` | The one-field dialog that imports a YouTube video. |
 | `src/api/admin.js` | `GET /admin/pending`. |
 | `src/api/days.js` | `GET /days/{date}/edit`, `PUT /days/{date}`. |
+| `src/api/media.js` | `POST /media/youtube`, plus sync and delete. |
 
 ## The note form
 
@@ -79,6 +81,19 @@ second save. See [media-editor.md](media-editor.md).
 without a description, and days whose note is not marked ready. **Both are already full
 edit models**, which is why neither editor fetches anything extra on this screen.
 
+### Adding a video from YouTube
+
+`POST /media/youtube { url }` stores a **link** to the video server-side - the file itself
+is never copied - and answers `{ media: MediaFileEditDto }` with `source` set. The import
+dialog is one field; on success the file is **prepended to the queue** and the media editor
+opens on it immediately, because the response is already a full edit model
+(`translations[]` present) and needs no follow-up fetch. Importing a file by hand and then
+hunting for it in the grid is the flow this removes.
+
+The row leaves the queue the same way any other does: an approved save, or a delete. The
+viewer embeds the origin's own player for such a file - see
+[media-viewer.md](media-viewer.md).
+
 ### What removes a row
 
 | Action | Removes? |
@@ -126,6 +141,8 @@ does not wait for the dictionary or briefly show slugs.
 5. An unapproved save leaves the file on the queue.
 6. The queue reads bulk results from `editor.lastSave` / `lastDelete`, not from events.
 7. `syncMedia` must invalidate the days store.
+8. An imported YouTube file is prepended to the queue and opened in the media editor;
+   the response is already a full edit model, so no extra fetch is made.
 
 ## Related
 

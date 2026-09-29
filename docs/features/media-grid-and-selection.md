@@ -10,6 +10,7 @@ and the press-and-drag selection gesture shared by four different walls.
 | `src/components/media/MediaGrid.vue` | The wall: chunking, cascade, selection wiring. |
 | `src/components/media/MediaTile.vue` | One tile: image, badges, star, hide, pencil. |
 | `src/components/media/MediaThumb.vue` | The two-stage thumbnail. Every wall renders one. |
+| `src/components/media/VideoBadge.vue` | The video mark: a play glyph, or the origin's logo for an embedded video. |
 | `src/services/mediaTiles.js` | Finding the element(s) that stand for a file. |
 | `src/services/blockOutline.js` | The singled-out block's perimeter, as one SVG path. |
 | `src/composables/useTilePaint.js` | The paint gesture, shared. |
@@ -177,6 +178,12 @@ file can be both a video and a hidden one, and two absolutely-placed badges sat 
 each other the one time it mattered. The hidden mark comes first and carries a **word**,
 not just a symbol - it is the only badge that is a warning rather than a description, and
 an editor scanning a day should not have to work out what a crossed-out eye means.
+
+The video mark is **one component** - `VideoBadge` - rendered by every wall that shows one:
+the tile, the map card, the favourites showcase and the hover card. It wears a play triangle
+for a video we host, and the origin's own logo for one the server only points at (`source`),
+which is how a YouTube file is told from a hosted one at a glance; the "video" word stays
+beside either mark. See [media-viewer.md](media-viewer.md).
 
 The **hide button** therefore appears on approach like the pencil, unlike the star: the
 badge in the corner already reports the state, and a button repeating it would state the

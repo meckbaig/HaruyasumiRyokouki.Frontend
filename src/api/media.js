@@ -78,6 +78,21 @@ export function syncMedia() {
 }
 
 /**
+ * POST /v1/media/youtube -> the imported `MediaFileEditDto`. The server stores a
+ * **link** to the video, not its bytes, and marks it with `source`; the response
+ * is already a full edit model, so the editor opens on it with no follow-up
+ * fetch. Editor-only.
+ */
+export async function importYoutubeMedia(url) {
+  const data = await request('/media/youtube', {
+    method: 'POST',
+    body: { url },
+    requiresAuth: true,
+  })
+  return data?.media ?? null
+}
+
+/**
  * GET /v1/media/{id}/similar -> `{ media, score }[]`, most alike first and never
  * cut off at a threshold. An empty list means no fingerprint - a video, usually.
  * Editor-only. See docs/features/similarity.md.

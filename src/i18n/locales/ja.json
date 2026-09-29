@@ -181,7 +181,15 @@
     "deleteTitle": "メディアを削除",
     "deleteConfirmMany": "{count}件のファイルを削除しますか？元に戻せません。",
     "deleteCount": "{count}件を削除",
-    "deletedMany": "{count}件のファイルを削除しました"
+    "deletedMany": "{count}件のファイルを削除しました",
+    "importYoutube": "YouTube 動画",
+    "importYoutubeHint": "YouTube のリンクを貼って動画を追加します",
+    "importYoutubeTitle": "YouTube 動画を追加",
+    "youtubeUrl": "動画のリンク",
+    "youtubeUrlHint": "YouTube のリンクを貼り付けてください。外部ファイルとして保存され、ここで整理できるように開きます。",
+    "importYoutubeBusy": "追加中…",
+    "importYoutubeAction": "追加",
+    "importYoutubeAdded": "動画を追加しました"
   },
   "editor": {
     "editMedia": "メディアを編集",

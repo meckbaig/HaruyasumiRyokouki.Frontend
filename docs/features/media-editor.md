@@ -24,6 +24,10 @@ complexity is a single rule: **nothing is sent unless it was actually changed.**
 | `date` | Owning day when the caller knows it, else derived from `created`. |
 | `deletable` | Offers a delete button; the **parent** owns the confirmation and the request, because what to do with the hole differs per page. |
 
+The pending queue also opens this dialog on a freshly imported YouTube file: the
+`MediaFileEditDto` the import answers with is already an edit model, so nothing is
+fetched. See [day-editor-and-pending.md](day-editor-and-pending.md).
+
 `editList` is a **computed**, deliberately not a ref updated by a watcher. Props are patched
 one at a time in template order, so `open` becomes true a moment before `media` does - a
 watcher holding the list therefore ran *after* the one reading it, the dialog found nothing

@@ -181,7 +181,15 @@
     "deleteTitle": "Удалить медиа",
     "deleteConfirmMany": "Удалить {count} файл? Это действие необратимо. | Удалить {count} файла? Это действие необратимо. | Удалить {count} файлов? Это действие необратимо.",
     "deleteCount": "Удалить {count} файл | Удалить {count} файла | Удалить {count} файлов",
-    "deletedMany": "Удалён {count} файл | Удалено {count} файла | Удалено {count} файлов"
+    "deletedMany": "Удалён {count} файл | Удалено {count} файла | Удалено {count} файлов",
+    "importYoutube": "YouTube видео",
+    "importYoutubeHint": "Добавить видео, вставив ссылку на YouTube",
+    "importYoutubeTitle": "Добавить видео с YouTube",
+    "youtubeUrl": "Ссылка на видео",
+    "youtubeUrlHint": "Вставьте ссылку на видео YouTube - оно сохранится как внешний файл и откроется для заполнения.",
+    "importYoutubeBusy": "Добавляем…",
+    "importYoutubeAction": "Добавить",
+    "importYoutubeAdded": "Видео добавлено"
   },
   "editor": {
     "editMedia": "Редактирование медиа",

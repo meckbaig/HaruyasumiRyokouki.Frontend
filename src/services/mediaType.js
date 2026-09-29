@@ -23,3 +23,21 @@ export function isVideo(media) {
 export function isImage(media) {
   return Boolean(media) && !isVideo(media)
 }
+
+/** `source`, lowercased; null when the server hosts the file itself. */
+export function mediaSource(media) {
+  const source = String(media?.source ?? '').trim().toLowerCase()
+  return source || null
+}
+
+/*
+  Providers whose `stream` URL is an embed page rather than a playable file - a
+  video the server only points at, shown in the origin's own player. Keyed on
+  the `source` field, so a second provider is one entry here.
+*/
+const EMBED_SOURCES = new Set(['youtube'])
+
+/** A video the server does not host: embed the origin's own player instead. */
+export function isEmbeddedVideo(media) {
+  return isVideo(media) && EMBED_SOURCES.has(mediaSource(media))
+}

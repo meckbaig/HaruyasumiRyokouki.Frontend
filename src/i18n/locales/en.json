@@ -181,7 +181,15 @@
     "deleteTitle": "Delete media",
     "deleteConfirmMany": "Delete {count} file? This cannot be undone. | Delete {count} files? This cannot be undone.",
     "deleteCount": "Delete {count} file | Delete {count} files",
-    "deletedMany": "{count} file deleted | {count} files deleted"
+    "deletedMany": "{count} file deleted | {count} files deleted",
+    "importYoutube": "YouTube video",
+    "importYoutubeHint": "Add a video by pasting a YouTube link",
+    "importYoutubeTitle": "Add a YouTube video",
+    "youtubeUrl": "Video link",
+    "youtubeUrlHint": "Paste a YouTube link - it is stored as an external file and opens here for filing.",
+    "importYoutubeBusy": "Adding…",
+    "importYoutubeAction": "Add",
+    "importYoutubeAdded": "Video added"
   },
   "editor": {
     "editMedia": "Edit media",

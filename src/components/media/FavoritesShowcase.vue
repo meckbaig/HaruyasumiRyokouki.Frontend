@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { markOpenedFrom } from '@/services/openedFrom'
 import { isExplicit } from '@/services/explicit'
 import { miniatureSrc, previewSrc, mediaAspect } from '@/services/mediaAssets'
+import VideoBadge from './VideoBadge.vue'
 import { isVideo } from '@/services/mediaType'
 import { useMotionStore } from '@/stores/motion'
 import { useExplicitReveal } from '@/composables/useExplicitReveal'
@@ -344,15 +345,7 @@ function open(event, index) {
             >
               {{ t('media.explicitBadge') }}
             </span>
-            <span
-              v-if="isVideo(media)"
-              class="flex items-center gap-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
-            >
-              <svg class="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-                <path d="M3.5 2.5v7l6-3.5z" />
-              </svg>
-              {{ t('media.video') }}
-            </span>
+            <VideoBadge v-if="isVideo(media)" :media="media" />
           </span>
         </button>
       </div>

@@ -58,7 +58,7 @@ so sizing policy changes without a frontend release.
 
 ## Endpoints
 
-All 21 paths in `swagger.json` are wired. `Auth` marks `requiresAuth: true`.
+Every path in `swagger.json` is wired. `Auth` marks `requiresAuth: true`.
 
 ### Days - `src/api/days.js`
 
@@ -84,6 +84,7 @@ All 21 paths in `swagger.json` are wired. `Auth` marks `requiresAuth: true`.
 | `setPrivate(id, value)` | `PATCH /media` | ✓ | Single-field change set. |
 | `deleteMedia(id)` | `DELETE /media/{mediaId}` | ✓ | Irreversible - always confirm first. |
 | `syncMedia()` | `PUT /media/sync` | ✓ | Rescans storage for new uploads. |
+| `importYoutubeMedia(url)` | `POST /media/youtube` | ✓ | Stores a YouTube **link** as an external file (`source`); answers `{ media: MediaFileEditDto }`. |
 
 `EditMediaChanges` per `swagger.json`:
 `{ latitude, longitude, isApproved, private, favorite, tagIds, translations }`.
@@ -96,6 +97,12 @@ Two things about `changes` that bite:
   disturbing the others, use `POST /tags/{id}/media`.
 - **`translations` entries omit the row `id` deliberately.** In a bulk edit each file has
   its own translation row, so the backend matches on `languageCode`.
+
+`importYoutubeMedia` returns the new **external** file as a full edit model, so the
+caller opens the media editor on it without a further fetch. The file carries `source`,
+which tells the viewer to embed the origin's player instead of streaming it - see
+[day-editor-and-pending.md](day-editor-and-pending.md) and
+[media-viewer.md](media-viewer.md).
 
 ### Search - `src/api/search.js`
 
@@ -134,6 +141,10 @@ ready-made links, already chosen by the server for this client's display:
 imageUrls { download, fullScreen, preview }
 videoUrls { download, stream, preview }
 ```
+
+For a file with a non-null `source` the server holds only a link: `stream` is the
+origin's embed page, embedded rather than streamed - see
+[media-viewer.md](media-viewer.md).
 
 Access them through `src/services/mediaAssets.js` - `previewSrc`, `fullScreenSrc`,
 `streamSrc`, `downloadSrc`, `miniatureSrc`, `mediaAspect`, `mediaDate` - never by reaching

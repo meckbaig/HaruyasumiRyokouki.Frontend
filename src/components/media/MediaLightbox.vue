@@ -11,7 +11,7 @@ import {
   previewSrc,
   streamSrc,
 } from '@/services/mediaAssets'
-import { isVideo } from '@/services/mediaType'
+import { isEmbeddedVideo, isVideo } from '@/services/mediaType'
 import { isPrivate } from '@/services/privacy'
 import { useExplicitReveal } from '@/composables/useExplicitReveal'
 import { pickTranslation } from '@/services/translations'
@@ -67,6 +67,11 @@ let lastFocused = null
 const open = computed(() => props.index !== null && props.index >= 0)
 const current = computed(() => (open.value ? (props.items[props.index] ?? null) : null))
 const video = computed(() => isVideo(current.value))
+/* An external video: the server holds a link, not the bytes, so the origin's own
+   player is embedded where a native <video> would sit. See media-viewer.md. */
+const embedded = computed(() => isEmbeddedVideo(current.value))
+/* The embed's own document has loaded, so the preview standing over it can go. */
+const embedLoaded = ref(false)
 const { isCovered, reveal } = useExplicitReveal()
 /*
   An 18+ file keeps its preview and full-size layers dark until the reader
@@ -768,7 +773,7 @@ function updatePinch() {
 
 /** Whether a press landed on the player, whose own drags and taps come first. */
 function onPlayer(target) {
-  return video.value && Boolean(target?.closest?.('video'))
+  return video.value && Boolean(target?.closest?.('video, iframe'))
 }
 
 function onPointerDown(event) {
@@ -1248,6 +1253,7 @@ watch(current, () => {
   fullLoaded.value = false
   fullFailed.value = false
   previewLoaded.value = false
+  embedLoaded.value = false
   /*
     Asked before this file has been rendered even once, so a layer the browser
     already holds is never given a frame it would have to be shown twice. A
@@ -1971,7 +1977,47 @@ onBeforeUnmount(() => {
                 :class="animating ? 'transition-transform duration-200' : ''"
                 :style="zoomStyle"
               >
+                <!--
+                  A file the server only points at: the origin's own player is
+                  embedded, with the preview standing in until it paints. Sized
+                  and placed exactly like the native player, so every animation
+                  and every gesture around it is unchanged.
+                -->
+                <div
+                  v-if="embedded"
+                  class="pointer-events-auto relative"
+                  :class="fitClass"
+                  :style="fitBoxStyle"
+                >
+                  <!--
+                    The preview stays **over** the embed until the embed's own
+                    document has loaded, then fades away: painted under it the
+                    frame would blink as the origin's player laid itself out. It
+                    holds no presses, so the player is live from the first frame.
+                  -->
+                  <img
+                    :key="'poster-' + (current.id ?? current.fileName)"
+                    :src="preview || miniature"
+                    alt=""
+                    aria-hidden="true"
+                    draggable="false"
+                    class="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-300"
+                    :class="embedLoaded ? 'opacity-0' : 'opacity-100'"
+                  />
+                  <iframe
+                    :key="'embed-' + (current.id ?? current.fileName)"
+                    :src="stream"
+                    :title="label"
+                    class="absolute inset-0 h-full w-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowfullscreen
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    @load="embedLoaded = true"
+                  />
+                </div>
+
                 <video
+                  v-else
                   :key="current.id ?? current.fileName"
                   :src="stream"
                   :poster="preview"

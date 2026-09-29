@@ -5,6 +5,7 @@ import MediaGrid from '@/components/media/MediaGrid.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
 import MediaEditDialog from '@/components/editor/MediaEditDialog.vue'
 import DayEditForm from '@/components/editor/DayEditForm.vue'
+import YoutubeImportDialog from '@/components/editor/YoutubeImportDialog.vue'
 import SkeletonGrid from '@/components/common/SkeletonGrid.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -27,6 +28,7 @@ const error = ref(null)
 const syncing = ref(false)
 const editing = ref(null)
 const openDayDate = ref(null)
+const showYoutube = ref(false)
 /** A plain tap opens the file full screen, as everywhere else - editing has its
  *  own button and the queue is where a file most needs looking at. */
 const lightboxIndex = ref(null)
@@ -107,6 +109,19 @@ function onMediaSaved({ ids, approved } = {}) {
   }
 }
 
+/**
+ * A freshly imported video is already a full edit model, so it goes straight
+ * into the editor. It is prepended to the queue too: it has no description yet,
+ * so it belongs here until someone files it.
+ */
+function onYoutubeImported(media) {
+  showYoutube.value = false
+  if (media?.id != null && !pending.value.media.some((item) => item.id === media.id)) {
+    pending.value = { ...pending.value, media: [media, ...pending.value.media] }
+  }
+  editing.value = media
+}
+
 /* The same, for a save made through the floating toolbar - it is mounted above
    every page and cannot hand this one an event, so `editor.lastSave` is the
    channel. See docs/features/media-grid-and-selection.md. */
@@ -145,7 +160,8 @@ function dayTitle(day) {
     <header class="mb-8 flex flex-wrap items-end justify-between gap-4">
       <h1 class="text-xl font-semibold tracking-tight text-ink">{{ t('admin.title') }}</h1>
 
-      <div class="flex items-center gap-2">
+      <!-- Wraps so the four actions never run off the edge of a phone. -->
+      <div class="flex flex-wrap items-center justify-end gap-2">
         <button
           v-if="editor.count > 0"
           type="button"
@@ -158,6 +174,14 @@ function dayTitle(day) {
         <RouterLink :to="{ name: 'admin-tags' }" class="btn-ghost">
           {{ t('tags.title') }}
         </RouterLink>
+        <button
+          type="button"
+          class="btn-ghost"
+          :title="t('admin.importYoutubeHint')"
+          @click="showYoutube = true"
+        >
+          {{ t('admin.importYoutube') }}
+        </button>
         <button type="button" class="btn-primary" :disabled="syncing" @click="runSync">
           {{ syncing ? t('admin.syncing') : t('admin.sync') }}
         </button>
@@ -235,6 +259,11 @@ function dayTitle(day) {
       </section>
     </template>
 
+    <YoutubeImportDialog
+      :open="showYoutube"
+      @close="showYoutube = false"
+      @imported="onYoutubeImported"
+    />
     <MediaLightbox v-model:index="lightboxIndex" :items="pending.media" />
     <MediaEditDialog
       :open="Boolean(editing)"

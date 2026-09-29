@@ -286,6 +286,56 @@
         }
       }
     },
+    "/v1/media/youtube": {
+      "post": {
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportYoutubeMediaCommand.BodyParameters"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportYoutubeMediaCommand.BodyParameters"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportYoutubeMediaCommand.BodyParameters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportYoutubeMediaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/media/edit": {
       "get": {
         "tags": [
@@ -1371,6 +1421,31 @@
         },
         "additionalProperties": false
       },
+      "ImportYoutubeMediaCommand.BodyParameters": {
+        "required": [
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportYoutubeMediaResponse": {
+        "required": [
+          "media"
+        ],
+        "type": "object",
+        "properties": {
+          "media": {
+            "$ref": "#/components/schemas/MediaFileEditDto"
+          }
+        },
+        "additionalProperties": false
+      },
       "MediaFileDto": {
         "required": [
           "fileName"
@@ -1394,6 +1469,10 @@
             "format": "float"
           },
           "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
             "type": "string",
             "nullable": true
           },
@@ -1477,6 +1556,10 @@
             "type": "string",
             "nullable": true
           },
+          "source": {
+            "type": "string",
+            "nullable": true
+          },
           "latitude": {
             "type": "number",
             "format": "double",
@@ -1549,6 +1632,10 @@
           "aspectRatio": {
             "type": "number",
             "format": "float"
+          },
+          "source": {
+            "type": "string",
+            "nullable": true
           },
           "title": {
             "type": "string",
