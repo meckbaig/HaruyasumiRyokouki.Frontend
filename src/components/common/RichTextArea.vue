@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, nextTick, watch, onMounted } from 'vue'
-import { parseRichText } from '@/services/richText'
+import { parseRichText, markupSpans } from '@/services/richText'
 
 /**
  * A textarea that paints its own markup highlighted behind the text, the way a
@@ -17,7 +17,7 @@ const props = defineProps({
   markRange: { type: Array, default: null },
 })
 
-const emit = defineEmits(['update:modelValue', 'input'])
+const emit = defineEmits(['update:modelValue', 'input', 'caret'])
 
 const root = ref(null)
 const textarea = ref(null)
@@ -25,40 +25,61 @@ const overlay = ref(null)
 /** Where the bubble hangs: under the marked run, in the field's own coordinates. */
 const markStyle = ref(null)
 
+/** The runs a token is painted as: its tags, and the label between them. */
+function atomsFor(token) {
+  const spans = markupSpans(token)
+  if (!spans.length) return [{ from: 0, to: token.raw.length, markup: false }]
+
+  const atoms = []
+  let cursor = 0
+  for (const [from, to] of spans) {
+    if (from > cursor) atoms.push({ from: cursor, to: from, markup: false })
+    atoms.push({ from, to, markup: true })
+    cursor = to
+  }
+  if (cursor < token.raw.length) {
+    atoms.push({ from: cursor, to: token.raw.length, markup: false })
+  }
+  return atoms
+}
+
 /**
- * The source split into plain runs and markup runs. Rendering `raw` here keeps
- * exactly what is in the field, so the two layers line up character for
- * character. When a run is marked, a token is cut at the run's edges so the
- * highlight and the mark both survive.
+ * The source as the runs the layer paints. Rendering `raw` keeps exactly what
+ * is in the field, so the two layers agree character for character; only the
+ * tags are markup, so a caption reads as ordinary text. A run under the mark
+ * is cut at its edges so the highlight and the mark both survive.
  */
 const pieces = computed(() => {
   const range = props.markRange
   const out = []
-  let offset = 0
+  let base = 0
 
   for (const token of parseRichText(props.modelValue)) {
-    const start = offset
-    const end = offset + token.raw.length
-    offset = end
-    const isToken = token.type !== 'text'
+    const raw = token.raw
+    for (const atom of atomsFor(token)) {
+      const text = raw.slice(atom.from, atom.to)
+      const start = base + atom.from
+      const end = base + atom.to
 
-    if (!range) {
-      out.push({ text: token.raw, token: isToken, mark: false })
-      continue
+      if (!range) {
+        out.push({ text, token: atom.markup, mark: false })
+        continue
+      }
+
+      const markStart = Math.max(range[0], start)
+      const markEnd = Math.min(range[1], end)
+      if (markStart >= markEnd) {
+        out.push({ text, token: atom.markup, mark: false })
+        continue
+      }
+
+      const a = markStart - start
+      const b = markEnd - start
+      if (a > 0) out.push({ text: text.slice(0, a), token: atom.markup, mark: false })
+      out.push({ text: text.slice(a, b), token: atom.markup, mark: true })
+      if (b < text.length) out.push({ text: text.slice(b), token: atom.markup, mark: false })
     }
-
-    const markStart = Math.max(range[0], start)
-    const markEnd = Math.min(range[1], end)
-    if (markStart >= markEnd) {
-      out.push({ text: token.raw, token: isToken, mark: false })
-      continue
-    }
-
-    const a = markStart - start
-    const b = markEnd - start
-    if (a > 0) out.push({ text: token.raw.slice(0, a), token: isToken, mark: false })
-    out.push({ text: token.raw.slice(a, b), token: isToken, mark: true })
-    if (b < token.raw.length) out.push({ text: token.raw.slice(b), token: isToken, mark: false })
+    base += raw.length
   }
   return out
 })
@@ -96,9 +117,19 @@ function measureMark() {
   }
 }
 
+/**
+ * Tells the caller where the caret stands, so it can act on the run under it.
+ * Held when the field is left: a press on a button moves the focus first, and a
+ * caret dropped on blur would take that button away before its click lands.
+ */
+function emitCaret() {
+  emit('caret', textarea.value?.selectionStart ?? 0)
+}
+
 function onInput(event) {
   emit('update:modelValue', event.target.value)
   emit('input', event)
+  emitCaret()
   // A line typed past the box opens it rather than hiding under the scroll.
   fitToContent()
 }
@@ -175,6 +206,11 @@ defineExpose({ element: textarea })
       :value="modelValue"
       @input="onInput"
       @scroll="syncScroll"
+      @keyup="emitCaret"
+      @click="emitCaret"
+      @mouseup="emitCaret"
+      @select="emitCaret"
+      @focus="emitCaret"
     />
 
     <!-- Hung under the marked run, in the field's own coordinates. -->

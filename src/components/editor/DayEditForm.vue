@@ -13,8 +13,16 @@ import { SUPPORTED_LOCALES } from '@/i18n'
 import { cascadeDelay } from '@/services/cascade'
 import { useDelayed } from '@/composables/useDelayed'
 import { insertTemplate } from '@/composables/useTemplateInsert'
-import { mediaTemplate, urlTemplate, mediaReference } from '@/services/richText'
+import {
+  mediaTemplate,
+  urlTemplate,
+  mediaReference,
+  parseRichText,
+  referenceAt,
+} from '@/services/richText'
 import { startPick, cancelPick, picking } from '@/services/mediaPick'
+import { isPrivate } from '@/services/privacy'
+import { useReferenceCaret } from '@/composables/useReferenceCaret'
 import { useEditorStore } from '@/stores/editor'
 import { readDraft, writeDraft, clearDraft, sameNotes } from '@/services/dayDrafts'
 
@@ -50,6 +58,8 @@ const saving = ref(false)
 const loading = ref(false)
 const error = ref(null)
 const thumbs = ref([])
+/** The day's own file list has arrived, so a reference can be checked against it. */
+const thumbsLoaded = ref(false)
 /**
  * The strip is here so the day can be written while looking at it, and a
  * sixty-pixel square is not looking at it. Opening one full screen is what makes
@@ -70,19 +80,28 @@ function noteElement() {
 }
 
 /**
- * The media button, in two orders. A selection already stands: the reference is
- * born carrying it and only wants confirming. Nothing is selected: the reference
- * waits, and a single tile click fills it outright. Typing either away cancels.
+ * The media button, in three orders. A caret inside a reference opens it for
+ * editing; else a standing selection is written in and only wants confirming;
+ * else the reference waits, and a single tile click fills it. Typing cancels.
  * See docs/features/rich-text-and-links.md.
  */
 function addMediaTemplate() {
   const element = noteElement()
   if (!element) return
 
+  // A caret already standing in a reference opens it for editing instead of
+  // stacking a second one on top of it.
+  const found = referenceAt(element.value, element.selectionStart ?? 0)
+  if (found?.type === 'media') {
+    editReference(found)
+    return
+  }
+
   const ids = editor.ids
   if (ids.length) {
     // The selected text is the caption; only the ids are rewritten later.
     pendingRange.value = insertTemplate(element, (selected) => mediaReference(ids, selected))
+    if (pendingRange.value) setCaret(pendingRange.value[0])
     startPick(applyPickedMedia)
     confirmVisible.value = true
     return
@@ -91,12 +110,41 @@ function addMediaTemplate() {
   // The placeholder is left selected and remembered: the reader may fill it by
   // clicking the file in the grid rather than typing its id.
   pendingRange.value = insertTemplate(element, mediaTemplate)
+  if (pendingRange.value) setCaret(pendingRange.value[0])
   confirmVisible.value = false
   startPick(applyPickedMedia)
 }
 
+/**
+ * Opens a reference the caret stands in. Its files become the grid selection,
+ * so the wall shows what is being edited, and the pick rewrites the ids as the
+ * selection changes - the very gesture that builds one from nothing.
+ */
+function editReference(found) {
+  const element = noteElement()
+  if (!element) return
+
+  pendingRange.value = [found.ids[0], found.ids[1]]
+  confirmVisible.value = true
+  startPick(applyPickedMedia)
+  editor.selectMany(found.token.ids.map((id) => mediaById.value.get(id) ?? { id }))
+
+  element.focus()
+  element.setSelectionRange(found.ids[0], found.ids[1])
+  setCaret(found.ids[0])
+}
+
 function addUrlTemplate() {
-  insertTemplate(noteElement(), urlTemplate)
+  const range = insertTemplate(noteElement(), urlTemplate)
+  if (range) setCaret(range[0])
+}
+
+/** Takes the reference under the caret off, its label left as plain text. */
+function removeEmbed() {
+  const wasPicking = picking.value
+  if (!removeReference()) return
+  // A reference a pick was building goes with it, and so does its selection.
+  if (wasPicking) finishPick()
 }
 
 /** Writes the ids into the reference, leaving the caption and caret alone. */
@@ -172,6 +220,55 @@ function openThumb(event, index) {
 const showLoading = useDelayed(() => loading.value)
 
 const active = computed(() => form[activeLang.value] ?? { note: '' })
+
+/**
+ * The day's files, hidden ones included - what a reference is resolved against.
+ * The public day carries them; the pending queue holds only its edit model, so
+ * the thumbnail fetch is the fallback there.
+ */
+const dayMedia = computed(() => props.day?.media ?? days.getDay(props.date)?.media ?? thumbs.value)
+const mediaById = computed(() => new Map(dayMedia.value.map((item) => [item.id, item])))
+/** False until a list has arrived, so an empty one is not read as "all gone". */
+const mediaReady = computed(() =>
+  Boolean(props.day?.media || days.getDay(props.date)?.media || thumbsLoaded.value),
+)
+
+/** Every file the active note's references name, in order of appearance. */
+const referencedIds = computed(() => {
+  const ids = []
+  for (const token of parseRichText(active.value.note ?? '')) {
+    if (token.type === 'media') ids.push(...token.ids)
+  }
+  return ids
+})
+
+/**
+ * References pointing at a file that is not on the day, or is hidden: a visitor
+ * would be shown neither. Warned about on the form's own notice line.
+ */
+const brokenReferences = computed(() => {
+  if (!mediaReady.value) return []
+  const seen = new Set()
+  const problems = []
+  for (const id of referencedIds.value) {
+    if (seen.has(id)) continue
+    seen.add(id)
+    const item = mediaById.value.get(id)
+    if (item && !isPrivate(item)) continue
+    problems.push(id)
+  }
+  return problems
+})
+const brokenIds = computed(() => brokenReferences.value.join(', '))
+
+const { reference, onCaret, setCaret, removeReference } = useReferenceCaret(
+  () => active.value.note,
+  noteElement,
+)
+
+// Another language's text sits under a caret that named a run in this one.
+watch(activeLang, () => setCaret(null))
+
 const canSave = computed(() => !loading.value && !saving.value)
 
 /** An entity is already a full edit model when it carries a translations array. */
@@ -286,15 +383,23 @@ async function loadFullModel() {
  */
 async function loadThumbs() {
   thumbs.value = []
-  if (!props.showThumbs) return
+  if (!props.showThumbs) {
+    thumbsLoaded.value = true
+    return
+  }
 
   thumbs.value = props.day?.media ?? []
-  if (thumbs.value.length) return
+  if (thumbs.value.length) {
+    thumbsLoaded.value = true
+    return
+  }
   try {
     const full = await days.loadDay(props.date)
     thumbs.value = full?.media ?? []
   } catch {
     thumbs.value = []
+  } finally {
+    thumbsLoaded.value = true
   }
 }
 
@@ -431,6 +536,34 @@ async function save() {
           {{ t('editor.note') }}
         </label>
         <div class="flex gap-1">
+          <!-- The leftmost control, and only while the caret stands in an
+               embed: it takes the tags off and keeps the text inside. -->
+          <Transition name="soft">
+            <button
+              v-if="reference?.markup"
+              type="button"
+              class="btn-ghost !px-2 !py-1 !text-xs"
+              :title="t('richText.removeEmbed')"
+              :aria-label="t('richText.removeEmbed')"
+              :disabled="loading"
+              @click="removeEmbed"
+            >
+              <svg
+                class="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 6h12M8.5 6V4.2h3V6M6.4 6l.7 9.3h5.8L13.6 6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </Transition>
           <button
             type="button"
             class="btn-ghost !px-2 !py-1 !text-xs"
@@ -463,6 +596,7 @@ async function save() {
         :mark-range="confirmVisible ? pendingRange : null"
         class="mt-1"
         @input="onNoteInput"
+        @caret="onCaret"
       >
         <!-- The block is settled by hand once more than one file is selected: a
              second tile cannot mean what a single click did. The bubble hangs
@@ -502,6 +636,16 @@ async function save() {
 
     <p v-if="translated" class="cascade-item rounded-md bg-accent-soft px-3 py-2 text-xs text-ink">
       {{ t('editor.translationReview') }}
+    </p>
+
+    <!-- The same line as the translation notice: what a save would leave a
+         visitor unable to see. See docs/features/rich-text-and-links.md. -->
+    <p
+      v-if="brokenReferences.length"
+      role="alert"
+      class="cascade-item rounded-md bg-accent-soft px-3 py-2 text-xs text-ink"
+    >
+      {{ t('richText.embedWarning', { ids: brokenIds }) }}
     </p>
 
     <p v-if="error" role="alert" class="cascade-item text-sm text-accent">

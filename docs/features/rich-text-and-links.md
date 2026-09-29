@@ -9,7 +9,7 @@ the viewer to the text.
 
 | File | Role |
 | --- | --- |
-| `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `splitParagraphs`, `linkLabel`, editor template builders. |
+| `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `splitParagraphs`, `linkLabel`, editor template builders, and `referenceAt` / `unwrapReference` / `markupSpans` for the field under a caret. |
 | `src/services/favicons.js` | `faviconUrl` - the site icon a link is shown with, built from the host alone. |
 | `src/components/common/RichText.vue` | Token renderer; says which reference a card belongs to and emits references upward. |
 | `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar, the way to the tile, and the day's map for a file that carries coordinates. |
@@ -17,10 +17,11 @@ the viewer to the text.
 | `src/services/hoverIntent.js` | The hover thresholds, and the geometry of a hand's trajectory: the nearest point of the card, the safe triangle, the polygon test. Pure functions. |
 | `src/composables/useHoverIntent.js` | When a card opens and closes: hover in and out, arrival at the card, a hand stopped outside it, a card shown by hand. |
 | `src/components/layout/SteppedScrollbar.vue` | The card's bar: one record per step, draggable, drawn like the page's own. |
-| `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, and a bubble for a marked run. |
+| `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, a bubble for a marked run, and a report of where the caret stands. |
 | `src/services/textAnchor.js` | The remembered reference, `anchorSelector`, `returnToTextAnchor`. |
 | `src/services/mediaPick.js` | The fleeting mode where a tile click fills a media template. |
 | `src/composables/useTemplateInsert.js` | `insertTemplate` - writes a template at a caret and returns its range. |
+| `src/composables/useReferenceCaret.js` | `useReferenceCaret` - the reference under a field's caret, and the way to take one off. |
 | `src/views/DayView.vue` | Renders the note; decides the anchor; owns the viewer and the return. |
 | `src/components/media/MediaLightbox.vue` | The return button and the description as rich text. |
 | `src/components/editor/DayEditForm.vue` | Note field, template buttons, media picking. |
@@ -295,6 +296,18 @@ mirror came and went on its own, and nothing ever read it.
   the placeholder selected and calls `startPick`; a click on a tile in the grid hands its id
   to `insertTemplate`'s remembered range and does not open the viewer. Typing, or unmounting
   the form, cancels the wait.
+- **A caret inside a reference turns the media button into an edit.** The press does not
+  stack a second reference: `referenceAt` finds the one under the caret, its files become the
+  grid selection so the wall shows what is being edited, and the pick rewrites its ids as the
+  selection changes - the gesture that builds one from nothing.
+- **The leftmost control takes an embed off.** While the caret stands in a bracketed
+  reference, a trash button appears before the others and strips the tags, keeping the label
+  as plain text - a caption is never deleted with the reference that carried it.
+- **Only the tags are painted as markup.** `markupSpans` splits a token so the label between
+  its tags is drawn as ordinary text, and a caption is not coloured by the reference around it.
+- **A reference is checked against the day's own files.** A file that is missing, or hidden,
+  is named on the form's notice line - the same line the translation notice uses - because a
+  visitor would be shown neither. An empty file list is not read as "all missing".
 - `insertTemplate` dispatches `input`, so a `v-model` always follows.
 
 ## Invariants
@@ -361,6 +374,14 @@ mirror came and went on its own, and nothing ever read it.
 32. A link is resolved against the page's own origin before its icon is chosen: a relative or
     own-origin address takes the app's mark, and only a foreign origin reaches the icon
     service.
+33. A caret inside an existing reference makes the media button edit it, never stack a second
+    one. The reference's files become the grid selection; the pick rewrites its ids.
+34. The trash takes the tags off and keeps the text between them. It never deletes the label.
+35. In the field only the tags are markup. The label is painted as ordinary text.
+36. A field's caret is held when the field is left: a press on a button moves the focus first,
+    and a caret dropped on blur would take that button away before its click lands.
+37. A reference is checked against the day's own list, hidden files included, and an empty
+    list is not read as "all missing". A miss, or a hidden file, is warned about, not dropped.
 
 ## Related
 

@@ -129,7 +129,9 @@
     "mediaMissingHint": "There is no file with this ID here - it was deleted or the ID is wrong.",
     "openMedia": "Open full screen",
     "gotoMedia": "Go to media",
-    "returnToText": "Back to the text"
+    "returnToText": "Back to the text",
+    "removeEmbed": "Remove the embed, keeping its text",
+    "embedWarning": "Some references point to files that are missing or hidden: {ids}. Visitors will not see them."
   },
   "theme": {
     "label": "Theme"

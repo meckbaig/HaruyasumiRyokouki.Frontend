@@ -129,7 +129,9 @@
     "mediaMissingHint": "このIDのファイルはありません。削除されたか、指定が誤っています。",
     "openMedia": "全画面で開く",
     "gotoMedia": "メディアへ移動",
-    "returnToText": "本文に戻る"
+    "returnToText": "本文に戻る",
+    "removeEmbed": "埋め込みを外してテキストを残す",
+    "embedWarning": "存在しないか非表示のファイルを参照しています: {ids}。訪問者には表示されません。"
   },
   "theme": {
     "label": "テーマ"

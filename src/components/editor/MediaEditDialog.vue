@@ -21,6 +21,7 @@ import { addDays, parseIsoDate, toIsoDate } from '@/services/dates'
 import { useDelayed } from '@/composables/useDelayed'
 import { insertTemplate } from '@/composables/useTemplateInsert'
 import { mediaTemplate, urlTemplate } from '@/services/richText'
+import { useReferenceCaret } from '@/composables/useReferenceCaret'
 import { isPrivate } from '@/services/privacy'
 import { EXPLICIT_SLUG } from '@/services/explicit'
 
@@ -176,6 +177,15 @@ function discardCard() {
 }
 
 const active = computed(() => form[activeLang.value] ?? { title: '', description: '' })
+
+/*
+  The markup reference under the caret, so a stray embed can be taken off with
+  one press. See docs/features/rich-text-and-links.md.
+*/
+const { reference, onCaret, removeReference } = useReferenceCaret(
+  () => active.value.description,
+  () => descriptionEditor.value?.element,
+)
 const thumbs = computed(() => editList.value)
 
 /* Templates for the description's markup: a file of this page, and a named
@@ -652,6 +662,33 @@ async function save() {
               {{ t('editor.description') }}
             </label>
             <div class="flex gap-1">
+              <!-- The leftmost control, and only while the caret stands in an
+                   embed: it takes the tags off and keeps the text inside. -->
+              <Transition name="soft">
+                <button
+                  v-if="reference?.markup"
+                  type="button"
+                  class="btn-ghost !px-2 !py-1 !text-xs"
+                  :title="t('richText.removeEmbed')"
+                  :aria-label="t('richText.removeEmbed')"
+                  @click="removeReference"
+                >
+                  <svg
+                    class="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M4 6h12M8.5 6V4.2h3V6M6.4 6l.7 9.3h5.8L13.6 6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+              </Transition>
               <button
                 type="button"
                 class="btn-ghost !px-2 !py-1 !text-xs"
@@ -676,6 +713,7 @@ async function save() {
             v-model="active.description"
             :rows="4"
             class="mt-1"
+            @caret="onCaret"
           />
         </div>
 

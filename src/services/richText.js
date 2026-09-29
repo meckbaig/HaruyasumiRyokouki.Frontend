@@ -53,6 +53,96 @@ export function urlTemplate(selected = '') {
   return { text: `[url=address]${selected.trim()}[/url]`, select: [5, 12] }
 }
 
+/** Where `[url=` ends, the way `IDS_AT` names the end of `[media=`. */
+const HREF_AT = 5
+
+/**
+ * Where a token's markup sits inside its `raw`, as `[from, to)` spans. The
+ * label framed by the tags is left out, so the editor can colour the markup
+ * alone. A bare address carries no markup of its own.
+ */
+export function markupSpans(token) {
+  const raw = token?.raw ?? ''
+  if (!token || token.type === 'text') return []
+  if (!raw.startsWith('[')) return [[0, raw.length]]
+
+  const open = raw.indexOf(']')
+  const close = raw.lastIndexOf('[/')
+  if (open < 0 || close <= open) return [[0, raw.length]]
+  return [
+    [0, open + 1],
+    [close, raw.length],
+  ]
+}
+
+/**
+ * The reference a caret sits inside, or null. Carries the run's bounds and the
+ * ranges of its parts: `ids` for a media reference, `href` for a link, `body`
+ * for the text between the tags. `markup` is false for a bare address, which
+ * has no tags to take off. See docs/features/rich-text-and-links.md.
+ */
+export function referenceAt(text, caret) {
+  const source = String(text ?? '')
+  let offset = 0
+
+  for (const token of parseRichText(source)) {
+    const start = offset
+    const end = offset + token.raw.length
+    offset = end
+    if (token.type === 'text') continue
+    if (caret < start || caret >= end) continue
+
+    const raw = token.raw
+    if (!raw.startsWith('[')) {
+      // A bare address: the whole run is the label, and there is no tag to cut.
+      const whole = [start, end]
+      return { type: token.type, token, start, end, markup: false, ids: null, href: whole, body: whole }
+    }
+
+    const head = raw.indexOf(']') + 1
+    const body = [start + head, start + raw.lastIndexOf('[/')]
+    if (token.type === 'media') {
+      return {
+        type: 'media',
+        token,
+        start,
+        end,
+        markup: true,
+        ids: [start + IDS_AT, start + head - 1],
+        href: null,
+        body,
+      }
+    }
+    return {
+      type: 'link',
+      token,
+      start,
+      end,
+      markup: true,
+      ids: null,
+      href: [start + HREF_AT, start + head - 1],
+      body,
+    }
+  }
+  return null
+}
+
+/**
+ * Takes a reference's tags off and keeps the text between them, so an embed
+ * comes out of a note without its caption leaving with it.
+ *
+ * @returns {{ text: string, caret: number }} the rewritten text and where the
+ *   caret should stand after it, at the end of what the label said.
+ */
+export function unwrapReference(text, found) {
+  const source = String(text ?? '')
+  const body = source.slice(found.body[0], found.body[1])
+  return {
+    text: source.slice(0, found.start) + body + source.slice(found.end),
+    caret: found.start + body.length,
+  }
+}
+
 /**
  * Splits `text` into ordered tokens: `{ type: 'text' | 'media' | 'link' }`.
  * A media token carries `{ ids, id, label }` - `id` is the first of `ids`, kept
