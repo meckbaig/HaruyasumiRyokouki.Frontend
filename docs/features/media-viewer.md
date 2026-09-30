@@ -408,8 +408,10 @@ handover at the end of the flight is exact.
   the pending queue shows the same file as the strip in the day being written, and the
   "similar" panel duplicates the grid behind it. Searching by id found *a* tile.
   `markOpenedFrom(el)` must be called from whatever handler opens the viewer. The media
-  hover card instead calls `markOpenedWithoutSource()`, since its picture is a preview,
-  and the viewer must play its plain fade rather than search for a tile.
+  hover card hands its own picture over the same way, so the viewer grows out of the card
+  rather than searching the day's grid; only the opening, the card having gone by the close.
+  The flight is the **top layer** (`z-[2700]`, over the card's own `2600`), so the card's
+  stand-in fades out beneath the picture growing from it rather than hiding it.
 - **Where it flies back to** (`tileBoxBack`) prefers the remembered `originTile`, even
   off-screen - the reader knows they scrolled. Any other tile must be on screen, or there
   is no destination and the plain fade does the work.

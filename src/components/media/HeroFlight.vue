@@ -289,11 +289,13 @@ defineExpose({ active, fly, setSource, cancel: stop })
 <template>
   <Teleport to="body">
     <!-- Exactly the viewport, so it changes no coordinates; it only holds the
-         clip that keeps the picture under the page's header. -->
+         clip that keeps the picture under the page's header. It is the top
+         layer, above the viewer and the hover card, so a picture opened from the
+         card grows over the card's own stand-in. -->
     <div
       v-if="flight"
       ref="frame"
-      class="pointer-events-none fixed inset-0 z-[2500]"
+      class="pointer-events-none fixed inset-0 z-[2700]"
       :style="flight.clipPath ? { clipPath: flight.clipPath } : undefined"
     >
       <!-- The mover is translated by whatever moves the mark the flight belongs

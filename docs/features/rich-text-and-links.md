@@ -144,9 +144,10 @@ A chip may name several files, so the card is a carousel rather than a single pi
   and the thumb's own transition carries it between the steps, so it never teleports.
 - **The thumbnail is `MediaThumb`**, the two-stage miniature and preview every other wall
   uses, not a single `<img>` on `preview || miniature`.
-- **Opening full screen does not fly out of this card.** Its 160px picture is a
-  stand-in, so the open marks "no source" and the viewer plays its plain fade,
-  never searching for a tile. See [media-viewer.md](media-viewer.md).
+- **Opening full screen flies out of this card.** Its 160px picture is handed over
+  with `markOpenedFrom`, so the viewer grows from the stand-in - the map card's own
+  opening - and never searches the day's grid. Only the opening: the card has gone
+  by the close, so the close is unchanged.
 - **The first record's box, then a group.** A reference that resolves to nothing shows the
   missing panel; a reference where only some files are missing still steps through them, a
   null slide saying so.
@@ -363,8 +364,9 @@ mirror came and went on its own, and nothing ever read it.
 16. The way back is spent **only** by seeing the reference again; closing the viewer or
     paging never clears it.
 17. The card steps with a real scroll. Two records are never cross-faded.
-18. The card is **not** the flight origin; opening from it marks "no source", so the
-    viewer does not search for a tile and plays the plain fade.
+18. The card's picture **is** the flight origin: opening from it hands the element
+    over with `markOpenedFrom`, so the viewer grows from the card and never
+    searches the grid. Only the opening - the card has gone by the close.
 19. A media reference's ids are read from the run that is marked, never rebuilt from the
     caption.
 20. A follow places the block: centred when it fits the window, its first record at the

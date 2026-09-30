@@ -22,7 +22,7 @@ import { copyMediaUrl } from '@/services/share'
 import { useCopyFeedback } from '@/composables/useCopyFeedback'
 import { useDelayed } from '@/composables/useDelayed'
 import { pushOverlay, popOverlay, isTopmost, hasOverlay } from '@/services/overlayStack'
-import { takeOpenedFrom, NO_SOURCE } from '@/services/openedFrom'
+import { takeOpenedFrom } from '@/services/openedFrom'
 import { motionReduced, SLIDE_MS } from '@/services/motion'
 import { GHOST_CLICK_MS } from '@/services/ghostClick'
 import { chromeInsets } from '@/services/pageChrome'
@@ -1819,16 +1819,12 @@ watch(open, async (isOpen) => {
     pushOverlay(overlayToken)
     // Read now, with the page below still laid out as the reader left it.
     // Searching by id is the fallback only - a file can be on the page twice.
-    // `NO_SOURCE` is the opener saying it has no tile at all, so skip the search.
     const source = takeOpenedFrom()
     // Read once, for the whole session: a close drops the flag in the page, and
     // the flight re-reads its destination every frame.
     coveredAtOpen = props.pageCovered
     // A page the map covers is not searched: a tile beneath it is not reachable.
-    const from =
-      source === NO_SOURCE
-        ? null
-        : (source ?? (coveredAtOpen ? null : tileFor(current.value?.id, { visible: true })))
+    const from = source ?? (coveredAtOpen ? null : tileFor(current.value?.id, { visible: true }))
     originTile = from ? { el: from, id: current.value?.id } : null
     heroOrigin = from ? boxOf(from) : null
     openedAt = performance.now()

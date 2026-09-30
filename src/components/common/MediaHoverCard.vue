@@ -9,7 +9,7 @@ import VideoBadge from '@/components/media/VideoBadge.vue'
 import { isVideo } from '@/services/mediaType'
 import { formatShortTime } from '@/services/dates'
 import { GHOST_CLICK_MS } from '@/services/ghostClick'
-import { markOpenedWithoutSource } from '@/services/openedFrom'
+import { markOpenedFrom } from '@/services/openedFrom'
 import { SLIDE_MS } from '@/services/motion'
 import { hasCoordinates } from '@/services/mapLinks'
 
@@ -158,13 +158,14 @@ function onTouchEnd(event) {
 }
 
 /*
-  Opening full screen marks **no source**: the picture is a 160px stand-in, and
-  the viewer must not search for a tile to fly from. It plays its plain fade.
-  See docs/features/media-viewer.md.
+  Opening full screen flies from **this picture**: the 160px stand-in is the mark
+  the viewer grows out of, the map card's own opening, and it never searches the
+  day's grid. Only the opening - the card has gone by the close.
+  See docs/features/rich-text-and-links.md.
 */
-function openAt(media) {
+function openAt(media, event) {
   if (media?.id == null) return
-  markOpenedWithoutSource()
+  markOpenedFrom(event?.currentTarget ?? null)
   emit('open', media.id)
 }
 
@@ -235,7 +236,7 @@ const position = computed(() => {
                 class="block h-full w-full overflow-hidden rounded bg-edge/40"
                 :title="t('richText.openMedia')"
                 :aria-label="t('richText.openMedia')"
-                @click="openAt(slide.media)"
+                @click="openAt(slide.media, $event)"
               >
                 <MediaThumb :media="slide.media" :alt="slide.title" />
               </button>
