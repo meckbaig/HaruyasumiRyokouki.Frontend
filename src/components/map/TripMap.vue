@@ -406,10 +406,10 @@ function showMedia(id, { zoom = false } = {}) {
     // The frame is measured on the settled view and grouping, so it waits for
     // the movement - with a fallback for a view already at its target, which
     // fires no `moveend` at all.
-    let framed = false
+    let settled = false
     const frame = () => {
-      if (framed) return
-      framed = true
+      if (settled) return
+      settled = true
       scheduleFrame()
     }
     map.value.once('moveend', frame)
@@ -756,24 +756,33 @@ function endClose(element, done) {
  * what the dots are for. A lone pin gets none. See docs/features/maps.md.
  */
 function pileGroundList() {
+  // **One dot per distinct coordinate, never repeated across piles**: two piles
+  // that share a ground would otherwise stack a dot on the same point. A lone
+  // pin gets none, and a pile whose members share one coordinate gets none
+  // either - it stands on that very point. See docs/features/maps.md.
+  const seen = new Set()
   const list = []
   for (const group of groups) {
     if (group.length < 2) continue
 
-    // Distinct grounds only: two files shot from one place are one point, and a
-    // pile every member of which shares one coordinate stands on the mark's own
-    // point already, where a dot would be covered and say nothing.
-    const seen = new Set()
     const unique = []
+    const local = new Set()
     for (const index of group) {
       const item = points.value[index]
       if (!item) continue
       const key = `${item.latitude},${item.longitude}`
-      if (seen.has(key)) continue
-      seen.add(key)
+      if (local.has(key)) continue
+      local.add(key)
       unique.push([item.latitude, item.longitude])
     }
-    if (unique.length > 1) list.push(...unique)
+    if (unique.length < 2) continue
+
+    for (const ground of unique) {
+      const key = `${ground[0]},${ground[1]}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      list.push(ground)
+    }
   }
   return list
 }
@@ -1141,18 +1150,57 @@ function scheduleRegroup() {
   if (groupFrame) return
   groupFrame = requestAnimationFrame(() => {
     groupFrame = 0
-    if (regroupForBox()) syncMarkers()
+    if (!regroupForBox()) return
+    syncMarkers()
+    // The dots are cut where the pins are, so a wider cell moves them too.
+    renderRoute()
   })
 }
 
+/** The frame a pan's marker sync waits on, so a drag costs one sync per frame. */
+let syncFrame = 0
+
+/**
+ * The box's marks are brought up to date **during** a move, not only at its end:
+ * a pin that scrolls into the box while the hand is still down has to be there,
+ * and MapLibre fires `move` through the whole gesture. One frame, however many
+ * events. See docs/features/maps.md.
+ */
+function scheduleSyncMarkers() {
+  if (syncFrame) return
+  syncFrame = requestAnimationFrame(() => {
+    syncFrame = 0
+    syncMarkers()
+  })
+}
+
+/**
+ * Takes the box's size and repaints it **in the same frame**: `resize` clears
+ * MapLibre's canvas and asks for no frame of its own, so without this the wiped
+ * canvas is what gets painted - a flash on every frame of a height animation.
+ * `_render` is MapLibre's own render step, called in place of a scheduled one.
+ */
+function resizeMap() {
+  const instance = map.value
+  if (!instance) return
+  instance.resize()
+  // `_render` is internal, and MapLibre's own build keeps its name; a version
+  // bump has to check it, or the frame falls back to a scheduled repaint.
+  if (typeof instance._render === 'function') instance._render(performance.now())
+  else instance.triggerRepaint()
+  updateCard()
+  if (!fitted) fitToContent()
+  scheduleSyncMarkers()
+  scheduleRegroup()
+}
+
 /*
-  Framing the points, kept apart from drawing them because it has to run again -
-  `resize` says nothing about the framing. **The refit belongs to the first
-  layout only**: a later resize keeps the centre it has, instead of throwing the
-  view away and re-fitting the points, which read as a jump to another scale on a
-  resize that only changed the height. See docs/features/maps.md.
+  Framing the points, kept apart from drawing them: it has to run again on a
+  laid-out resize, and **the refit belongs to the first layout only** - a later
+  resize keeps the centre. The flag is `fitted`, not `framed`, so the prop of
+  that name is not shadowed in the template. See docs/features/maps.md.
 */
-let framed = false
+let fitted = false
 /** A cluster press also reaches the map's own click, a moment later. */
 let suppressClickUntil = 0
 
@@ -1203,8 +1251,10 @@ function fitToContent() {
     map.value.jumpTo({ center: FALLBACK_CENTER, zoom: FALLBACK_ZOOM })
   }
   // A box that had no size when this ran has not been framed at all, so the
-  // first laid-out resize still gets to do it.
-  framed = map.value.getContainer().clientWidth > 0
+  // first laid-out resize still gets to do it. **Both sides**: a fold still
+  // growing has width but no height, and fitting there lands on the wrong scale.
+  const box = map.value.getContainer()
+  fitted = box.clientWidth > 0 && box.clientHeight > 0
 }
 
 let resizeObserver = null
@@ -1226,27 +1276,38 @@ onMounted(() => {
       onScrollHint: flashHint,
       wheelZoom: props.wheelZoom,
       scheme: theme.resolvedTheme?.scheme ?? 'light',
+      // This component sizes the map itself, so a height can be animated
+      // without the canvas being reallocated mid-movement.
+      trackResize: false,
     }),
   )
   map.value = instance
 
   routeCanvas.value = createRouteCanvas(instance)
 
-  // A zoom changes both: the chevrons are spaced on screen, and the pins are
-  // grouped by what lands on top of what.
+  // A zoom changes all of it: the chevrons are spaced on screen, the pins are
+  // grouped by what lands on top of what, and the grounds the route dots stand
+  // on are cut again - so the canvas is told them, or it keeps the last zoom's.
   instance.on('zoomend', () => {
     refreshGroups()
     syncMarkers()
+    renderRoute()
   })
 
-  // The album and the route both follow the box as it moves; the route canvas
-  // redraws itself on `move`, so only the card is placed here.
-  instance.on('move', () => updateCard())
+  // The album, the route and the visible pins all follow the box as it moves.
+  // The route canvas redraws itself on `move`; the marks are synced once a frame
+  // here, so a pan does not leave the ground it just reached bare until the
+  // hand comes up. See docs/features/maps.md.
+  instance.on('move', () => {
+    updateCard()
+    scheduleSyncMarkers()
+  })
 
   instance.on('moveend', () => {
-    // The grouping is unchanged by a pan, but the visible set is not, and the
-    // framing pan is no reason to leave the new ground bare.
-    syncMarkers()
+    // The grouping is unchanged by a pan, but the visible set is not. A move
+    // already synced once a frame, so this settle stays coalesced with it rather
+    // than rebuilding the marks a second time for the same frame.
+    scheduleSyncMarkers()
     updateCard()
     scheduleRegroup()
   })
@@ -1274,16 +1335,11 @@ onMounted(() => {
   // through the same path as the viewer's close, so it never zooms.
   if (props.initialSelection?.id != null) showMedia(props.initialSelection.id)
 
-  // The map is often laid out inside a container that resizes after mount
-  // (sidebar, tab switch); without this it renders as a grey box - and without
-  // the first refit, one at the wrong scale. A later resize keeps the centre.
-  resizeObserver = new ResizeObserver(() => {
-    instance.resize()
-    if (!framed) fitToContent()
-    syncMarkers()
-    scheduleRegroup()
-    updateCard()
-  })
+  // MapLibre's own tracker is off (see `createBaseMap`), so this is the one
+  // resize path, and it repaints as it sizes: an animated height fires it on
+  // every frame, and none of them may be left showing a wiped canvas.
+  // See docs/features/maps.md.
+  resizeObserver = new ResizeObserver(resizeMap)
   resizeObserver.observe(container.value)
 
   document.addEventListener('keydown', onKeydown, true)
@@ -1339,6 +1395,7 @@ watch(
 onBeforeUnmount(() => {
   clearTimeout(hintTimer)
   if (groupFrame) cancelAnimationFrame(groupFrame)
+  if (syncFrame) cancelAnimationFrame(syncFrame)
   stopClusterTicker()
   document.removeEventListener('keydown', onKeydown, true)
   const options = { capture: true }
@@ -1368,7 +1425,10 @@ onBeforeUnmount(() => {
       a card taller than a short day map is free to overhang it. `h-full` carries
       a window-filling height down to the tiles.
     -->
-    <div class="h-full overflow-hidden" :class="framed ? 'rounded-lg ring-1 ring-edge' : ''">
+    <div
+      class="h-full overflow-hidden"
+      :class="framed ? 'rounded-lg ring-1 ring-edge' : ''"
+    >
       <div
         ref="container"
         :style="{ height }"

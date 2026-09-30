@@ -231,8 +231,9 @@ exactly as before. The pass runs where the pin grouping runs - a zoom or new dat
 a pan, which does not move a ground.
 
 **Only the visible ones exist.** `syncMarkers` draws the groups that fall in or near the box and
-takes the rest out of the DOM on `moveend` and `zoomend`, so panning onto empty ground costs
-nothing. A settle that could change the cell is answered a frame later
+takes the rest out of the DOM. It runs **once a frame through a `move`**, so a pin the box
+scrolls onto while the hand is still down is drawn there and then, and again on `moveend` and
+`zoomend`, so panning onto empty ground costs nothing. A settle that could change the cell is answered a frame later
 (`requestAnimationFrame`), so a burst of settles costs one recompute, never one per event. A
 pin's icon is kept between rebuilds, **in the cache of the map that asked** (`photoPinIcon`
 takes the map as its scope), so a zoom no longer makes a fresh `<img>` and a fresh load for a
@@ -310,13 +311,16 @@ row spreads rather than piling up.
 
 - **Redrawn on every `move`, once per frame.** MapLibre fires `move` through a pan and a zoom
   alike, so one rAF-guarded redraw keeps the row on the view actually on screen; a resize
-  redraws too. Clipping keeps each draw to a handful of chevrons.
+  redraws too. Clipping keeps each draw to a handful of chevrons. **The dot set is cut again on
+  a `zoomend`** and when a settle widens the pins' cell, so the grounds travel with the pins
+  instead of staying on the zoom the map was built at.
 - **A dot at every pile member's own distinct ground.** The chevron row is stamped along the
   files' own coordinates while a pile's mark stands on their centroid, so without them the row
-  begins and ends in mid-air. One dot per **distinct** coordinate in a pile: two files shot from
-  one place are one point, and a pile whose members all share a coordinate stands on the mark's
-  own point already, so it contributes nothing at all. Never the centroid, which the mark
-  covers, and never a lone pin, whose own mark is the point the row runs to. It takes the arrows'
+  begins and ends in mid-air. One dot per **distinct** coordinate in a pile, and **never repeated
+  across piles**: two files shot from one place are one point, a pile whose members all share one
+  coordinate contributes nothing - it stands on that very point - and a ground two piles both
+  hold is drawn once. Never the centroid, which the mark covers, and never a lone pin, whose own
+  mark is the point the row runs to. It takes the arrows'
   own colour at 2.2px of radius with a ring of the mark's own frame (`ROUTE_ARROW.dotRadius`,
   `.dotRing`), so a dot standing among chevrons is not read as one of them. Painted in the same
   pass and the same projection as the chevrons, so they scale and travel with the row - and one
@@ -359,6 +363,11 @@ starts a drag only when `!e.ctrlKey`, and rotation is off on every map here, so 
 once did nothing at all. `addCtrlDragPan` re-dispatches the press without the modifier; the
 moves that follow are accepted as they are, because only a drag's start is checked.
 
+**The arrow keys do not pan.** MapLibre's keyboard handler pans and rotates on them by default,
+and both are wanted for other things here: the album steps on `←`/`→`, and the day page pages
+on them. `createBaseMap` calls `keyboard.disableRotation()`, which drops the pan and rotate keys
+and keeps MapLibre's own `+`/`-` zoom.
+
 **Reduced motion is honoured where this code starts an animation itself, and the app's gate is
 the only one.** `motionReduced()` in `services/motion.js` reads the OS setting together with the
 reader's `data-motion="always"` opt-in. **MapLibre reads `prefers-reduced-motion` too** and drops
@@ -382,10 +391,11 @@ height - `PIN_H`, from `PHOTO_PIN_SIZE` and `PHOTO_PIN_TAIL`, never a second har
 number. At the side margin alone the northernmost pin is cut off, and a taller pin in a
 later pass would widen the gap without anyone remembering why it was there.
 
-**The refit belongs to the first layout only.** A `framed` flag is set once, after the first
-fit taken with a box that has a size, and no later resize re-fits: a resize keeps the centre,
-because MapLibre pans by the change of centre and the ground that was under the middle lands
-on the new middle. Handing a view to the expanded map is unchanged: `getView()` /
+**The refit belongs to the first layout only.** A `fitted` flag is set once, after the first
+fit taken with a box that has a size, and no later resize re-fits: a plain resize keeps the
+centre, because MapLibre pans by the change of centre and the ground that was under the middle
+lands on the new middle. An animated height is the same case - the camera keeps the centre and
+the page moves instead. Handing a view to the expanded map is unchanged: `getView()` /
 `initialView` still wins over any refit.
 
 ## The album over a pin
@@ -655,6 +665,18 @@ search with no element to hand is stood down, and such a close plays the plain f
 
 The map body is `data-no-swipe`, so panning it never pages to another day.
 
+**On a phone the toolbar stands under the map**, while the heading and the hide-map toggle keep
+their line. The map's own canvas takes `touch-action` for panning, so a thumb resting on it
+cannot move the page; two **invisible** strips over the map's outer edges hand that gesture
+back, and the page's own margins are left exactly as they were. While the map fills the window
+the day's own arrow paging is stood down, so a press after the last picture cannot leave the
+day. See [days-and-calendar.md](days-and-calendar.md).
+
+**Taller or shorter moves the page with the box.** The map keeps its own centre - a height is a
+size like any other, so the camera is never panned - and the page follows it, written frame by
+frame **from the height the transition is actually at**, so the two cannot run at different
+speeds; a native smooth scroll has its own curve and its own start, and drifted behind the map.
+
 ### Coming from the viewer
 
 The viewer's map icon (see [media-viewer.md](media-viewer.md)) hands a file back to the day
@@ -781,8 +803,9 @@ which rooftop.
     drawn. The dots at a pile's **distinct** grounds are painted on the dot canvas, in the same
     pass and the same projection as the chevrons - never at the centroid the mark covers, and
     never on a lone pin, whose own mark is the point the row runs to. A pile whose members
-    share one coordinate contributes no dot, and one that repeats a coordinate contributes it
-    once. Over `dotBudget()` the grounds are merged by the shared centroid rule at the dots'
+    share one coordinate contributes no dot, one that repeats a coordinate contributes it once,
+    and a coordinate two piles share is drawn once. The set is cut again on a **zoom**, so the
+    grounds travel with the pins. Over `dotBudget()` the grounds are merged by the shared centroid rule at the dots'
     own cell figures, and the cap counts the clusters **the box draws**; one dot stands on each
     cluster's centroid, and the canvas keeps every cluster for a pan.
 19. The canvases ride nothing: the chevrons are projected and drawn in **screen pixels** on
@@ -799,7 +822,8 @@ which rooftop.
     a distance did. A marker's element is reused across a rebuild that keeps its key, so a zoom
     does not make a fresh picture; the map never draws a mark per file at a whole-country zoom.
     The dots are cut in the same pass as the pins, never on a pan, and their `dotBudget()` cap
-    counts the clusters the box draws too.
+    counts the clusters the box draws too. The visible set is brought up to date once a frame
+    through a `move`, so a pan draws the pins it scrolls onto before the hand is released.
 22. The frame always brings the card's **own centre** to the middle of the box, on a press and
     on a step alike. The offset is **`reference - target`**, because `panBy` moves the centre by
     its offset. A step re-frames **at once**, so its own slide and the camera are one movement;
@@ -829,8 +853,10 @@ which rooftop.
     tile's - and the crop is declared `!important`, because a mark lives in the map's own
     marker layer.
 28. The map is framed on the **first layout** only; a later resize keeps the centre, and a
-    resize is never a reason to re-fit the points. The resize observer calls `map.resize()`, so
-    MapLibre pans by the change of centre and the middle keeps its ground.
+    resize is never a reason to re-fit the points. `trackResize` is off and `TripMap`'s own
+    observer is the one resize path - an animated height is a size like any other, so the camera
+    keeps the centre throughout, and the **page** is moved by the whole change instead, in the
+    day page's own height toggle.
 29. A day pin stamps its file's clock, and a change of locale drops the drawn markers and
     rebuilds them. Without that, whichever map was built first owns the mark.
 30. The album has **one entry point**, `showMedia(id, { zoom })`: the viewer's close (which
@@ -894,6 +920,16 @@ which rooftop.
 45. The album's description is the same rich text a day note is, drawn by `RichText` - not a
     plain string. The preview card is off there, since a card over the album would be a second
     overlay; a reference press opens the file, so no chip is dead.
+46. MapLibre's arrow-key panning is off on **every** map (`keyboard.disableRotation()`), so
+    `←`/`→` reach the album and the day page instead; the `+`/`-` zoom keys stay. While a day
+    page's map fills the window its own arrow paging is stood down, so a press after the last
+    picture cannot leave the day.
+47. A resize **clears MapLibre's canvas and asks for no frame of its own**, so the frame is
+    drawn in the same turn: `Map.resize` is followed by MapLibre's own `_render`, its internal
+    render step, whose name the published build keeps. Without it a wiped canvas is what gets
+    painted - the flash a height animation showed on every frame. The call is guarded, and a
+    version bump has to confirm the name; the fallback is `triggerRepaint`, a frame late. The
+    visible marks are synced once a frame, never once per resize callback.
 
 ## Related
 

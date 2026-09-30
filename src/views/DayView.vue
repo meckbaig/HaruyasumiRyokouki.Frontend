@@ -405,6 +405,51 @@ const mapHeight = computed(() =>
   mapExpanded.value ? 'min(900px, calc(100vh - 12rem))' : 'min(360px, 100vh)',
 )
 
+/** The height-follow loop, so a second press does not fight the first. */
+let heightFrame = 0
+
+/** Stops the follow and hands the page's own scroll behaviour back. */
+function stopHeightFollow() {
+  if (heightFrame) cancelAnimationFrame(heightFrame)
+  heightFrame = 0
+  document.documentElement.style.scrollBehavior = ''
+}
+
+/**
+ * Keeps the page on the map while the height moves: the scroll is written from
+ * the height the transition is **actually** at, frame by frame, so the two cannot
+ * run at different speeds - a native smooth scroll has its own curve and start.
+ */
+function followMapHeight(body, from) {
+  stopHeightFollow()
+  const scrollFrom = window.scrollY
+  // The page scrolls smoothly by default; each step here is its own instant
+  // move, so that inheritance is stood down for the length of the follow.
+  document.documentElement.style.scrollBehavior = 'auto'
+  let last = from
+  let still = 0
+  const step = () => {
+    const height = body.offsetHeight
+    window.scrollTo(0, scrollFrom + (height - from))
+    still = height === last ? still + 1 : 0
+    last = height
+    if (still < 2) heightFrame = requestAnimationFrame(step)
+    else stopHeightFollow()
+  }
+  heightFrame = requestAnimationFrame(step)
+}
+
+/**
+ * Taller or shorter, with the page following the box: the map keeps its own
+ * centre, and the page is moved with it so the reader does not have to scroll.
+ */
+function toggleMapHeight() {
+  const body = document.querySelector('[data-day-map] .trip-map')
+  const before = body?.offsetHeight ?? 0
+  mapExpanded.value = !mapExpanded.value
+  if (body) followMapHeight(body, before)
+}
+
 // The page behind an overlay must not scroll under it.
 watch(mapFullscreen, (open) => {
   document.body.style.overflow = open ? 'hidden' : ''
@@ -558,7 +603,9 @@ function onKeydown(event) {
     return
   }
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-  if (hasOverlay() || editingNote.value) return
+  // A full-screen map owns the arrows: they step its album, and a press after
+  // the last picture must not page the day on underneath. See docs/features/maps.md.
+  if (hasOverlay() || editingNote.value || mapFullscreen.value) return
 
   const el = document.activeElement
   const tag = el?.tagName
@@ -587,6 +634,7 @@ onBeforeUnmount(() => document.removeEventListener('scrollend', settleAnchor))
 onBeforeUnmount(() => clearTextAnchor())
 onBeforeUnmount(() => clearTimeout(emphasisTimer))
 onBeforeUnmount(() => clearTimeout(scrollSettleTimer))
+onBeforeUnmount(() => stopHeightFollow())
 
 /**
  * Touch equivalent of the arrow keys. Suspended under an overlay and during a
@@ -804,20 +852,38 @@ function onNoteSaved() {
            `appear`, so a cached day draws its map with no animation. -->
       <Transition name="reveal">
         <div v-if="locatedMedia.length" class="reveal">
-          <section class="mb-12">
-            <div class="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <!-- Heading becomes a show/hide button when the map is hidden by default. -->
-              <button
-                v-if="mapHiddenByDefault"
-                type="button"
-                class="text-sm font-semibold text-ink-soft transition hover:text-ink"
-                @click="mapShown = !mapShown"
-              >
-                {{ mapShown ? t('day.hideMap') : t('day.showMap') }}
-              </button>
-              <h2 v-else class="text-sm font-semibold text-ink-soft">{{ t('day.onMap') }}</h2>
+          <!--
+            A grid, not a row: on a phone the map's buttons drop to the third
+            row, under the map, while the heading and the hide-map toggle keep
+            the first; on a wider screen everything is back on the first line.
+          -->
+          <section
+            class="mb-12 grid grid-cols-[1fr_auto] gap-y-3 sm:grid-cols-[1fr_auto_auto] sm:gap-x-4 sm:gap-y-2"
+          >
+            <!-- Heading becomes a show/hide button when the map is hidden by default. -->
+            <button
+              v-if="mapHiddenByDefault"
+              type="button"
+              class="col-start-1 row-start-1 self-center text-left text-sm font-semibold text-ink-soft transition hover:text-ink"
+              @click="mapShown = !mapShown"
+            >
+              {{ mapShown ? t('day.hideMap') : t('day.showMap') }}
+            </button>
+            <h2
+              v-else
+              class="col-start-1 row-start-1 self-center text-sm font-semibold text-ink-soft"
+            >
+              {{ t('day.onMap') }}
+            </h2>
 
-              <div class="flex flex-wrap items-center justify-end gap-2">
+            <!--
+              Under the map on a phone, on the heading's line on a wider screen:
+              a thumb reaching for these above a tall map crosses the whole map.
+            -->
+            <div
+              :class="mapShown ? 'row-start-3' : 'row-start-2'"
+              class="col-span-2 flex flex-wrap items-center justify-end gap-2 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:justify-self-end"
+            >
                 <!-- The day as a range on the trip page, where the map is the page. -->
                 <RouterLink
                   :to="{ name: 'map', query: { from: date, to: date } }"
@@ -844,7 +910,7 @@ function onNoteSaved() {
                   class="btn-ghost !px-2 !py-1"
                   :title="mapExpanded ? t('day.collapseMapHeight') : t('day.expandMapHeight')"
                   :aria-label="mapExpanded ? t('day.collapseMapHeight') : t('day.expandMapHeight')"
-                  @click="mapExpanded = !mapExpanded"
+                  @click="toggleMapHeight"
                 >
                   <svg
                     class="h-4 w-4"
@@ -886,29 +952,35 @@ function onNoteSaved() {
                   </svg>
                 </button>
 
-                <!-- Preference toggle, always available while the day has locations. -->
-                <label class="flex cursor-pointer items-center gap-2 text-xs text-ink-faint">
-                  {{ t('day.mapDefaultHidden') }}
-                  <input
-                    type="checkbox"
-                    class="peer sr-only"
-                    :checked="mapHiddenByDefault"
-                    @change="toggleMapDefault"
-                  />
-                  <span
-                    class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
-                    aria-hidden="true"
-                  >
-                    <span
-                      class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition"
-                    />
-                  </span>
-                </label>
               </div>
-            </div>
+
+            <!-- Preference toggle, always available while the day has locations.
+                 It keeps the place it always had: on the heading's own line. -->
+            <label
+              class="col-start-2 row-start-1 flex cursor-pointer items-center gap-2 self-center justify-self-end text-xs text-ink-faint sm:col-start-3 sm:row-start-1"
+            >
+              {{ t('day.mapDefaultHidden') }}
+              <input
+                type="checkbox"
+                class="peer sr-only"
+                :checked="mapHiddenByDefault"
+                @change="toggleMapDefault"
+              />
+              <span
+                class="relative h-4 w-7 rounded-full bg-edge transition peer-checked:bg-accent peer-checked:[&>span]:translate-x-3"
+                aria-hidden="true"
+              >
+                <span
+                  class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-paper-raised transition"
+                />
+              </span>
+            </label>
 
             <Transition name="reveal">
-              <div v-if="mapShown" class="reveal">
+              <div
+                v-if="mapShown"
+                class="reveal col-span-2 row-start-2 sm:col-span-3 sm:row-start-2"
+              >
                 <!-- `data-no-swipe`: panning the map must not page to another day. -->
                 <TripMap
                   ref="tripMap"
@@ -922,7 +994,24 @@ function onNoteSaved() {
                   animated-height
                   @open="openMapMedia"
                   @activate="activateMapMedia"
-                />
+                >
+                  <!--
+                    Invisible grip strips beside the windowed phone map: the map
+                    canvas takes `touch-action` for panning, so a thumb on it
+                    cannot scroll the page. These see-through boxes give that
+                    finger the page back. See docs/features/maps.md.
+                  -->
+                  <template #controls>
+                    <div
+                      class="pointer-events-auto absolute inset-y-0 -left-4 z-[500] hidden w-8 max-sm:block"
+                      aria-hidden="true"
+                    />
+                    <div
+                      class="pointer-events-auto absolute inset-y-0 -right-4 z-[500] hidden w-8 max-sm:block"
+                      aria-hidden="true"
+                    />
+                  </template>
+                </TripMap>
               </div>
             </Transition>
           </section>

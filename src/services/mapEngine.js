@@ -521,7 +521,7 @@ function pixelRatioFor(container) {
  */
 export function createBaseMap(
   container,
-  { center, zoom, onScrollHint, wheelZoom = false, scheme = 'light' } = {},
+  { center, zoom, onScrollHint, wheelZoom = false, scheme = 'light', trackResize = true } = {},
 ) {
   const spec = mapStyleFor(scheme)
   warmHosts(PROVIDERS[MAP_PROVIDER])
@@ -532,6 +532,10 @@ export function createBaseMap(
     zoom: zoom ?? FALLBACK_ZOOM,
     maxZoom: MAX_ZOOM,
     attributionControl: false,
+    // MapLibre clears its canvas on every resize and repaints nothing of its
+    // own; a caller that animates the box stands its tracker down and sizes the
+    // map itself. See docs/features/maps.md.
+    trackResize,
     // Painting cost scales with the framebuffer, so a large viewport is capped.
     pixelRatio: pixelRatioFor(container),
     // A vector style cross-fades its tiles; a shorter fade is a cheaper one.
@@ -553,6 +557,11 @@ export function createBaseMap(
     scrollZoom: true,
   })
   map.__scheme = scheme
+  // The arrow keys pan the map by MapLibre's default, and they are wanted for
+  // stepping the album and the day instead. Only the zoom keys are kept, so a
+  // full-screen map never moves under a press meant for the picture on it.
+  // See docs/features/maps.md.
+  map.keyboard.disableRotation()
   applyChrome(map, spec)
   addCtrlDragPan(map, container)
   if (!wheelZoom) addWheelGuard(container, onScrollHint)
