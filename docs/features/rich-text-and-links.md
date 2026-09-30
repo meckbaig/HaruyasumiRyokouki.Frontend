@@ -17,7 +17,8 @@ the viewer to the text.
 | `src/services/hoverIntent.js` | The hover thresholds, and the geometry of a hand's trajectory: the nearest point of the card, the safe triangle, the polygon test. Pure functions. |
 | `src/composables/useHoverIntent.js` | When a card opens and closes: hover in and out, arrival at the card, a hand stopped outside it, a card shown by hand. |
 | `src/components/layout/SteppedScrollbar.vue` | The card's bar: one record per step, draggable, drawn like the page's own. |
-| `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, a bubble for a marked run, and a report of where the caret stands. |
+| `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, a bubble under a marked run, a pick's hint cloud above that same run, and a report of where the caret stands. |
+| `src/components/editor/MarkupToolbar.vue` | The three field controls - take the embed off, media, link - worn by both the note and the description, above and below the note. |
 | `src/services/textAnchor.js` | The remembered reference, `anchorSelector`, `returnToTextAnchor`. |
 | `src/services/mediaPick.js` | The fleeting mode where a tile click fills a media template. |
 | `src/composables/useTemplateInsert.js` | `insertTemplate` - writes a template at a caret and returns its range. |
@@ -268,7 +269,12 @@ mirror came and went on its own, and nothing ever read it.
 
 ## The editor
 
-- **Buttons sit level with the field's label**, not in a row of their own under the field.
+- **The field controls are one shared component**, `MarkupToolbar` - the leftmost trash, then
+  media, then link. They sit level with the field's **label**, and the day note wears a second
+  set right below the field, so a reference can be started down there without scrolling back
+  to the top. That lower set sits the same 4px under the field as the field sits under its
+  label row, and is kept **out of the flow**, so the note-ready box below still stands its own
+  distance from the field itself and not from the controls.
 - **The media button picks one file or several.** A single tile click fills the reference
   outright and ends the pick - no confirmation, because a click is already a decision. Once a
   *selection* stands (in the grid, the same gesture as an edit), the reference is rewritten
@@ -278,6 +284,13 @@ mirror came and went on its own, and nothing ever read it.
 - **The bubble is a slot, not a floating dialog.** `RichTextArea` marks the run (the ids)
   and renders whatever the caller puts in `#mark-action` under it; the field that is editing
   owns the button and the meaning.
+- **The pick's hint hangs above the reference being filled.** It is a cloud in the field's own
+  coordinates (`.rich-editor-hint`), placed on the marked run - the ids the pick is writing -
+  so it reads as belonging to that reference instead of the field's first block, and never
+  moves the form. It sits **above** the run while the confirm bubble sits **below** it, so the
+  two cannot meet. It is **muted**, not accent: a note to the reader, not the block itself.
+  Shown and withdrawn by the same rule as before: while a pick runs and no block is waiting to
+  be confirmed (`picking && !confirmVisible`).
 - **`RichTextArea` highlights the markup.** It is a textarea whose own text is transparent,
   with a `<pre>` of the same tokens painted behind it, scrolled in step. The two layers share
   every metric - font, padding, line height, `scrollbar-gutter` - or the highlight drifts
@@ -382,6 +395,13 @@ mirror came and went on its own, and nothing ever read it.
     and a caret dropped on blur would take that button away before its click lands.
 37. A reference is checked against the day's own list, hidden files included, and an empty
     list is not read as "all missing". A miss, or a hidden file, is warned about, not dropped.
+38. The pick's hint hangs above the run being edited, never at the field's first block and
+    never in the flow under the note: a notice that comes and goes must not move the form, and
+    it must belong to the reference it is filling. The confirm bubble takes the space below the
+    run, so the hint above it is never covered. The day note's field controls appear above
+    **and** below the field, from one shared `MarkupToolbar`. The lower set sits 4px under the
+    field, matching the field's own gap under its label row, and is out of the flow - the
+    note-ready box below keeps its spacing from the **field**, not from the controls.
 
 ## Related
 

@@ -5,7 +5,7 @@ import { parseRichText, markupSpans } from '@/services/richText'
 /**
  * A textarea that paints its own markup highlighted behind the text, the way a
  * code editor does - so a reference is not lost among a paragraph. It can also
- * mark a run of characters and hang an action under it in a bubble.
+ * mark a run of characters and hang a bubble under it and a hint above it.
  * See docs/features/rich-text-and-links.md.
  */
 const props = defineProps({
@@ -22,8 +22,10 @@ const emit = defineEmits(['update:modelValue', 'input', 'caret'])
 const root = ref(null)
 const textarea = ref(null)
 const overlay = ref(null)
-/** Where the bubble hangs: under the marked run, in the field's own coordinates. */
-const markStyle = ref(null)
+/** Where the confirm bubble hangs: under the run, in field coordinates. */
+const anchorStyle = ref(null)
+/** Where the pick's hint hangs: above the run, clear of the bubble below it. */
+const hintStyle = ref(null)
 
 /** The runs a token is painted as: its tags, and the label between them. */
 function atomsFor(token) {
@@ -99,21 +101,29 @@ function syncScroll() {
 function measureMark() {
   const element = root.value
   if (!element || !props.markRange) {
-    markStyle.value = null
+    anchorStyle.value = null
+    hintStyle.value = null
     return
   }
 
   const mark = element.querySelector('[data-mark]')
   if (!mark) {
-    markStyle.value = null
+    anchorStyle.value = null
+    hintStyle.value = null
     return
   }
 
   const box = mark.getBoundingClientRect()
   const frame = element.getBoundingClientRect()
-  markStyle.value = {
-    left: `${Math.round(box.left - frame.left)}px`,
+  const left = `${Math.round(box.left - frame.left)}px`
+  anchorStyle.value = {
+    left,
     top: `${Math.round(box.bottom - frame.top + 6)}px`,
+  }
+  // Above the run, measured off the frame's foot: the bubble below never covers it.
+  hintStyle.value = {
+    left,
+    bottom: `${Math.round(frame.bottom - box.top + 6)}px`,
   }
 }
 
@@ -213,9 +223,20 @@ defineExpose({ element: textarea })
       @focus="emitCaret"
     />
 
+    <!-- The pick's hint hangs above the run being edited, clear of the bubble below it. -->
+    <Transition name="rich-bubble">
+      <div v-if="$slots.hint && hintStyle" class="rich-editor-hint" :style="hintStyle">
+        <slot name="hint" />
+      </div>
+    </Transition>
+
     <!-- Hung under the marked run, in the field's own coordinates. -->
     <Transition name="rich-bubble">
-      <div v-if="$slots['mark-action'] && markStyle" class="rich-editor-bubble" :style="markStyle">
+      <div
+        v-if="$slots['mark-action'] && anchorStyle"
+        class="rich-editor-bubble"
+        :style="anchorStyle"
+      >
         <slot name="mark-action" />
       </div>
     </Transition>

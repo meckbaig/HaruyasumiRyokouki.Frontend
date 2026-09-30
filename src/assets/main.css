@@ -1804,6 +1804,41 @@
   background-color: var(--color-paper-raised);
 }
 
+/*
+  The hint a pick raises: a cloud hung above the run being edited, while the
+  confirm bubble hangs below it, so the two never meet and the form never moves.
+  Placed in field coordinates by RichTextArea. Muted, not accent: it is a note.
+  See docs/features/rich-text-and-links.md.
+*/
+.rich-editor-hint {
+  position: absolute;
+  z-index: 20;
+  max-width: calc(100% - 1rem);
+  border-radius: 0.7rem;
+  border: 1px solid var(--color-edge);
+  background-color: var(--color-paper-raised);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-ink-soft);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.14);
+  /* Passes the hand through to the field underneath. */
+  pointer-events: none;
+}
+
+.rich-editor-hint::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 12px;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border-right: 1px solid var(--color-edge);
+  border-bottom: 1px solid var(--color-edge);
+  background-color: var(--color-paper-raised);
+}
+
 @keyframes rich-bubble-in {
   from {
     opacity: 0;

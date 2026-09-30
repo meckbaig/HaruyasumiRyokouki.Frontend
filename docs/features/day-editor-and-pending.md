@@ -28,6 +28,13 @@ request is made there.
 
 `buildTranslations()` sends only languages with a non-blank note, each keeping its `id`.
 
+The note field wears the shared `MarkupToolbar` above **and** below it, so a media reference
+can be started from either end of a long note. The lower set sits the same 4px under the field
+as the field sits under its own label row, and is out of the flow, so the note-ready box below
+still stands its own distance from the field itself. The checkbox labels are `w-fit`: a label
+stretched across the form would swallow every press to its right, the controls over it included.
+See [rich-text-and-links.md](rich-text-and-links.md).
+
 ### Thumbnails
 
 `showThumbs` puts the day's photographs above the note, so the day can be written while

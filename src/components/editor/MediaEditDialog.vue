@@ -3,6 +3,7 @@ import { ref, reactive, watch, computed, defineAsyncComponent, nextTick } from '
 import { useI18n } from 'vue-i18n'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import LanguageTabs from './LanguageTabs.vue'
+import MarkupToolbar from './MarkupToolbar.vue'
 import TagPicker from './TagPicker.vue'
 import RichTextArea from '@/components/common/RichTextArea.vue'
 import TriStateCheck from './TriStateCheck.vue'
@@ -661,51 +662,12 @@ async function save() {
             <label class="field-label !mb-0" for="media-description">
               {{ t('editor.description') }}
             </label>
-            <div class="flex gap-1">
-              <!-- The leftmost control, and only while the caret stands in an
-                   embed: it takes the tags off and keeps the text inside. -->
-              <Transition name="soft">
-                <button
-                  v-if="reference?.markup"
-                  type="button"
-                  class="btn-ghost !px-2 !py-1 !text-xs"
-                  :title="t('richText.removeEmbed')"
-                  :aria-label="t('richText.removeEmbed')"
-                  @click="removeReference"
-                >
-                  <svg
-                    class="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M4 6h12M8.5 6V4.2h3V6M6.4 6l.7 9.3h5.8L13.6 6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </button>
-              </Transition>
-              <button
-                type="button"
-                class="btn-ghost !px-2 !py-1 !text-xs"
-                :title="t('richText.insertMediaHint')"
-                @click="addMediaTemplate"
-              >
-                {{ t('richText.insertMedia') }}
-              </button>
-              <button
-                type="button"
-                class="btn-ghost !px-2 !py-1 !text-xs"
-                :title="t('richText.insertLinkHint')"
-                @click="addUrlTemplate"
-              >
-                {{ t('richText.insertLink') }}
-              </button>
-            </div>
+            <MarkupToolbar
+              :can-remove="Boolean(reference?.markup)"
+              @remove="removeReference"
+              @media="addMediaTemplate"
+              @link="addUrlTemplate"
+            />
           </div>
           <RichTextArea
             ref="descriptionEditor"

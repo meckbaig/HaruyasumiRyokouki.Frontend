@@ -2,6 +2,7 @@
 import { ref, reactive, computed, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LanguageTabs from './LanguageTabs.vue'
+import MarkupToolbar from './MarkupToolbar.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
 import MediaThumb from '@/components/media/MediaThumb.vue'
 import RichTextArea from '@/components/common/RichTextArea.vue'
@@ -535,91 +536,69 @@ async function save() {
         <label class="field-label !mb-0" :for="`day-note-${date}`">
           {{ t('editor.note') }}
         </label>
-        <div class="flex gap-1">
-          <!-- The leftmost control, and only while the caret stands in an
-               embed: it takes the tags off and keeps the text inside. -->
-          <Transition name="soft">
-            <button
-              v-if="reference?.markup"
-              type="button"
-              class="btn-ghost !px-2 !py-1 !text-xs"
-              :title="t('richText.removeEmbed')"
-              :aria-label="t('richText.removeEmbed')"
-              :disabled="loading"
-              @click="removeEmbed"
-            >
-              <svg
-                class="h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                aria-hidden="true"
-              >
-                <path
-                  d="M4 6h12M8.5 6V4.2h3V6M6.4 6l.7 9.3h5.8L13.6 6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
-          </Transition>
-          <button
-            type="button"
-            class="btn-ghost !px-2 !py-1 !text-xs"
-            :class="picking ? 'border-accent text-accent' : ''"
-            :title="t('richText.insertMediaHint')"
-            :disabled="loading"
-            @click="addMediaTemplate"
-          >
-            {{ t('richText.insertMedia') }}
-          </button>
-          <button
-            type="button"
-            class="btn-ghost !px-2 !py-1 !text-xs"
-            :title="t('richText.insertLinkHint')"
-            :disabled="loading"
-            @click="addUrlTemplate"
-          >
-            {{ t('richText.insertLink') }}
-          </button>
-        </div>
+        <MarkupToolbar
+          :can-remove="Boolean(reference?.markup)"
+          :picking="picking"
+          :disabled="loading"
+          @remove="removeEmbed"
+          @media="addMediaTemplate"
+          @link="addUrlTemplate"
+        />
       </div>
       <!-- Markup is highlighted inside the field, so a reference is not lost
            among a paragraph. See docs/features/rich-text-and-links.md. -->
-      <RichTextArea
-        ref="noteEditor"
-        :id="`day-note-${date}`"
-        v-model="active.note"
-        :rows="10"
-        :disabled="loading"
-        :mark-range="confirmVisible ? pendingRange : null"
-        class="mt-1"
-        @input="onNoteInput"
-        @caret="onCaret"
-      >
-        <!-- The block is settled by hand once more than one file is selected: a
-             second tile cannot mean what a single click did. The bubble hangs
-             under the reference itself, not under the field. -->
-        <template #mark-action>
-          <button
-            type="button"
-            class="btn-primary !px-3 !py-1 !text-xs"
-            :title="t('richText.confirmPickHint')"
-            @click="confirmPick"
-          >
-            {{ t('common.confirm') }}
-          </button>
-        </template>
-      </RichTextArea>
-      <p v-if="picking && !confirmVisible" class="field-hint text-accent">
-        {{ t('richText.pickMediaHint') }}
-      </p>
-      <p v-else-if="showLoading" class="field-hint">{{ t('common.loading') }}</p>
+      <div class="relative mt-1">
+        <RichTextArea
+          ref="noteEditor"
+          :id="`day-note-${date}`"
+          v-model="active.note"
+          :rows="10"
+          :disabled="loading"
+          :mark-range="pendingRange"
+          @input="onNoteInput"
+          @caret="onCaret"
+        >
+          <!-- The pick's hint hangs above the reference being filled, clear of
+               the confirm bubble below it, not as a line under the note: a
+               notice that came and went under the note made the form jump. -->
+          <template #hint v-if="picking && !confirmVisible">
+            {{ t('richText.pickMediaHint') }}
+          </template>
+          <!-- The block is settled by hand once more than one file is selected:
+               a second tile cannot mean what a single click did. The bubble
+               hangs under the reference itself, not under the field. -->
+          <template #mark-action>
+            <button
+              type="button"
+              class="btn-primary !px-3 !py-1 !text-xs"
+              :title="t('richText.confirmPickHint')"
+              @click="confirmPick"
+            >
+              {{ t('common.confirm') }}
+            </button>
+          </template>
+        </RichTextArea>
+        <!-- The same controls as above the field, 4px under it like the field
+             under its own label row - and out of the flow, so the note-ready
+             box below stays 16px from the field itself, not from these. -->
+        <MarkupToolbar
+          class="absolute right-0 z-10 justify-end"
+          style="top: calc(100% + 0.25rem)"
+          :can-remove="Boolean(reference?.markup)"
+          :picking="picking"
+          :disabled="loading"
+          @remove="removeEmbed"
+          @media="addMediaTemplate"
+          @link="addUrlTemplate"
+        />
+      </div>
+      <p v-if="showLoading" class="field-hint">{{ t('common.loading') }}</p>
     </div>
 
+    <!-- `w-fit`: a label stretched across the form would swallow every press to
+         its right, the controls laid under the field included. -->
     <label
-      class="cascade-item flex items-center gap-2 text-sm text-ink-soft"
+      class="cascade-item flex w-fit items-center gap-2 text-sm text-ink-soft"
       :style="cascadeDelay(3)"
     >
       <input v-model="isReady" type="checkbox" class="rounded border-edge" />
@@ -627,7 +606,7 @@ async function save() {
     </label>
 
     <div class="cascade-item" :style="cascadeDelay(4)">
-      <label class="flex items-center gap-2 text-sm text-ink-soft">
+      <label class="flex w-fit items-center gap-2 text-sm text-ink-soft">
         <input v-model="autoTranslate" type="checkbox" class="rounded border-edge" />
         {{ t('editor.autoTranslate') }}
       </label>

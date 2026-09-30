@@ -9,6 +9,7 @@ complexity is a single rule: **nothing is sent unless it was actually changed.**
 | --- | --- |
 | `src/components/editor/MediaEditDialog.vue` | The dialog. |
 | `src/components/editor/LanguageTabs.vue` | RU / EN / 日本語 tabs. |
+| `src/components/editor/MarkupToolbar.vue` | The field controls - take the embed off, media, link - shared with the day note. See [rich-text-and-links.md](rich-text-and-links.md). |
 | `src/components/editor/TriStateCheck.vue` | Checkbox with an indeterminate state. |
 | `src/components/editor/MediaLocationPicker.vue` | Map coordinate picker (lazy). |
 | `src/components/editor/SimilarMediaPanel.vue` | Filing by resemblance - see [similarity.md](similarity.md). |
