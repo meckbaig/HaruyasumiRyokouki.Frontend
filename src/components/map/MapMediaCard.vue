@@ -5,6 +5,7 @@ import { useUiStore } from '@/stores/ui'
 import { isExplicit } from '@/services/explicit'
 import MediaThumb from '@/components/media/MediaThumb.vue'
 import MediaStrip from '@/components/common/MediaStrip.vue'
+import RichText from '@/components/common/RichText.vue'
 import { pickTranslation } from '@/services/translations'
 import VideoBadge from '@/components/media/VideoBadge.vue'
 import { isVideo } from '@/services/mediaType'
@@ -263,8 +264,17 @@ const position = computed(() => {
                 <p class="line-clamp-2 text-sm font-medium text-ink" :title="labelOf(item)">
                   {{ labelOf(item) }}
                 </p>
+                <!-- The description carries the same markup a day note does: a
+                     named link, or a file referenced by id. No preview card
+                     stands over a map card; a press opens the file.
+                     See docs/features/rich-text-and-links.md. -->
                 <p v-if="descriptionOf(item)" class="mt-0.5 line-clamp-3 text-xs text-ink-soft">
-                  {{ descriptionOf(item) }}
+                  <RichText
+                    :text="descriptionOf(item)"
+                    :media="medias"
+                    :preview="false"
+                    @media-activate="emit('open', $event.mediaId)"
+                  />
                 </p>
               </div>
             </div>

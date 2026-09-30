@@ -14,8 +14,7 @@ client-side match highlighting that must survive diacritic normalisation.
 | `src/views/SearchView.vue` | The page: tabs, groups, viewer, deep links. |
 | `src/components/layout/SearchBar.vue` | Field, tag suggestions, chip. |
 | `src/components/search/MediaResultGroup.vue` | One day of matched media + "show the rest". |
-| `src/components/search/NoteResultCard.vue` | One day note with snippets. |
-| `src/components/search/HighlightedText.vue` | Renders `toParts()` output. |
+| `src/components/search/NoteResultCard.vue` | One day note, snippets and full text drawn as rich text. |
 
 ## Two searches, never both
 
@@ -51,12 +50,25 @@ enough:
 | --- | --- |
 | `tokens` | Normalised query tokens. |
 | `mediaDays` | `{ date, isReady, languageCode, matched }`, date-sorted. |
-| `noteDays` | `{ …, note, snippets }` for days whose note actually matches, date-sorted. |
+| `noteDays` | `{ …, note, media, snippets }` for days whose note actually matches, date-sorted. |
 
 **A day can legitimately appear in both tabs.** That is not a duplicate - it matched in
 both places.
 
+`noteDays` carry the day's matched files as well, so a reference in the note can resolve
+its name; a day matched through its note alone carries none.
+
 `restOfDay(fullDay, matchedMedia)` subtracts by id, for "show the rest of this day".
+
+## Notes carry the day's markup
+
+A day note is the same markup a day page renders, so a result no longer shows it as
+plain text. **Snippets never cut a markup token**: `buildSnippets` is widened onto the
+token boundaries of the note before it is handed to the card, so each slice re-parses
+whole. The card then draws both a snippet and the full note through `RichText`, with the
+preview card off - a press follows a reference to the day, singling its files out with
+`?i=`, rather than opening a card over the results.
+See [rich-text-and-links.md](rich-text-and-links.md).
 
 ## Showing the rest of a day
 
@@ -107,6 +119,8 @@ small enough that doing it here is cheaper.
 
 **Every range is expressed in original text coordinates**, so callers slice the untouched
 string and nothing is ever built by concatenating HTML. `v-html` is not used anywhere.
+`NoteResultCard` hands its ranges to `RichText`, which draws them inside the plain runs of
+the note so the highlights survive the markup around them.
 
 ### Why the index map exists
 
@@ -218,6 +232,9 @@ the day map's own default; see [media-grid-and-selection.md](media-grid-and-sele
 5. Search-page `?i=` resolves against matched files only.
 6. The chip is drawn only when `route.name === 'search'`.
 7. `AbortError` from a superseded request is swallowed, not shown.
+8. A note's snippet edges fall on markup token boundaries, so the slice re-parses whole;
+   a note is drawn as rich text with the preview card off, and a reference press opens
+   the day with `?i=`.
 
 ## Related
 

@@ -137,8 +137,9 @@ function snapToBoundary(text, index, direction) {
 /**
  * Cuts `text` down to the neighbourhoods of its matches.
  *
- * @returns {Array<{text: string, ranges: Array<[number, number]>, hasPrefix: boolean, hasSuffix: boolean}>}
- *   Each snippet's ranges are relative to that snippet's own `text`.
+ * @returns {Array<{text: string, start: number, ranges: Array<[number, number]>, hasPrefix: boolean, hasSuffix: boolean}>}
+ *   `start` is the snippet's absolute offset in `text`; ranges are relative to
+ *   the snippet's own `text`.
  */
 export function buildSnippets(text, tokens, options = {}) {
   const { radius = DEFAULT_RADIUS, maxSnippets = 3 } = options
@@ -179,6 +180,7 @@ export function buildSnippets(text, tokens, options = {}) {
 
     return {
       text: slice,
+      start,
       ranges,
       hasPrefix: start > 0,
       hasSuffix: end < source.length,

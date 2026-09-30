@@ -545,6 +545,10 @@ things differ, and each follows from where it stands:
 - **The picture fills the card's width** as one landscape strip (`MediaThumb` with
   `aspect="16 / 9"`), and the whole of it is the way to the album - there is no separate
   button for that.
+- **The description is rich text.** It carries the same markup a day note does: a named
+  link, or a file referenced by id. `RichText` draws it with the preview card off, so no
+  card opens over the album; a press on a reference opens that file instead. The text is
+  clipped to three lines, as before.
 
 The links out to a map service come from `MAP_SERVICES` in `services/mapLinks.js`: the URL is
 built in one place, so a provider can be swapped or a regional entry added without touching a
@@ -884,9 +888,12 @@ which rooftop.
    `prefers-reduced-motion` itself, so without the flag it dropped an animation the app had
    chosen to play - a teleport for a reader who had opted back in via `data-motion="always"`.
 44. A press on a pin frames the card **even under reduced motion**: reduced motion has no unfold
-   to wait for, so `onCardEnter`'s reduced path schedules the frame itself. Left to the morph
-   alone, a press opened the album on the pin without moving the map, while the arrows centred
-   it.
+    to wait for, so `onCardEnter`'s reduced path schedules the frame itself. Left to the morph
+    alone, a press opened the album on the pin without moving the map, while the arrows centred
+    it.
+45. The album's description is the same rich text a day note is, drawn by `RichText` - not a
+    plain string. The preview card is off there, since a card over the album would be a second
+    overlay; a reference press opens the file, so no chip is dead.
 
 ## Related
 

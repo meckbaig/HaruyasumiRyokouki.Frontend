@@ -5,6 +5,7 @@ import MediaHoverCard from './MediaHoverCard.vue'
 import { useHoverIntent } from '@/composables/useHoverIntent'
 import { parseRichText, linkLabel, splitParagraphs } from '@/services/richText'
 import { faviconUrl } from '@/services/favicons'
+import { toParts } from '@/services/highlight'
 
 /**
  * Renders the small markup day notes and media descriptions carry: links, and
@@ -35,6 +36,19 @@ const props = defineProps({
    * See docs/features/rich-text-and-links.md.
    */
   halfBlankLines: { type: Boolean, default: false },
+  /**
+   * Match ranges in `text`'s own coordinates, drawn as marks inside the plain
+   * runs. Search results pass their query's ranges; the other callers pass none.
+   * See docs/features/rich-text-and-links.md.
+   */
+  ranges: { type: Array, default: () => [] },
+  /**
+   * Whether pointing at a reference shows the hover card. Off where the text is
+   * shown away from the page that owns its files - a search result, a map card -
+   * where a reference is a plain link and a miss is not marked.
+   * See docs/features/rich-text-and-links.md.
+   */
+  preview: { type: Boolean, default: true },
 })
 
 /** Each event carries `{ mediaId, index }` - the occurrence, not just the file. */
@@ -81,14 +95,32 @@ let pointerIsTouch = false
 const byId = computed(() => new Map(props.media.map((item) => [item.id, item])))
 
 /*
+  A plain run split by the match ranges that fall inside it, so a search result
+  keeps its highlighting inside rich text. Null when there is nothing to mark.
+*/
+function textPieces(start, text) {
+  if (!props.ranges.length || !text) return null
+  const local = []
+  for (const [from, to] of props.ranges) {
+    if (to <= start || from >= start + text.length) continue
+    local.push([Math.max(0, from - start), Math.min(text.length, to - start)])
+  }
+  return local.length ? toParts(text, local) : null
+}
+
+/*
   The occurrence of each id, since one file may be referenced several times in
-  the same text and the anchor has to name which of them was followed.
+  the same text and the anchor has to name which of them was followed. A token's
+  own offset is tracked so a plain run can be split by the match ranges.
 */
 const parts = computed(() => {
   const seen = new Map()
+  let offset = 0
   return parseRichText(props.text).map((token, key) => {
+    const start = offset
+    offset += token.raw.length
     if (token.type === 'link') return { ...token, key, favicon: faviconUrl(token.href) }
-    if (token.type !== 'media') return { ...token, key }
+    if (token.type !== 'media') return { ...token, key, pieces: textPieces(start, token.text) }
     const index = seen.get(token.id) ?? 0
     seen.set(token.id, index + 1)
     // Every id the reference names; one that is not on this page stays a null
@@ -104,9 +136,14 @@ const parts = computed(() => {
   See docs/features/rich-text-and-links.md.
 */
 const paragraphs = computed(() => {
-  const groups = props.halfBlankLines ? splitParagraphs(parts.value) : [parts.value]
+  // Without splitting the parts keep their own keys and their marks.
+  if (!props.halfBlankLines) return [parts.value]
+  // A split run loses its offset, so its marks are dropped. The day note, the
+  // one caller, passes no ranges anyway.
   let key = 0
-  return groups.map((group) => group.map((part) => ({ ...part, key: key++ })))
+  return splitParagraphs(parts.value).map((group) =>
+    group.map((part) => ({ ...part, key: key++, pieces: null })),
+  )
 })
 
 function labelFor(part) {
@@ -130,6 +167,7 @@ function onIconError(event) {
   See docs/features/rich-text-and-links.md.
 */
 function onEnter(part, event) {
+  if (!props.preview) return
   if (event.pointerType !== 'mouse') return
   intent.hoverIn(payloadFor(part, event))
 }
@@ -141,6 +179,7 @@ function onLeave(event) {
 }
 
 function onFocus(part, event) {
+  if (!props.preview) return
   if (pointerIsTouch) return
   intent.openNow(payloadFor(part, event))
 }
@@ -196,6 +235,11 @@ function open(part, mediaId) {
   puts it away. See docs/features/rich-text-and-links.md.
 */
 function onClick(part, event) {
+  // With no card to show, a press always follows the reference.
+  if (!props.preview) {
+    activate(part)
+    return
+  }
   if (!pointerIsTouch) {
     activate(part)
     return
@@ -241,7 +285,7 @@ function onClick(part, event) {
           <span
             v-else-if="part.type === 'media'"
             class="rich-media"
-            :class="part.media ? '' : 'rich-media-missing'"
+            :class="part.media || !preview ? '' : 'rich-media-missing'"
             role="button"
             tabindex="0"
             :data-text-anchor="anchorable ? `${part.id}:${part.index}` : undefined"
@@ -256,12 +300,20 @@ function onClick(part, event) {
           >
             {{ labelFor(part) }}
           </span>
+          <template v-else-if="part.pieces">
+            <template v-for="(piece, pieceIndex) in part.pieces" :key="pieceIndex">
+              <mark v-if="piece.match" class="rounded-sm bg-accent-soft px-0.5 text-ink">{{
+                piece.text
+              }}</mark>
+              <template v-else>{{ piece.text }}</template>
+            </template>
+          </template>
           <template v-else>{{ part.text }}</template>
         </template>
       </span>
     </template>
 
-    <Teleport to="body">
+    <Teleport v-if="preview" to="body">
       <!-- Keyed by the reference, so another one arriving while this leaves gives the
            transition two cards to play: a fade out where it stood, a fade in where the
            hand has gone. The leaving card answers no pointer, so it cannot swallow it. -->

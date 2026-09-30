@@ -11,7 +11,7 @@ the viewer to the text.
 | --- | --- |
 | `src/services/richText.js` | `parseRichText` (tokens with `ids` and `raw`), `splitParagraphs`, `linkLabel`, editor template builders, and `referenceAt` / `unwrapReference` / `markupSpans` for the field under a caret. |
 | `src/services/favicons.js` | `faviconUrl` - the site icon a link is shown with, built from the host alone. |
-| `src/components/common/RichText.vue` | Token renderer; says which reference a card belongs to and emits references upward. |
+| `src/components/common/RichText.vue` | Token renderer; says which reference a card belongs to and emits references upward. `preview` turns the card off, `ranges` draws search matches inside the plain runs. |
 | `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar, the way to the tile, and the day's map for a file that carries coordinates. |
 | `src/components/map/MapMediaCard.vue` | The card's sibling over a map pin - its own doc: [maps.md](maps.md). |
 | `src/services/hoverIntent.js` | The hover thresholds, and the geometry of a hand's trajectory: the nearest point of the card, the safe triangle, the polygon test. Pure functions. |
@@ -94,6 +94,18 @@ to every site a note mentions.
 the exact source it came from: the renderer ignores it, the editor paints it. Nothing is
 concatenated into an HTML string and `v-html` is never used, so a note cannot inject markup,
 and the editor's highlight layer is guaranteed to show the same characters as the field.
+
+## Away from the page that owns the files
+
+`RichText` is also used where the page does **not** hold its own file list: a search
+result's note, and the map album's description. There `preview` is turned off.
+
+| Prop | Effect |
+| --- | --- |
+| `preview: false` | No hover card and no `rich-media-missing` mark. A reference is a plain link, and a press follows it instead of opening a card. The mark is left off because it says a reference is broken against the page's own list, and with no such list it would be a lie; the reference simply shows its caption. The viewer's description keeps the card, the file list being in hand there. |
+| `ranges` | Match ranges in the text's own coordinates, drawn as marks inside the plain runs. A search result highlights its words here rather than through a second renderer. |
+
+A token's own text is never split by a mark: only the plain runs carry them.
 
 ## The hover card
 
@@ -402,6 +414,9 @@ mirror came and went on its own, and nothing ever read it.
     **and** below the field, from one shared `MarkupToolbar`. The lower set sits 4px under the
     field, matching the field's own gap under its label row, and is out of the flow - the
     note-ready box below keeps its spacing from the **field**, not from the controls.
+39. Away from the page's file list, `RichText` renders a reference as a plain link: `preview`
+    off means no card and no `rich-media-missing` mark, because without the list a miss cannot
+    be judged. `ranges` draws search matches in the plain runs alone, never splitting a token.
 
 ## Related
 

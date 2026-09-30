@@ -1,4 +1,46 @@
 import { tokenize, hasMatch, buildSnippets } from './highlight'
+import { parseRichText } from './richText'
+
+/** The absolute offsets at which a markup token starts or ends. */
+function tokenEdges(text) {
+  const edges = new Set([0, text.length])
+  let offset = 0
+  for (const token of parseRichText(text)) {
+    edges.add(offset)
+    offset += token.raw.length
+    edges.add(offset)
+  }
+  return [...edges].sort((a, b) => a - b)
+}
+
+/*
+  Widens each snippet so neither edge falls inside a markup token: the slice
+  re-parses whole, so a search result never shows half an embed. The match
+  ranges shift by the same amount the start moved.
+  See docs/features/search.md.
+*/
+function alignToTokens(note, snippets) {
+  const edges = tokenEdges(note)
+  const snapBack = (at) => edges.filter((edge) => edge <= at).pop() ?? 0
+  const snapForward = (at) => edges.find((edge) => edge >= at) ?? note.length
+
+  return snippets.map((snippet) => {
+    const start = snippet.start
+    const end = start + snippet.text.length
+    const from = edges.includes(start) ? start : snapBack(start)
+    const to = edges.includes(end) ? end : snapForward(end)
+    const shift = start - from
+    const text = note.slice(from, to)
+    const ranges = snippet.ranges
+      .map(([rangeFrom, rangeTo]) => [
+        Math.max(0, rangeFrom + shift),
+        Math.min(text.length, rangeTo + shift),
+      ])
+      .filter(([rangeFrom, rangeTo]) => rangeTo > rangeFrom)
+
+    return { text, ranges, hasPrefix: from > 0, hasSuffix: to < note.length }
+  })
+}
 
 /**
  * Splits a raw search response into the two result tabs. A day can land in both,
@@ -29,7 +71,12 @@ export function splitSearchResults(items, query) {
       isReady: day.isReady,
       languageCode: day.languageCode,
       note: day.note,
-      snippets: buildSnippets(day.note, tokens),
+      // The matched files, so a reference resolves where the answer carries it.
+      // A day matched through its note alone carries none.
+      media: day.media ?? [],
+      // Snippets stay on whole markup tokens, so each one re-parses as rich
+      // text rather than showing half an embed. See docs/features/search.md.
+      snippets: alignToTokens(day.note, buildSnippets(day.note, tokens)),
     }))
     .sort((a, b) => a.date.localeCompare(b.date))
 
