@@ -4,6 +4,29 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice; they are gathered under the feature release they follow.
 Major zero said the site was still finding its shape; it has found it.
 
+## 2.4.0 - map fixes
+
+A pass over the map's own marks and furniture: where the dots under a pile stand, when a pin is
+drawn during a pan, which keys the map answers, and how the day map's box grows.
+
+The dots stand under a pile only where its members really differ - one per coordinate, never
+twice across the map - and they are cut again on a zoom instead of keeping the view the map was
+built at. A pin that scrolls into the box while the hand is still down is drawn there and then.
+The arrow keys step the album and the day alone, and a full-screen map stands the day's own
+paging down, so a press after the last picture cannot leave the day. A height that animates no
+longer wipes the canvas to black on every frame, taller and shorter take the page with them, and
+on a phone the day map's buttons stand under it, with a gutter beside it a thumb can scroll by.
+
+- The route's dots stand under a pile only where its members differ, one per coordinate, and never twice
+- A pin that scrolls into view is drawn during the pan, not only when the hand comes up
+- The route dots are cut again on a zoom, instead of keeping the view the map was built at
+- The arrow keys step the album and the day, and no longer pan the map
+- A full-screen map stands the day's own arrow paging down, so the last picture's press cannot leave the day
+- A height that animates no longer blinks the map: the canvas is not wiped mid-movement
+- Taller and shorter move the page with the map, instead of leaving the reader to scroll after it
+- The day map's buttons stand under the map on a phone, with a scroll gutter beside it
+- The map keeps its rounded corners from the first frame
+
 ## 2.3.0 - embedded youtube video
 
 A video no longer has to be a file we hold. The pending queue carries a button of its own:
@@ -24,6 +47,9 @@ triangle, which is how an embedded clip is told from a hosted one at a glance.
 - The preview stands over the embedded player and fades as it arrives, so the frame never blinks
 - A tile marking an external video carries the YouTube logo, so the two are told apart at a glance
 - `POST /v1/media/youtube` and the `source` field join the contract
+- The day editor carries its own media buttons, with a hint above the run being edited
+- A rich-text embed renders in search results and in a map preview, not as its raw markup
+- A picture opened from a reference's hover card flies from that card
 
 ## 2.2.0 - vector map engine
 

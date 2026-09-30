@@ -4,6 +4,7 @@
  * release it follows. See docs/features/build-and-release.md.
  */
 const NAMES = {
+  '2.4': 'map fixes',
   '2.3': 'embedded youtube video',
   '2.2': 'vector map engine',
   '2.1': 'safe triangle hover',
