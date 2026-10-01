@@ -30,6 +30,7 @@ on a phone the day map's buttons stand under it, with a gutter beside it a thumb
 - Taller and shorter keep the map block in view: the growth is split by its place on screen, and an edge it would cross is aligned
 - The day map's toolbar hides with the map, having nothing to act on without it
 - A taller day map takes a bare wheel to zoom; the narrow one still asks for Ctrl
+- A picture opened from a reference's hover card flies back into the card, which stays up until a press outside it or its cross
 
 ## 2.3.0 - embedded youtube video
 
