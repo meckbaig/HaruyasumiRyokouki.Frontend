@@ -25,7 +25,9 @@ on a phone the day map's buttons stand under it, with a gutter beside it a thumb
 - A height that animates no longer blinks the map: the canvas is not wiped mid-movement
 - Taller and shorter move the page with the map, instead of leaving the reader to scroll after it
 - The day map's buttons stand under the map on a phone, with a scroll gutter beside it
+- The day map's buttons are thumb-sized on a phone
 - The map keeps its rounded corners from the first frame
+- Taller and shorter keep the map block in view: the growth is split by its place on screen, and an edge it would cross is aligned
 
 ## 2.3.0 - embedded youtube video
 
