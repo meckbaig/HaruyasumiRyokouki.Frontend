@@ -20,6 +20,7 @@ and the coordinate picker in the media editor.
 | `src/composables/useTripMedia.js` | `GET /media/locations` for a range; `routeFromMedia`. |
 | `src/services/mapLinks.js` | `hasCoordinates`, and the one place a map-service URL is built. |
 | `src/services/mapIcons.js` | The `d` strings for the map buttons: expand, collapse, taller, shorter. |
+| `src/services/pageScroll.js` | `followBoxScroll`: the scroll offset that keeps a box on screen while its height changes. |
 | `src/services/cardMorph.js` | The pin-into-preview unfold, played from JavaScript. |
 | `src/services/routeArrows.js` | The whole route on two canvases stacked over the map box, chevrons or a plain line, with a ringed dot at every distinct ground a pile holds. |
 | `src/services/mapClusters.js` | The cell clustering the pins and the route dots share. |
@@ -676,6 +677,13 @@ day. See [days-and-calendar.md](days-and-calendar.md).
 size like any other, so the camera is never panned - and the page follows it, written frame by
 frame **from the height the transition is actually at**, so the two cannot run at different
 speeds; a native smooth scroll has its own curve and its own start, and drifted behind the map.
+The box the page follows is the whole block - heading, buttons and map - not the map box alone,
+so a taller map never leaves its own heading or controls under the sticky header. The offset
+comes from `services/pageScroll.js`: the box's share of the growth is set by its own place on
+screen - half above and half below when it is centred, all of it above when its bottom rests on
+the fold, none when its top rests on the chrome, and the proportional share in between. A box
+the growth would push past the sticky header or the fold is aligned to that edge instead, the
+header's own bottom coming from `chromeInsets`.
 
 ### Coming from the viewer
 
@@ -855,8 +863,9 @@ which rooftop.
 28. The map is framed on the **first layout** only; a later resize keeps the centre, and a
     resize is never a reason to re-fit the points. `trackResize` is off and `TripMap`'s own
     observer is the one resize path - an animated height is a size like any other, so the camera
-    keeps the centre throughout, and the **page** is moved by the whole change instead, in the
-    day page's own height toggle.
+    keeps the centre throughout, and the day page's own height toggle moves the **page**
+    through `followBoxScroll`, on the whole map block - heading, buttons and map - splitting the
+    growth by the block's place on screen and aligning an edge it would cross.
 29. A day pin stamps its file's clock, and a change of locale drops the drawn markers and
     rebuilds them. Without that, whichever map was built first owns the mark.
 30. The album has **one entry point**, `showMedia(id, { zoom })`: the viewer's close (which

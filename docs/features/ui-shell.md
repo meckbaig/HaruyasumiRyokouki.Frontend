@@ -112,6 +112,9 @@ there is nothing to reserve and nothing to move.
   bar's host does, and its drag picks a record rather than a pixel.
 - Dragging scrolls with `behavior: 'instant'`: the page scrolls smoothly by default, and
   under a hand it must not lag behind.
+- The thumb's geometry is cached and re-read only when the box changes size, and a scroll is
+  coalesced to one paint a frame. Reading layout on every scroll dropped the bar's frames while
+  the day map's height follow scrolled the page once a frame.
 - If this component fails to run the page still scrolls by every other means. What is lost
   is the drawn bar, not the scrolling.
 

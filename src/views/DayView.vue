@@ -31,6 +31,7 @@ import { hasCoordinates } from '@/services/mapLinks'
 import { MAP_EXPAND, MAP_COLLAPSE, MAP_TALLER, MAP_SHORTER } from '@/services/mapIcons'
 import { hasOverlay } from '@/services/overlayStack'
 import { chromeInsets } from '@/services/pageChrome'
+import { followBoxScroll } from '@/services/pageScroll'
 import { useHiddenRecords } from '@/composables/useHiddenRecords'
 import { useGridReadonly } from '@/composables/useGridReadonly'
 import {
@@ -307,6 +308,8 @@ const mapExpanded = ref(false)
 const mapFullscreen = ref(false)
 const tripMap = ref(null)
 const fullScreenMap = ref(null)
+/** The whole map block, heading and buttons included - what the page follows. */
+const mapSection = ref(null)
 /** The inline map's view and album, handed to the full-screen one. */
 const fullMapView = ref(null)
 const fullMapSelection = ref(null)
@@ -419,18 +422,33 @@ function stopHeightFollow() {
  * Keeps the page on the map while the height moves: the scroll is written from
  * the height the transition is **actually** at, frame by frame, so the two cannot
  * run at different speeds - a native smooth scroll has its own curve and start.
+ * `followBoxScroll` splits the growth by the box's place on screen.
  */
-function followMapHeight(body, from) {
+function followMapHeight(box, from) {
   stopHeightFollow()
   const scrollFrom = window.scrollY
+  // The box's own top does not move; only its height does, so it is read once.
+  const boxTop = box.getBoundingClientRect().top + scrollFrom
+  const insets = chromeInsets()
   // The page scrolls smoothly by default; each step here is its own instant
   // move, so that inheritance is stood down for the length of the follow.
   document.documentElement.style.scrollBehavior = 'auto'
   let last = from
   let still = 0
   const step = () => {
-    const height = body.offsetHeight
-    window.scrollTo(0, scrollFrom + (height - from))
+    const height = box.offsetHeight
+    window.scrollTo(
+      0,
+      followBoxScroll({
+        scroll: scrollFrom,
+        top: boxTop,
+        height: from,
+        nextHeight: height,
+        viewport: window.innerHeight,
+        topInset: insets.top,
+        bottomInset: insets.bottom,
+      })
+    )
     still = height === last ? still + 1 : 0
     last = height
     if (still < 2) heightFrame = requestAnimationFrame(step)
@@ -444,10 +462,12 @@ function followMapHeight(body, from) {
  * centre, and the page is moved with it so the reader does not have to scroll.
  */
 function toggleMapHeight() {
-  const body = document.querySelector('[data-day-map] .trip-map')
-  const before = body?.offsetHeight ?? 0
+  // The whole block moves: the heading and the buttons are part of what the
+  // reader is looking at, not the map box alone. See docs/features/maps.md.
+  const box = mapSection.value
+  const before = box?.offsetHeight ?? 0
   mapExpanded.value = !mapExpanded.value
-  if (body) followMapHeight(body, before)
+  if (box) followMapHeight(box, before)
 }
 
 // The page behind an overlay must not scroll under it.
@@ -858,6 +878,7 @@ function onNoteSaved() {
             the first; on a wider screen everything is back on the first line.
           -->
           <section
+            ref="mapSection"
             class="mb-12 grid grid-cols-[1fr_auto] gap-y-3 sm:grid-cols-[1fr_auto_auto] sm:gap-x-4 sm:gap-y-2"
           >
             <!-- Heading becomes a show/hide button when the map is hidden by default. -->
@@ -887,12 +908,12 @@ function onNoteSaved() {
                 <!-- The day as a range on the trip page, where the map is the page. -->
                 <RouterLink
                   :to="{ name: 'map', query: { from: date, to: date } }"
-                  class="btn-ghost !px-2 !py-1"
+                  class="btn-ghost !px-2 !py-1 max-sm:min-h-11 max-sm:min-w-11"
                   :title="t('day.openInMaps')"
                   :aria-label="t('day.openInMaps')"
                 >
                   <svg
-                    class="h-4 w-4"
+                    class="h-5 w-5"
                     viewBox="0 0 20 20"
                     fill="none"
                     stroke="currentColor"
@@ -907,13 +928,13 @@ function onNoteSaved() {
                 <!-- Taller, then back. The icon says which way the next press goes. -->
                 <button
                   type="button"
-                  class="btn-ghost !px-2 !py-1"
+                  class="btn-ghost !px-2 !py-1 max-sm:min-h-11 max-sm:min-w-11"
                   :title="mapExpanded ? t('day.collapseMapHeight') : t('day.expandMapHeight')"
                   :aria-label="mapExpanded ? t('day.collapseMapHeight') : t('day.expandMapHeight')"
                   @click="toggleMapHeight"
                 >
                   <svg
-                    class="h-4 w-4"
+                    class="h-5 w-5"
                     viewBox="0 0 20 20"
                     fill="none"
                     stroke="currentColor"
@@ -931,13 +952,13 @@ function onNoteSaved() {
                 <!-- Fills the window without leaving the day. -->
                 <button
                   type="button"
-                  class="btn-ghost !px-2 !py-1"
+                  class="btn-ghost !px-2 !py-1 max-sm:min-h-11 max-sm:min-w-11"
                   :title="t('day.fullscreenMap')"
                   :aria-label="t('day.fullscreenMap')"
                   @click="openMapFullscreen"
                 >
                   <svg
-                    class="h-4 w-4"
+                    class="h-5 w-5"
                     viewBox="0 0 20 20"
                     fill="none"
                     stroke="currentColor"

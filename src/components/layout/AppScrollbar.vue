@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   /**
@@ -19,7 +19,6 @@ const props = defineProps({
 const MIN_THUMB = 36
 /** Below this there is nothing worth showing a bar for. */
 const MIN_RANGE = 8
-const SCROLLBAR_INSET = 8
 
 const visible = ref(false)
 const active = ref(false)
@@ -27,12 +26,20 @@ const top = ref(0)
 const height = ref(0)
 const scrollbar = ref(null)
 
-/** Scrollable distance, and the travel the thumb has to represent it. */
-function metrics() {
+/*
+  The figures the thumb is drawn from are cached, and only re-read when the box
+  itself changes. Reading them on every scroll forced a layout while the page was
+  already animating - the day map's height follow scrolls once a frame - which is
+  what dropped the bar's frames. A scroll now only moves the cached numbers.
+*/
+const metrics = { view: 0, range: 0, total: 0, track: 0 }
+
+function readMetrics() {
   const box = props.target
-  const view = box ? box.clientHeight : window.innerHeight
-  const total = box ? box.scrollHeight : document.documentElement.scrollHeight
-  return { view, range: total - view, total }
+  metrics.view = box ? box.clientHeight : window.innerHeight
+  metrics.total = box ? box.scrollHeight : document.documentElement.scrollHeight
+  metrics.range = Math.max(0, metrics.total - metrics.view)
+  metrics.track = scrollbar.value?.getBoundingClientRect().height ?? 0
 }
 
 function scrollOffset() {
@@ -45,27 +52,43 @@ function scrollTo(top) {
   else window.scrollTo({ top, behavior: 'instant' })
 }
 
-function measure() {
-  const { view, range, total } = metrics()
-  visible.value = range > MIN_RANGE
-
-  if (!visible.value) return
-
-  const track = scrollbar.value?.getBoundingClientRect()
-
-  if (!track) return
-
-  const trackHeight = track.height
+/** The thumb's geometry, from the cached metrics alone - no layout is read. */
+function paint() {
+  const on = metrics.range > MIN_RANGE
+  if (on !== visible.value) {
+    visible.value = on
+    // A bar that has just mounted has no track to measure yet; read it once it is in.
+    if (on) nextTick(measure)
+    return
+  }
+  if (!on || !metrics.track) return
 
   height.value = Math.min(
-    trackHeight,
-    Math.max(MIN_THUMB, (view / total) * trackHeight)
+    metrics.track,
+    Math.max(MIN_THUMB, (metrics.view / metrics.total) * metrics.track)
   )
 
-  const travel = Math.max(0, trackHeight - height.value)
+  const travel = Math.max(0, metrics.track - height.value)
 
-  top.value =
-    (scrollOffset() / range) * travel
+  top.value = metrics.range ? (scrollOffset() / metrics.range) * travel : 0
+}
+
+/** A full re-read, for a resize or a box that may have changed size. */
+function measure() {
+  readMetrics()
+  paint()
+}
+
+/* Scrolling is coalesced to one paint a frame, so a burst of events - or the
+   page's own per-frame follow - costs one paint and reads no layout. */
+let frame = 0
+
+function schedule() {
+  if (frame) return
+  frame = requestAnimationFrame(() => {
+    frame = 0
+    paint()
+  })
 }
 
 /* Dragging. The pointer is captured so a hand straying sideways does not drop
@@ -80,14 +103,9 @@ function onPointerDown(event) {
 }
 
 function onPointerMove(event) {
-  if (!grab) return
+  if (!grab || metrics.range <= 0) return
 
-  const { range } = metrics()
-
-  const track = scrollbar.value?.getBoundingClientRect()
-  if (!track) return
-
-  const travel = Math.max(0, track.height - height.value)
+  const travel = Math.max(0, metrics.track - height.value)
 
   if (travel <= 0) return
 
@@ -98,7 +116,7 @@ function onPointerMove(event) {
     Math.max(0, next)
   )
 
-  scrollTo((clamped / travel) * range)
+  scrollTo((clamped / travel) * metrics.range)
 }
 
 function onPointerUp() {
@@ -110,11 +128,13 @@ let observer = null
 let watched = null
 
 function detach() {
-  watched?.removeEventListener('scroll', measure)
+  watched?.removeEventListener('scroll', schedule)
   watched = null
   window.removeEventListener('resize', measure)
   observer?.disconnect()
   observer = null
+  if (frame) cancelAnimationFrame(frame)
+  frame = 0
 }
 
 /**
@@ -126,7 +146,7 @@ function attach() {
   detach()
   const box = props.target
   watched = box ?? window
-  watched.addEventListener('scroll', measure, { passive: true })
+  watched.addEventListener('scroll', schedule, { passive: true })
   window.addEventListener('resize', measure)
 
   // A page and a panel both grow and shrink on their own - pictures arriving, a
