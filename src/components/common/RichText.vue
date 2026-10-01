@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MediaHoverCard from './MediaHoverCard.vue'
 import { useHoverIntent } from '@/composables/useHoverIntent'
@@ -49,6 +49,19 @@ const props = defineProps({
    * See docs/features/rich-text-and-links.md.
    */
   preview: { type: Boolean, default: true },
+  /**
+   * Whether the card stays up while its own picture is open full screen, so the
+   * picture can fly back into it. On for the day note, whose card stands beside
+   * the line; off inside the viewer, which the card is already inside.
+   * See docs/features/rich-text-and-links.md.
+   */
+  keepCardOnOpen: { type: Boolean, default: false },
+  /**
+   * Whether the viewer is open right now. Only read with `keepCardOnOpen`: while
+   * it is, the card is held; when it closes the card becomes one shown by hand.
+   * See docs/features/rich-text-and-links.md.
+   */
+  viewerOpen: { type: Boolean, default: false },
 })
 
 /** Each event carries `{ mediaId, index }` - the occurrence, not just the file. */
@@ -226,8 +239,24 @@ function showOnMap(part, mediaId) {
 /** `mediaId` is the file the reader is looking at in the card, if there is one. */
 function open(part, mediaId) {
   emit('media-open', reference(part, mediaId))
-  intent.close()
+  // The card stays while the viewer it opened is up, so the picture has a mark
+  // to fly back into; otherwise it has said what it had to say.
+  if (props.keepCardOnOpen) intent.hold()
+  else intent.close()
 }
+
+/*
+  The viewer the card opened has closed: the card becomes one shown by hand,
+  dismissed by a press outside it or by its cross. A viewer opened from
+  elsewhere never held it, so release is a no-op.
+  See docs/features/rich-text-and-links.md.
+*/
+watch(
+  () => props.viewerOpen,
+  (isOpen) => {
+    if (props.keepCardOnOpen && !isOpen) intent.release()
+  },
+)
 
 /*
   A mouse click follows the reference to its tile. A tap has no hover to show
@@ -322,6 +351,7 @@ function onClick(part, event) {
           v-if="hover"
           :key="hover.part.key"
           :ref="setCardRoot"
+          :class="{ 'media-hover-card-held': keepCardOnOpen }"
           :medias="hover.part.medias"
           :label="labelFor(hover.part)"
           :anchor-rect="hover.rect"

@@ -27,7 +27,7 @@ import { motionReduced, SLIDE_MS } from '@/services/motion'
 import { GHOST_CLICK_MS } from '@/services/ghostClick'
 import { chromeInsets } from '@/services/pageChrome'
 import HeroFlight from './HeroFlight.vue'
-import { boxOf, isOnScreen, tilesFor, tileFor } from '@/services/mediaTiles'
+import { boxOf, tileFor } from '@/services/mediaTiles'
 import TagChip from './TagChip.vue'
 import RichText from '@/components/common/RichText.vue'
 import { hasCoordinates, MAP_SERVICES, mapServiceUrl } from '@/services/mapLinks'
@@ -1021,37 +1021,17 @@ let originTile = null
  */
 let coveredAtOpen = false
 
-/** The box a file occupies on the page underneath, if it is on screen at all. */
-function tileBox(item, { offscreen = false } = {}) {
-  let hidden = null
-
-  for (const tile of tilesFor(item?.id)) {
-    const box = boxOf(tile)
-    if (!box) continue
-    // Every match, not the first: a file hung twice is as likely as not to have
-    // its first copy scrolled off the side.
-    if (isOnScreen(box)) return box
-    hidden ??= box
-  }
-
-  // An off-screen tile is a destination but never an origin: arriving out of
-  // nothing reads as a glitch, leaving towards it reads correctly.
-  return offscreen ? hidden : null
-}
-
 /**
- * Where a closing picture goes: the remembered `originTile` even off-screen, and
- * otherwise only a tile that is on screen. No destination leaves the plain fade
- * to do the work, which is the right answer for a viewer opened from a link.
+ * The element a closing picture lands on: the mark the viewer was opened from
+ * while it is still connected - a hover card's picture, or the tile - and
+ * otherwise an on-screen tile of the same file.
+ * See docs/features/media-viewer.md.
  */
-function tileBoxBack(item) {
-  if (originTile?.id === item?.id && originTile.el.isConnected) {
-    const box = boxOf(originTile.el)
-    if (box) return box
-  }
+function landingMark(item) {
+  if (originTile?.id === item?.id && originTile.el.isConnected) return originTile.el
   // A page the map covers has no reachable mark to land on.
   if (coveredAtOpen) return null
-  return tileBox(item, { offscreen: false })
+  return tileFor(item?.id, { visible: true })
 }
 
 /**
@@ -1134,12 +1114,18 @@ function close({ fly = true } = {}) {
   const id = current.value?.id ?? null
   const item = current.value
   if (fly) {
+    /*
+      Chosen **once**: `resetGestures` clears `originTile` the moment the index
+      goes null, and re-running the search each frame then yanked the picture to
+      a grid tile. The flight follows this one mark - a card's picture, a tile.
+    */
+    const mark = landingMark(item)
     flight.value?.fly({
       src: heroSource(item),
       from: pictureBox(),
-      to: tileBoxBack(item),
+      to: mark ? boxOf(mark) : null,
       // The tile may scroll, and a map card may be panned, before it lands.
-      track: () => tileBoxBack(item),
+      track: mark ? () => boxOf(mark) : null,
       fromRadius: 0,
       toRadius: TILE_RADIUS,
       insets: chromeInsets(),

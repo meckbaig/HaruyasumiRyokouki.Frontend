@@ -115,6 +115,13 @@ stays out of the changelog entirely. The changelog is the record of what a visit
 change, not of every commit; a significant change buried in a patch would otherwise be
 lost between the minor release that preceded it and the one that follows.
 
+**`CHANGELOG.md` is committed with the version bump, never with the work.** The work commit
+carries the code and the feature docs; the release commit carries the version, the name and
+the changelog, and nothing else. So a fix that needs a changelog bullet is bumped with
+`npm version patch --no-git-tag-version`, and the changelog is staged and committed with the
+version in the release commit. Two reasons: the release commit's diff is then exactly what
+shipped, and a reader can never find a changelog entry that no version carries.
+
 **A feature.** Two commits, and in this order - the work first, then the release that names
 it - so the tag lands on a commit that already has everything:
 
@@ -166,10 +173,11 @@ heading has to name the tag from the results because there is no dictionary to a
 6. The tag goes on the commit that already carries the name and the changelog.
 7. A patch change a visitor would notice is folded into the changelog of the minor
    release it follows, not left to the git history.
-8. The work is committed **before** the release commit; the release commit adds only the
+8. `CHANGELOG.md` is committed only with the version bump, never with the work commit.
+9. The work is committed **before** the release commit; the release commit adds only the
    version, the name and the changelog.
-9. A release name describes the change it carries in three or four words, and `NAMES` and
-   the `CHANGELOG.md` heading carry the very same string.
+10. A release name describes the change it carries in three or four words, and `NAMES` and
+    the `CHANGELOG.md` heading carry the very same string.
 
 ## Related
 

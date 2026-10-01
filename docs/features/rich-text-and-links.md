@@ -15,7 +15,7 @@ the viewer to the text.
 | `src/components/common/MediaHoverCard.vue` | The card: a carousel of every file the reference names, with a bar, the way to the tile, and the day's map for a file that carries coordinates. |
 | `src/components/map/MapMediaCard.vue` | The card's sibling over a map pin - its own doc: [maps.md](maps.md). |
 | `src/services/hoverIntent.js` | The hover thresholds, and the geometry of a hand's trajectory: the nearest point of the card, the safe triangle, the polygon test. Pure functions. |
-| `src/composables/useHoverIntent.js` | When a card opens and closes: hover in and out, arrival at the card, a hand stopped outside it, a card shown by hand. |
+| `src/composables/useHoverIntent.js` | When a card opens and closes: hover in and out, arrival at the card, a hand stopped outside it, a card shown by hand, one held while the viewer it opened is up. |
 | `src/components/layout/SteppedScrollbar.vue` | The card's bar: one record per step, draggable, drawn like the page's own. |
 | `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, a bubble under a marked run, a pick's hint cloud above that same run, and a report of where the caret stands. |
 | `src/components/editor/MarkupToolbar.vue` | The three field controls - take the embed off, media, link - worn by both the note and the description, above and below the note. |
@@ -144,10 +144,16 @@ A chip may name several files, so the card is a carousel rather than a single pi
   and the thumb's own transition carries it between the steps, so it never teleports.
 - **The thumbnail is `MediaThumb`**, the two-stage miniature and preview every other wall
   uses, not a single `<img>` on `preview || miniature`.
-- **Opening full screen flies out of this card.** Its 160px picture is handed over
-  with `markOpenedFrom`, so the viewer grows from the stand-in - the map card's own
-  opening - and never searches the day's grid. Only the opening: the card has gone
-  by the close, so the close is unchanged.
+- **Opening full screen flies out of this card, and the close flies back into it.** Its
+  160px picture is handed over with `markOpenedFrom`, so the viewer grows from the
+  stand-in - the map card's own opening - and never searches the day's grid. The card
+  **stays up** while that viewer is open (`hold`), so the same mark is still there to
+  land on and the picture returns into the card on close, as it returns into a tile.
+- **A held card sits under the room.** While the viewer is up the card is dropped to
+  `z-index: 2350` (`.media-hover-card-held`, `keep-card-on-open`), below the lightbox's
+  `2400` and the flight's `2700`, so it does not float over the picture; it is revealed
+  again as the room fades on close, catching the returning picture. The card drawn
+  **inside** the viewer's own description is not held and keeps `2600`, above the room.
 - **The first record's box, then a group.** A reference that resolves to nothing shows the
   missing panel; a reference where only some files are missing still steps through them, a
   null slide saying so.
@@ -188,7 +194,9 @@ A chip may name several files, so the card is a carousel rather than a single pi
   sweep across the text from opening cards. A card a finger or a keyboard has already
   opened swaps at once, since no hand is following it.
 - **A cross closes it by hand**, and so does a press outside a card that a tap or a keyboard
-  focus opened: that card has no hand following it to keep it open.
+  focus opened: that card has no hand following it to keep it open. A card just back from
+  the viewer is one of these - `release` drops the hold as the viewer closes, and the card
+  waits to be dismissed by a press outside it or by the cross.
 - **A mouse hovers; a touch taps.** A touch reports an enter and a focus too, and answering
   either put the card under the finger, where the click a browser invents from the tap then
   landed on the card's own picture. So the card opens on a mouse's enter or on a keyboard
@@ -364,9 +372,11 @@ mirror came and went on its own, and nothing ever read it.
 16. The way back is spent **only** by seeing the reference again; closing the viewer or
     paging never clears it.
 17. The card steps with a real scroll. Two records are never cross-faded.
-18. The card's picture **is** the flight origin: opening from it hands the element
-    over with `markOpenedFrom`, so the viewer grows from the card and never
-    searches the grid. Only the opening - the card has gone by the close.
+18. The card's picture **is** the flight origin **and** destination: opening from it
+    hands the element over with `markOpenedFrom`, so the viewer grows from the card
+    and never searches the grid; the card is held while that viewer is up, so the
+    close flies back into it. A held card answers no trajectory and no press until
+    the viewer closes, after which it is a hand-shown one.
 19. A media reference's ids are read from the run that is marked, never rebuilt from the
     caption.
 20. A follow places the block: centred when it fits the window, its first record at the

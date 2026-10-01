@@ -29,6 +29,11 @@ export function useHoverIntent({ card, onOpen, onClose }) {
   let state = 'closed'
   /** True for a card shown by hand - a tap, a focus - which no hand follows. */
   let manual = false
+  /**
+   * True while something else owns the screen - the viewer the card opened - so
+   * neither the hand nor a press outside may put the card away.
+   */
+  let held = false
   /** What the card was opened for, handed straight back to `onOpen`. */
   let payload = null
   /** A reference the hand has since come to rest on, which the card may take over. */
@@ -88,13 +93,16 @@ export function useHoverIntent({ card, onOpen, onClose }) {
     onOpen(payload)
   }
 
-  function hide() {
+  /** `force` is the unmount, which must let go even of a held card. */
+  function hide({ force = false } = {}) {
+    if (held && !force) return
     const shown = state !== 'closed'
     cancelOpen()
     clearStop()
     window.cancelAnimationFrame(frame)
     frame = 0
     state = 'closed'
+    held = false
     manual = false
     payload = null
     pending = null
@@ -121,6 +129,7 @@ export function useHoverIntent({ card, onOpen, onClose }) {
    * resting anywhere else has finished with it.
    */
   function settle() {
+    if (held) return
     if (state !== 'analyzing') return
     if (!pending) return hide()
     payload = pending
@@ -172,7 +181,7 @@ export function useHoverIntent({ card, onOpen, onClose }) {
 
   /** For a card shown by hand, a press anywhere but on the card puts it away. */
   function onPointerDown(event) {
-    if (!manual || element()?.contains(event.target)) return
+    if (held || !manual || element()?.contains(event.target)) return
     hide()
   }
 
@@ -183,6 +192,7 @@ export function useHoverIntent({ card, onOpen, onClose }) {
    * `OPEN_DELAY_MS`, a wait the hand cancels by leaving before it is up.
    */
   function hoverIn(next) {
+    if (held) return
     manual = false
     cancelOpen()
     /*
@@ -213,6 +223,7 @@ export function useHoverIntent({ card, onOpen, onClose }) {
    * the card is kept while the hand closes on it, and dropped the moment it turns away.
    */
   function beginFollow(event) {
+    if (held) return
     pending = null
     if (state !== 'open' || manual) return
     if (event?.clientX != null) sample(event.clientX, event.clientY)
@@ -228,6 +239,7 @@ export function useHoverIntent({ card, onOpen, onClose }) {
 
   /** A card shown by hand - a tap, a keyboard focus - with no hand to follow. */
   function openNow(next) {
+    if (held) return
     payload = next
     manual = true
     listen(true)
@@ -242,7 +254,32 @@ export function useHoverIntent({ card, onOpen, onClose }) {
     clearStop()
   }
 
-  onBeforeUnmount(hide)
+  /**
+   * Keeps the card up while the viewer it opened owns the screen. The room
+   * covers it, so no hand follows it and nothing may put it away.
+   */
+  function hold() {
+    held = true
+    // The trajectory is off until it is released: nothing follows the card now.
+    state = 'open'
+    clearStop()
+    window.cancelAnimationFrame(frame)
+    frame = 0
+    listen(false)
+  }
 
-  return { hoverIn, hoverOut, cardIn, cardOut: beginFollow, openNow, close: hide }
+  /**
+   * The viewer is gone: the card is a hand-opened one, dismissed by a press
+   * outside it or by its cross. It stays where it stands until then.
+   */
+  function release() {
+    if (!held) return
+    held = false
+    manual = true
+    listen(true)
+  }
+
+  onBeforeUnmount(() => hide({ force: true }))
+
+  return { hoverIn, hoverOut, cardIn, cardOut: beginFollow, openNow, close: hide, hold, release }
 }

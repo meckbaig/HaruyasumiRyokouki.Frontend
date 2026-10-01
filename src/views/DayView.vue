@@ -826,6 +826,8 @@ function onNoteSaved() {
                 anchorable
                 can-show-on-map
                 half-blank-lines
+                keep-card-on-open
+                :viewer-open="lightboxIndex != null"
                 @media-activate="activateNoteMedia"
                 @media-open="openNoteMedia"
                 @media-map="followNoteMap"

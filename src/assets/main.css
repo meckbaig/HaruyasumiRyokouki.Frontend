@@ -1656,6 +1656,15 @@
 }
 
 /*
+  A note's card, held while the viewer it opened owns the screen. The room covers
+  it, and it is revealed as the room fades so the closing picture can land back
+  in it: below the lightbox (2400) and the flight (2700), above every dialog.
+*/
+.media-hover-card-held {
+  z-index: 2350;
+}
+
+/*
   The card arriving and leaving. It is a hint, not a dialog, so it only fades -
   no rise, no drift. The leaving card stops answering the pointer at once, so
   it cannot swallow the hand on the way back to the chip.

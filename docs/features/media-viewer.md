@@ -409,12 +409,20 @@ handover at the end of the flight is exact.
   "similar" panel duplicates the grid behind it. Searching by id found *a* tile.
   `markOpenedFrom(el)` must be called from whatever handler opens the viewer. The media
   hover card hands its own picture over the same way, so the viewer grows out of the card
-  rather than searching the day's grid; only the opening, the card having gone by the close.
-  The flight is the **top layer** (`z-[2700]`, over the card's own `2600`), so the card's
-  stand-in fades out beneath the picture growing from it rather than hiding it.
-- **Where it flies back to** (`tileBoxBack`) prefers the remembered `originTile`, even
-  off-screen - the reader knows they scrolled. Any other tile must be on screen, or there
-  is no destination and the plain fade does the work.
+  rather than searching the day's grid. A note's card **stays up** while that viewer is
+  open, so the mark is still there on close and the picture flies back into it, not only
+  from it. The flight is the **top layer** (`z-[2700]`, over the card's own `2600`), so the
+  card's stand-in fades out beneath the picture growing from it rather than hiding it.
+- **Where it flies back to** is `landingMark`, resolved **once** as the close begins: the
+  remembered `originTile` whenever its element is still connected - off-screen included, the
+  reader knows they scrolled; a held hover card is exactly such a mark, so its picture
+  always has somewhere to return to - and otherwise an on-screen tile of the same file. A
+  file with neither has no destination and the plain fade does the work.
+- **The mark is not re-searched each frame.** `close` emits `update:index: null`, whose
+  watcher runs `resetGestures` and clears `originTile` while the 260ms flight is still in
+  the air. A `track` that re-ran the whole search then fell through to a grid tile of the
+  same file and yanked the picture sideways mid-flight; capturing the element keeps the
+  flight on the one mark it was told to land on.
 - **A page the map covers offers no mark.** A field map passes `page-covered`: the trip page and
   the day page while their map fills the window, and the day page, inline, while the viewer was
   opened from the map's own album. The viewer then neither searches the page for an origin nor
@@ -431,8 +439,9 @@ handover at the end of the flight is exact.
   ~120ms in, against a 260ms flight), and a map card is panned or re-framed under the very
   picture flying back to it. `fly` therefore takes a `track` callback that re-reads that box,
   and a frame loop translates the flight by the difference of centres - a compositor
-  transform, no layout, no re-raster. The viewer passes `tileBoxBack`, the same function the
-  flight lands on, so the two cannot disagree. With no `track` the older follower runs: a
+  transform, no layout, no re-raster. The viewer captures the landing element once
+  (`landingMark`) and passes a `track` that re-reads **its** box, so the two cannot disagree
+  and a later `resetGestures` cannot swap the destination. With no `track` the older follower runs: a
   scroll listener translating by the live delta, for a flight pinned to the page rather than
   to a mark that moves for its own reasons. Either transform is applied below the frame's
   header clip, so the clip itself stays put under the sticky page header.
