@@ -28,6 +28,8 @@ on a phone the day map's buttons stand under it, with a gutter beside it a thumb
 - The day map's buttons are thumb-sized on a phone
 - The map keeps its rounded corners from the first frame
 - Taller and shorter keep the map block in view: the growth is split by its place on screen, and an edge it would cross is aligned
+- The day map's toolbar hides with the map, having nothing to act on without it
+- A taller day map takes a bare wheel to zoom; the narrow one still asks for Ctrl
 
 ## 2.3.0 - embedded youtube video
 
