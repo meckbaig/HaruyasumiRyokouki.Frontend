@@ -900,11 +900,13 @@ function onNoteSaved() {
             <!--
               Under the map on a phone, on the heading's line on a wider screen:
               a thumb reaching for these above a tall map crosses the whole map.
+              They fade away with the map, having nothing to act on without it.
             -->
-            <div
-              :class="mapShown ? 'row-start-3' : 'row-start-2'"
-              class="col-span-2 flex flex-wrap items-center justify-end gap-2 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:justify-self-end"
-            >
+            <Transition name="soft">
+              <div
+                v-if="mapShown"
+                class="col-span-2 row-start-3 flex flex-wrap items-center justify-end gap-2 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:justify-self-end"
+              >
                 <!-- The day as a range on the trip page, where the map is the page. -->
                 <RouterLink
                   :to="{ name: 'map', query: { from: date, to: date } }"
@@ -974,6 +976,7 @@ function onNoteSaved() {
                 </button>
 
               </div>
+            </Transition>
 
             <!-- Preference toggle, always available while the day has locations.
                  It keeps the place it always had: on the heading's own line. -->
@@ -1012,6 +1015,7 @@ function onNoteSaved() {
                   :route="dayRoute"
                   :date="date"
                   :height="mapHeight"
+                  :wheel-zoom="mapExpanded"
                   animated-height
                   @open="openMapMedia"
                   @activate="activateMapMedia"

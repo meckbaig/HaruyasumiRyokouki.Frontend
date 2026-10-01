@@ -433,21 +433,27 @@ function applyChrome(map, spec) {
 }
 
 /*
-  A bare wheel scrolls the page and never touches the map. Ctrl/Cmd + wheel is
-  left to MapLibre's own scroll zoom, so the modifier gets its smooth,
-  trackpad-aware zoom and the page zoom is stopped by MapLibre itself. The guard
-  sits in the capture phase, before the map's own listener. See maps.md.
+  A bare wheel scrolls the page and never touches the map; Ctrl/Cmd + wheel is
+  MapLibre's own scroll zoom, and the page zoom is stopped by MapLibre itself. The
+  guard sits in the capture phase, and a flag on the map lifts it per map, so a
+  map the reader has grown zooms on a bare wheel. See maps.md.
 */
-function addWheelGuard(container, onScrollHint) {
+function addWheelGuard(map, container, onScrollHint) {
   container.addEventListener(
     'wheel',
     (event) => {
+      if (map.__wheelZoom) return
       if (event.ctrlKey || event.metaKey) return
       onScrollHint?.()
       event.stopPropagation()
     },
     { passive: true, capture: true },
   )
+}
+
+/** Lifts or restores the bare-wheel guard on a live map. See docs/features/maps.md. */
+export function setWheelZoom(map, on) {
+  if (map) map.__wheelZoom = Boolean(on)
 }
 
 /*
@@ -516,7 +522,7 @@ function pixelRatioFor(container) {
 /**
  * A base map on the environment's provider, in the theme's scheme. By default
  * the wheel scrolls the page and only Ctrl/Cmd + wheel zooms, firing
- * `onScrollHint`; `wheelZoom` lifts that for a window-filling map. Rotation and
+ * `onScrollHint`; `wheelZoom` lifts that for a map the reader has grown. Rotation and
  * pitch are off: a photo backdrop stays flat. See docs/features/maps.md.
  */
 export function createBaseMap(
@@ -564,7 +570,8 @@ export function createBaseMap(
   map.keyboard.disableRotation()
   applyChrome(map, spec)
   addCtrlDragPan(map, container)
-  if (!wheelZoom) addWheelGuard(container, onScrollHint)
+  addWheelGuard(map, container, onScrollHint)
+  setWheelZoom(map, wheelZoom)
   return map
 }
 

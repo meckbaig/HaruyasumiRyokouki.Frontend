@@ -58,6 +58,7 @@ outruns the network easily.
 | Export | Notes |
 | --- | --- |
 | `mapStyleFor(scheme)`, `setBaseScheme(map, scheme)` | The provider registry and the one place the basemap is swapped; which provider is on is `MAP_PROVIDER`. See Basemaps below. |
+| `setWheelZoom(map, on)` | Lifts or restores the bare-wheel guard on a live map. |
 | `Marker` | MapLibre's marker, re-exported so the engine module is the only importer. |
 | `PIN_PATH` | The teardrop every pin is cut from, exported so a legend can draw one. |
 | `pinIconOf(color, size)` | A teardrop with a white dot in its head - the picker's pins. |
@@ -347,17 +348,19 @@ row spreads rather than piling up.
 | `wheelZoom` | Behaviour | For |
 | --- | --- | --- |
 | `false` (default) | Wheel scrolls the page; **Ctrl/⌘ + wheel** is MapLibre's own zoom, and a bare wheel calls `onScrollHint` so the caller can flash a hint. | A map embedded in a scrolling page. |
-| `true` | The same MapLibre zoom on a bare wheel, with no modifier. | A map that fills the window. |
+| `true` | The same MapLibre zoom on a bare wheel, with no modifier. | A map that fills the window, or a day map the reader has grown taller. |
 
 The reason for the modifier is a page waiting to be scrolled behind the map. Full screen
 there is no page, so the modifier would be a toll on the one gesture everybody reaches for.
-Both the trip map and the picker make this distinction.
+The trip map and the picker decide it once, at build; the day map changes its mind -
+`setWheelZoom` lifts the guard while it is taller and restores it when it shrinks.
 
 **MapLibre's scroll zoom is always on; the guard is what differs.** A guarded map holds a
 bare `wheel` in the **capture** phase and stops it before the map's own listener sees it, so
 the page scrolls and the map does not. Ctrl/⌘ + wheel is not held back, so MapLibre gives it
-its own smooth, trackpad-aware zoom and stops the browser's page zoom itself. A map built
-with `wheelZoom` skips the guard and zooms on a bare wheel.
+its own smooth, trackpad-aware zoom and stops the browser's page zoom itself. The guard is
+attached on every map, and a flag on the instance lifts it - what `setWheelZoom` writes - so
+the day map can raise and lower it as its height changes.
 
 **Ctrl + drag pans, though MapLibre reserves it for rotation.** `generateMousePanHandler`
 starts a drag only when `!e.ctrlKey`, and rotation is off on every map here, so Ctrl+drag
@@ -654,7 +657,7 @@ map: the reader is leaving the map, not returning to it.
 | Control | Does |
 | --- | --- |
 | Open on the map | A link to the trip page with `?from=<date>&to=<date>`, so the day becomes the range there. |
-| Taller / shorter | Swaps the height between `min(360px, 100vh)` and `min(900px, calc(100vh - 12rem))`. Both are `min()` expressions of the same shape, which is what lets the height interpolate; the icon changes to say which way the next press goes. |
+| Taller / shorter | Swaps the height between `min(360px, 100vh)` and `min(900px, calc(100vh - 12rem))`. Both are `min()` expressions of the same shape, which is what lets the height interpolate; the icon changes to say which way the next press goes. A taller map also takes a bare wheel, so it zooms without the modifier. |
 | Full screen | A **second** map in a `Teleport`, exactly as the trip page builds one. The page stays where it is underneath. Both the viewer's close and its map action go to whichever map is in front, which is what makes the full-screen one answer at all. |
 
 **The page search is stood down on the map's own flights.** The day page tells the viewer the page
@@ -667,7 +670,9 @@ search with no element to hand is stood down, and such a close plays the plain f
 The map body is `data-no-swipe`, so panning it never pages to another day.
 
 **On a phone the toolbar stands under the map**, while the heading and the hide-map toggle keep
-their line. The map's own canvas takes `touch-action` for panning, so a thumb resting on it
+their line. The toolbar is drawn only while the map is - a hidden map leaves the heading and the
+show toggle alone, with nothing to act on - and it fades as the map folds in and out.
+The map's own canvas takes `touch-action` for panning, so a thumb resting on it
 cannot move the page; two **invisible** strips over the map's outer edges hand that gesture
 back, and the page's own margins are left exactly as they were. While the map fills the window
 the day's own arrow paging is stood down, so a press after the last picture cannot leave the
@@ -768,9 +773,11 @@ which rooftop.
    string.
 4. Fullscreen builds a second map; never teleport a live one.
 5. MapLibre's `scrollZoom` is on for **every** map; `wheelZoom` only decides whether a bare
-   wheel is held back. The guard runs in the **capture** phase, so a bare wheel never reaches
-   the map's own listener, while Ctrl/⌘ + wheel is MapLibre's own and stays smooth. Ctrl+drag
-   is re-dispatched without the modifier, because MapLibre reserves the modifier for rotation.
+   wheel is held back, and on a live map it is `setWheelZoom` that writes that flag, so the day
+   map raises and lowers it as it grows. The guard runs in the **capture** phase, so a bare wheel
+   never reaches the map's own listener, while Ctrl/⌘ + wheel is MapLibre's own and stays smooth.
+   Ctrl+drag is re-dispatched without the modifier, because MapLibre reserves the modifier for
+   rotation.
 6. Map ranges live in the URL.
 7. A marker is a DOM element, not the map canvas, so a press on a pin never reaches the map's
    own click - which would close the album the same instant it opens.

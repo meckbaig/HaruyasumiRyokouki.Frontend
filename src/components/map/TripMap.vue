@@ -14,6 +14,7 @@ import { useThemeStore } from '@/stores/theme'
 import {
   createBaseMap,
   setBaseScheme,
+  setWheelZoom,
   Marker,
   photoPinIcon,
   photoClusterIcon,
@@ -1391,6 +1392,13 @@ watch(
   () => theme.resolvedTheme?.scheme,
   (next) => setBaseScheme(map.value, next ?? 'light'),
 )
+
+/*
+  The day map takes a bare wheel only while it is taller; a narrow one keeps the
+  Ctrl/Cmd requirement, or a page behind it could not be scrolled past.
+  See docs/features/maps.md.
+*/
+watch(() => props.wheelZoom, (on) => setWheelZoom(map.value, on))
 
 onBeforeUnmount(() => {
   clearTimeout(hintTimer)
