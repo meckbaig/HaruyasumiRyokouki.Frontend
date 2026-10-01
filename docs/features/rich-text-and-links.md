@@ -197,6 +197,12 @@ A chip may name several files, so the card is a carousel rather than a single pi
   focus opened: that card has no hand following it to keep it open. A card just back from
   the viewer is one of these - `release` drops the hold as the viewer closes, and the card
   waits to be dismissed by a press outside it or by the cross.
+- **A press on the card's own controls holds it.** A button takes the focus on the press,
+  which blurs the reference the card belongs to; that blur must not put the card away, or
+  it leaves (`pointer-events: none`, `.hover-card-leave-active`) before the click reaches
+  the button and the picture never opens. The card goes only when the focus leaves the
+  reference **and** its card together, so a reference clicked earlier - which is left
+  focused - does not put the card away on the way to its own picture.
 - **A mouse hovers; a touch taps.** A touch reports an enter and a focus too, and answering
   either put the card under the finger, where the click a browser invents from the tap then
   landed on the card's own picture. So the card opens on a mouse's enter or on a keyboard
@@ -429,6 +435,10 @@ mirror came and went on its own, and nothing ever read it.
 39. Away from the page's file list, `RichText` renders a reference as a plain link: `preview`
     off means no card and no `rich-media-missing` mark, because without the list a miss cannot
     be judged. `ranges` draws search matches in the plain runs alone, never splitting a token.
+40. A press on a card's control moves the focus off the reference before the click, so the
+    reference's blur must not put the card away: it would leave with `pointer-events: none`
+    and the click would miss. The card goes only when the focus leaves the reference and the
+    card together - the same hold a field already gives its caret.
 
 ## Related
 

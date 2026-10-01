@@ -197,9 +197,16 @@ function onFocus(part, event) {
   intent.openNow(payloadFor(part, event))
 }
 
-/** A card opened by a focus goes when the focus does. */
-function onBlur() {
+/*
+  A card opened by a focus goes when the focus does, but a press on the card's
+  controls moves the focus there first: that blur must not take the card away
+  before the press lands, or the leaving card (`pointer-events: none`) eats the
+  click. See docs/features/rich-text-and-links.md.
+*/
+function onBlur(event) {
   if (pointerIsTouch) return
+  const card = cardRoot.value?.$el ?? cardRoot.value
+  if (card?.contains?.(event?.relatedTarget)) return
   intent.close()
 }
 
