@@ -660,6 +660,8 @@ function onCardBeforeEnter(element) {
 function onCardEnter(element, done) {
   if (motionReduced()) {
     element.classList.remove('is-closed')
+    // Pinned open, or a taller neighbour beside the record would set the box.
+    cardRef.value?.syncStripHeight()
     done()
     // There is no unfold to wait for, but the frame still brings the card's own
     // centre to the middle - a press otherwise opened the album without moving
@@ -677,6 +679,9 @@ function onCardEnter(element, done) {
   */
   element.classList.add('is-measuring')
   element.classList.remove('is-closed')
+  // Sized on the record **open** - the closed photo is forced square, so reading
+  // it before this would pin the strip to the pin's own box.
+  cardRef.value?.syncStripHeight()
   morphTo = cardBox(element)
   element.classList.add('is-closed')
   element.classList.remove('is-measuring')

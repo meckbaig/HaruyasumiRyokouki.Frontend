@@ -1348,6 +1348,12 @@
 */
 .media-strip {
   overflow: hidden;
+  /* The height is pinned to the record on show by `MapMediaCard`, so the card
+     follows the one file rather than the tallest of the three on the track. The
+     change is played over the strip's own beat (the duration is `SLIDE_MS`).
+     See docs/features/maps.md. */
+  transition-property: height;
+  transition-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
 .media-strip-track {

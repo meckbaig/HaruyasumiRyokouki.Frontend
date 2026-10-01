@@ -504,6 +504,15 @@ It travels with the map instead of hanging over it: the anchor is recomputed on 
 (capped at 360px, the most it ever needs), and it is **always above the point** - the card is
 never clamped down over its pin, the frame moves instead.
 
+**The content it follows is the record on show alone.** `MediaStrip` mounts the file on show
+and its two neighbours side by side on one flex track, and a flex track takes the tallest
+item - so a one-line title beside a two-line one with a description wore the neighbour's
+height. `MapMediaCard.syncStripHeight` pins the strip's own height to the active record's
+measured box, played over `SLIDE_MS` (the strip's own beat, the duration written inline from
+the constant), so a step grows the card rather than jumping it. The reading is taken **before
+the unfold measures the card** - `TripMap.onCardEnter` calls it - so the open is sized on the
+record too, and on every step, from the neighbour already in the DOM.
+
 **It follows the map on every frame of a movement.** The card is placed in container pixels
 outside the map's own canvas, so `TripMap` recomputes its anchor from `map.project` on `move`,
 once per frame. There is no separate zoom path and nothing to resync at a settle: MapLibre
@@ -946,6 +955,11 @@ which rooftop.
     painted - the flash a height animation showed on every frame. The call is guarded, and a
     version bump has to confirm the name; the fallback is `triggerRepaint`, a frame late. The
     visible marks are synced once a frame, never once per resize callback.
+48. The album's height follows the **record on show**, never the tallest neighbour: the strip
+    mounts three records on one flex track and `MapMediaCard.syncStripHeight` pins its height
+    to the active record's measured box, played over `SLIDE_MS`. It is read before the unfold
+    measures the card, so the open is sized on the record too, and on every step from the
+    neighbour already in the DOM.
 
 ## Related
 

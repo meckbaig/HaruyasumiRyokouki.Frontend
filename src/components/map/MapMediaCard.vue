@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
 import { isExplicit } from '@/services/explicit'
@@ -12,6 +12,7 @@ import { isVideo } from '@/services/mediaType'
 import { formatShortTime, formatShortDateTime } from '@/services/dates'
 import { markOpenedFrom } from '@/services/openedFrom'
 import { MAP_SERVICES, mapServiceUrl } from '@/services/mapLinks'
+import { SLIDE_MS } from '@/services/motion'
 
 /**
  * The album that opens over a map pin. The **pin itself becomes this**: the pin
@@ -43,6 +44,8 @@ const { t } = useI18n()
 const ui = useUiStore()
 
 const root = ref(null)
+/** The paging strip, whose own height is pinned to the record on show. */
+const stripRef = ref(null)
 
 const count = computed(() => props.medias.length)
 
@@ -118,6 +121,9 @@ function step(delta) {
 /** A turn has landed: the content takes the frame the strip settled on. */
 function onSettled(frame) {
   if (frame != null) shownIndex.value = frame
+  // A jump mounts the target only now, so the height is read once the strip has
+  // rebuilt its window. See docs/features/maps.md.
+  nextTick(syncStripHeight)
   finishTurn()
   emit('settled')
 }
@@ -187,7 +193,56 @@ function photoRect() {
   return photoElement()?.getBoundingClientRect() ?? null
 }
 
-defineExpose({ element: () => root.value, photoRect, photoElement, openFull, step })
+/**
+ * The record the strip shows at a frame number. The strip keeps the file on show
+ * and its two neighbours mounted, so a step's target is already in the DOM - and
+ * a jump's target is there after the strip has rebuilt its window.
+ */
+function recordFor(index) {
+  const card = root.value
+  if (!card) return null
+  return (
+    card.querySelector(`.map-card-record[data-frame="${index}"]`) ??
+    card.querySelector('.map-card-record-active') ??
+    card.querySelector('.map-card-record')
+  )
+}
+
+/**
+ * Pins the strip's height to the **record on show**: three records share one flex
+ * track and a flex track takes the tallest, so a one-line title beside a two-line
+ * one wore the neighbour's height. Played over `SLIDE_MS`. Called before the
+ * unfold measures the card and on every step. See docs/features/maps.md.
+ */
+function syncStripHeight() {
+  const strip = stripRef.value?.$el
+  const record = recordFor(props.index)
+  if (!strip || !record) return
+  const height = record.offsetHeight
+  if (height) strip.style.height = `${height}px`
+}
+
+/* A step's target is a mounted neighbour, so the height is set on the same beat
+   as the slide - not a beat after it, which would read as a second movement. */
+watch(() => props.index, () => nextTick(syncStripHeight))
+watch(() => props.medias, () => nextTick(syncStripHeight))
+
+onMounted(() => {
+  // The duration is `SLIDE_MS` itself, never a second copy of the number. The
+  // height itself is pinned by `TripMap.onCardEnter`, once the card is open - a
+  // reading taken here could catch the closed, square photo.
+  const strip = stripRef.value?.$el
+  if (strip) strip.style.transitionDuration = `${SLIDE_MS}ms`
+})
+
+defineExpose({
+  element: () => root.value,
+  photoRect,
+  photoElement,
+  openFull,
+  step,
+  syncStripHeight,
+})
 
 const CARD_WIDTH = 340
 const EDGE = 8
@@ -225,10 +280,11 @@ const position = computed(() => {
       <div class="map-card-body">
         <!-- One frame on show and its neighbours beside it, turned the way the
              viewer turns a page. -->
-        <MediaStrip :items="medias" :index="index" @settled="onSettled">
+        <MediaStrip ref="stripRef" :items="medias" :index="index" @settled="onSettled">
           <template #default="{ item, frame }">
             <div
               class="map-card-record"
+              :data-frame="frame"
               :class="frame === shownIndex ? 'map-card-record-active' : ''"
             >
               <div class="map-card-photo">
