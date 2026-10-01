@@ -2,8 +2,8 @@ import { ref, shallowRef } from 'vue'
 import { fetchMediaLocations } from '@/api/media'
 
 /**
- * Loads the located media for a date range in one `GET /v1/media/locations`.
- * Items are `MediaFileLocationDto`. See docs/features/maps.md.
+ * Loads all media for a date range in one `GET /v1/media?from=&to=`.
+ * Items are `MediaFileDto` (with `type`). See docs/features/maps.md.
  */
 export function useTripMedia() {
   const media = shallowRef([])

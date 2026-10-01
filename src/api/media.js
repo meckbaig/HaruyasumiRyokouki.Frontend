@@ -14,11 +14,11 @@ export async function fetchMediaEdit(ids, signal) {
 }
 
 /**
- * GET /v1/media/locations?from=&to= -> `MediaFileLocationDto[]`, geotagged files
- * only, thumbnails included. Both dates required, inclusive ISO. Public.
+ * GET /v1/media?from=&to= -> `GetMediaResponse { items: MediaFileDto[] }`, all media
+ * in range (geotagged only on the server side). Both dates required, inclusive ISO. Public.
  */
 export async function fetchMediaLocations(from, to, signal) {
-  const data = await request('/media/locations', { query: { from, to }, signal })
+  const data = await request('/media', { query: { from, to }, signal })
   return data?.items ?? []
 }
 

@@ -272,6 +272,62 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "Media"
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "X-Display",
+            "in": "header",
+            "description": "Client display information to determine media sizes in response.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dpr=1.25; min-side=864"
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "Localization of response contents.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "en"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMediaResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/media/sync": {
@@ -381,64 +437,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetEditMediaResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/media/locations": {
-      "get": {
-        "tags": [
-          "Media"
-        ],
-        "parameters": [
-          {
-            "name": "from",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "to",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "X-Display",
-            "in": "header",
-            "description": "Client display information to determine media sizes in response.",
-            "schema": {
-              "type": "string"
-            },
-            "example": "dpr=1.25; min-side=864"
-          },
-          {
-            "name": "Accept-Language",
-            "in": "header",
-            "description": "Localization of response contents.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "en"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetMediaLocationsResponse"
                 }
               }
             }
@@ -1285,7 +1283,7 @@
         },
         "additionalProperties": false
       },
-      "GetMediaLocationsResponse": {
+      "GetMediaResponse": {
         "required": [
           "items"
         ],
@@ -1294,7 +1292,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/MediaFileLocationDto"
+              "$ref": "#/components/schemas/MediaFileDto"
             },
             "nullable": true
           }
@@ -1486,9 +1484,6 @@
             "format": "double",
             "nullable": true
           },
-          "isApproved": {
-            "type": "boolean"
-          },
           "languageCode": {
             "type": "string",
             "nullable": true
@@ -1503,6 +1498,10 @@
           },
           "miniature": {
             "type": "string",
+            "nullable": true
+          },
+          "isApproved": {
+            "type": "boolean",
             "nullable": true
           },
           "private": {
@@ -1595,58 +1594,6 @@
             "items": {
               "$ref": "#/components/schemas/TagPublicDto"
             },
-            "nullable": true
-          },
-          "imageUrls": {
-            "$ref": "#/components/schemas/ImageUrlsDto"
-          },
-          "videoUrls": {
-            "$ref": "#/components/schemas/VideoUrlsDto"
-          }
-        },
-        "additionalProperties": false
-      },
-      "MediaFileLocationDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "created": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "latitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "longitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "fileName": {
-            "type": "string",
-            "nullable": true
-          },
-          "aspectRatio": {
-            "type": "number",
-            "format": "float"
-          },
-          "source": {
-            "type": "string",
-            "nullable": true
-          },
-          "title": {
-            "type": "string",
-            "nullable": true
-          },
-          "languageCode": {
-            "type": "string",
-            "nullable": true
-          },
-          "miniature": {
-            "type": "string",
             "nullable": true
           },
           "imageUrls": {

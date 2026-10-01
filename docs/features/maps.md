@@ -42,8 +42,9 @@ MapLibre objects are large and mutate constantly, so they are held in `shallowRe
 
 ## Data
 
-One request per range: `GET /media/locations?from=&to=` returns only geotagged files.
-There is no day-by-day walk.
+One request per range: `GET /media?from=&to=` returns all media in the date range, using
+the same `MediaFileDto` model as the day grid — including the `type` field (`Image` /
+`Video`). There is no day-by-day walk; geotagged filtering happens client-side.
 
 `routeFromMedia(media)` sorts by `created` and returns `[lat, lng]` pairs. The line is the
 path through the day - up the hill, along the river, back to the station - which on the
