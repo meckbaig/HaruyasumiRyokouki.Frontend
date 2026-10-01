@@ -13,6 +13,7 @@ The pieces mounted once at app level, and the rules every full-window overlay ha
 | `src/components/common/ToastHost.vue` | Transient notifications. |
 | `src/components/layout/AppScrollbar.vue` | The drawn scrollbar. |
 | `src/components/layout/SteppedScrollbar.vue` | The same bar for a list stepped through one record at a time. |
+| `src/services/tapActivation.js` | Answers a tap from the touch everywhere, so no control waits for the browser's click. |
 | `src/components/common/` | `LoadingIndicator`, `ErrorState`, `EmptyState`, `SkeletonGrid`, `ShareButton`. |
 | `src/composables/useDelayed.js` | Holds a "loading" notice back until the wait is real. |
 | `src/services/cascade.js` | Stagger for a list arriving in a cascade. |
@@ -118,6 +119,27 @@ there is nothing to reserve and nothing to move.
 - If this component fails to run the page still scrolls by every other means. What is lost
   is the drawn bar, not the scrolling.
 
+## The tap, everywhere
+
+A browser invents a `click` from a tap only if it decides the touch belonged to the
+page. After a swipe it decides otherwise and suppresses the whole invented sequence, so
+a control pressed straight after a picture was flicked away answered nothing - the whole
+UI dead for the moment the reader needed it most. `MediaTile` answered that for the walls
+of tiles by reading the tap from `touchend`; `tapActivation.js` is the same rule for every
+other control, installed once at app start.
+
+- A tap is a single finger, released where it landed, within `TAP_MAX_MS`. A move past
+  `TAP_SLOP`, a second finger, or anything already answered (`event.defaultPrevented`) is
+  left alone - a tile and the paint gesture both answer their own.
+- The synthetic click is dispatched on the **next microtask**, once every `touchend`
+  listener has run: the grid marks a finished paint on `touchend`, and answering before it
+  would open the picture a stroke just selected.
+- The browser's own click is cancelled with `preventDefault`, so exactly one click lands.
+- Fields the keyboard must reach, and a canvas, a player or anything marked
+  `data-native-tap`, keep the browser's own behaviour untouched.
+
+See [media-grid-and-selection.md](media-grid-and-selection.md).
+
 ## Waiting, quietly
 
 `useDelayed(source, delay = 400)` turns on only once its source has stayed on that long,
@@ -163,6 +185,9 @@ In `App.vue`:
 4. Backdrop close requires press and release both on the backdrop.
 5. `Suspense` outside `Transition`; `RouterView` keyed by path.
 6. Only one `ui.confirm` at a time; a superseded one resolves false.
+7. A tap is answered from the touch, never waited for as a click: `tapActivation` stands
+   aside for anything that already answered, and never takes a field, a canvas, a player
+   or a `data-native-tap` element.
 
 ## Related
 

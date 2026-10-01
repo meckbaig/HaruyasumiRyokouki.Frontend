@@ -8,6 +8,7 @@ import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
 import { useMotionStore } from './stores/motion'
 import { useInstallManifest } from './composables/useInstallManifest'
+import { installTapActivation } from './services/tapActivation'
 import './assets/main.css'
 
 const app = createApp(App)
@@ -24,6 +25,8 @@ useMotionStore().init()
 // Themed install manifest; needs the theme painted first so paper is resolved.
 useInstallManifest()
 installAuthRedirect()
+// A tap is answered from the touch everywhere, not only on the grid tiles.
+installTapActivation()
 
 app.use(router)
 

@@ -12,6 +12,7 @@ and the press-and-drag selection gesture shared by four different walls.
 | `src/components/media/MediaThumb.vue` | The two-stage thumbnail. Every wall renders one. |
 | `src/components/media/VideoBadge.vue` | The video mark: a play glyph, or the origin's logo for an embedded video. |
 | `src/services/mediaTiles.js` | Finding the element(s) that stand for a file. |
+| `src/services/tapActivation.js` | The same touch-first tap, for every other control in the app. |
 | `src/services/blockOutline.js` | The singled-out block's perimeter, as one SVG path. |
 | `src/composables/useTilePaint.js` | The paint gesture, shared. |
 | `src/stores/editor.js` | Selection state, `lastSave` / `lastDelete`. |
@@ -215,7 +216,10 @@ would single out nothing.
 `MediaTile` answers a tap on **`touchend`**, not on `click`. A browser invents the click,
 and only if it decides the touch belonged to the page: after a quick swipe it suppresses
 the whole invented sequence, so a tile tapped straight after flicking a picture away
-answered nothing at all.
+answered nothing at all. **This is not the grid's problem alone** - every control in the
+app waits for that click - so the same rule now runs for the whole app in
+`services/tapActivation.js`, installed once; the tile's own handling is left to answer
+first and the global one stands aside. See [ui-shell.md](ui-shell.md).
 
 That leaves the invented click to deal with, because it is aimed at **the point the finger
 was at**, and the viewer is open over that point by the time it arrives. Opening a file at
