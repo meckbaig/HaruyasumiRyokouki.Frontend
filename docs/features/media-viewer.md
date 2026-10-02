@@ -29,6 +29,7 @@ searchable regions. Read this document before editing it.
 | `src/services/mapLinks.js` | `MAP_SERVICES` - the one place a map-service URL is built. |
 | `src/composables/useDelayed.js` | `miniatureRetired` - when the miniature has done its job. |
 | `src/composables/useMediaLink.js` | `pageIdentity` - used to close on real navigation. |
+| `src/composables/useViewerHistoryStep.js` | The viewer's own history step: push, replace, Back-close. |
 | `src/assets/main.css` | `.fit-media`, `lightbox-*` transitions, `[data-lightbox-flying]`. |
 
 ## Interface
@@ -489,6 +490,10 @@ closing by hand - the cross, a swipe, a press beside the picture, the map action
 step back with `history.back()`, so Back then leaves the page. Paging **replaces** the entry,
 never pushes, so a picture turned to is not a step of its own.
 
+All of it lives once, in `src/composables/useViewerHistoryStep.js`. The day page, the search
+page and the trip map each call it with their own way to add a step - the `?i=`/`?o=1` pair, or
+the page's own address - so the four rules above cannot drift between them.
+
 A step **never opens** the viewer: only the address the page loaded with, or a press, does. So
 Forward cannot return to a picture this session has closed, and a shared `?i=` / `?o=1` link
 still opens it on arrival.
@@ -634,6 +639,9 @@ Do not "fix" these:
     during `setup`, before this component exists, so the viewer mounts already open. Without
     the setup pass the overlay token and keydown listener were never registered, and an
     arrow press paged the day behind the still-open picture.
+29. A page never keeps its own `popstate` handler or `history.back()` for the viewer: the
+    step is `useViewerHistoryStep`, so Back behaves the same on the day, search and map
+    pages. A page's remaining overlays pass `otherStep`.
 
 ## Module layout and code regions
 

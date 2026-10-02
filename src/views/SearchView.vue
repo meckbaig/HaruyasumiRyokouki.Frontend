@@ -19,6 +19,7 @@ import { useEditorStore } from '@/stores/editor'
 import { useUiStore } from '@/stores/ui'
 import { useTagsStore } from '@/stores/tags'
 import { useMediaLink } from '@/composables/useMediaLink'
+import { useViewerHistoryStep } from '@/composables/useViewerHistoryStep'
 import { scrollToMedia } from '@/services/scrollToMedia'
 import { hasOverlay } from '@/services/overlayStack'
 import { cascadeDelay } from '@/services/cascade'
@@ -40,6 +41,8 @@ const TABS = ['media', 'notes']
 
 const lightboxItems = ref([])
 const lightboxIndex = ref(null)
+/** The viewer itself, so Back can run its own close - the flight back included. */
+const viewer = ref(null)
 const editing = ref(null)
 /** `{ media, x, y }` of the file right-clicked in a result group. */
 const contextTarget = ref(null)
@@ -120,8 +123,27 @@ watch(
 const mediaLink = useMediaLink({ suspended: () => hasOverlay() })
 const highlightedId = computed(() => mediaLink.link.value.id)
 
+/*
+  The viewer's own history step, shared with the day page and the trip map. Back
+  closes the viewer through its own close; a new question is a navigation, so the
+  step is forgotten rather than taken back. See docs/features/media-viewer.md.
+*/
+const viewerStep = useViewerHistoryStep({
+  index: lightboxIndex,
+  idAt: (i) => lightboxItems.value[i]?.id ?? null,
+  addressHasStep: () => mediaLink.link.value.open,
+  push: (id) => mediaLink.push(id),
+  replace: (id) => mediaLink.write(id, true),
+  clear: () => mediaLink.clear(),
+  close: () => viewer.value?.close(),
+})
+
 let linkResolved = false
-watch([query, tagSlug], () => (linkResolved = false))
+watch([query, tagSlug], () => {
+  linkResolved = false
+  // A new question is a navigation: the viewer's own step is left where it is.
+  viewerStep.forgetStep()
+})
 
 // The store replaces its whole result object once per completed run - cached or
 // fetched, hit or miss - which makes it the one signal that says "these are the
@@ -141,7 +163,8 @@ watch(
 
       if (open) {
         lightboxItems.value = group.matched
-        lightboxIndex.value = index
+        // A history step never opens the viewer; only a load or a press does.
+        if (!viewerStep.isHistoryStep()) lightboxIndex.value = index
       } else {
         scrollToMedia(id)
       }
@@ -152,12 +175,6 @@ watch(
     mediaLink.clear()
   },
 )
-
-watch(lightboxIndex, (index) => {
-  const opened = index == null ? null : lightboxItems.value[index]
-  if (opened) mediaLink.write(opened.id, true)
-  else mediaLink.clear()
-})
 
 // Files deleted through the app-level toolbar; the page cannot hear its events.
 watch(
@@ -311,7 +328,7 @@ async function removeMedia(list) {
     </template>
 
     <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
-    <MediaLightbox v-model:index="lightboxIndex" :items="lightboxItems" />
+    <MediaLightbox ref="viewer" v-model:index="lightboxIndex" :items="lightboxItems" />
     <MediaEditDialog
       :open="Boolean(editing)"
       :media="editing"

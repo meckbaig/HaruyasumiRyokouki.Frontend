@@ -24,6 +24,7 @@ import { formatLongDate, formatWeekday } from '@/services/dates'
 import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
 import { useMediaLink } from '@/composables/useMediaLink'
+import { useViewerHistoryStep } from '@/composables/useViewerHistoryStep'
 import { scrollToMedia, scrollTargetFor } from '@/services/scrollToMedia'
 import { tileFor } from '@/services/mediaTiles'
 import { routeFromMedia } from '@/composables/useTripMedia'
@@ -261,60 +262,10 @@ function activateMapMedia(id) {
   }, MAP_REVEAL_MS)
 }
 
-/** True while a popstate is being answered, when the address is the browser's. */
-let answeringPop = false
 /** True while a popstate is returning to the note, so the link does not scroll. */
 let returningToText = false
-/** True while this page is taking back a step it pushed for an overlay it closed. */
-let consumingStep = false
 /** True while a full-screen map's own step stands in history. */
 let mapStepPushed = false
-/** True while the viewer's own step stands in history. */
-let viewerStepPushed = false
-/** True while a popstate step is being answered, when no address may open. */
-let historyStep = false
-
-/**
- * The browser's own Back and Forward. A step closes whatever is in front, and a
- * remembered line makes it the return to the note. **A step never opens** the
- * viewer: the pair in the address opens it on load, and a press opens it by hand.
- * See docs/features/media-viewer.md and docs/features/maps.md.
- */
-function onPopState() {
-  // A step this page took itself, closing an overlay by hand: nothing to answer.
-  const tookBack = consumingStep
-  consumingStep = false
-
-  if (!tookBack) {
-    // The step is the browser's: no address it lands on opens an overlay.
-    historyStep = true
-    nextTick(() => (historyStep = false))
-    // A step onto a link that asked for the viewer by name keeps it open.
-    if (new URLSearchParams(window.location.search).get('o') === '1') return
-  }
-
-  // The viewer in front closes first; the map under it waits for the next step.
-  if (lightboxIndex.value != null) {
-    // The address is the browser's to settle now; a write from the close would
-    // cancel the very step it is making. The viewer's **own** close runs, so the
-    // picture flies back to the tile, card or album it came from.
-    answeringPop = true
-    viewer.value?.close()
-    viewerStepPushed = false
-    nextTick(() => (answeringPop = false))
-  } else if (!tookBack && mapFullscreen.value) {
-    closeMapFullscreen({ fromStep: true })
-    return
-  }
-
-  if (tookBack) return
-
-  if (!textAnchor.value) return
-  // The link's own scroll must not fight the return to the note.
-  returningToText = true
-  returnToTextAnchor()
-  nextTick(() => (returningToText = false))
-}
 
 // Persisted preference: some visitors find the day map distracting, so it can be
 // hidden by default. When on, the map starts collapsed and a show/hide button
@@ -373,10 +324,7 @@ function closeMapFullscreen({ fromStep = false } = {}) {
   if (mapStepPushed) {
     mapStepPushed = false
     // A step the browser already popped is not taken back twice.
-    if (!fromStep) {
-      consumingStep = true
-      history.back()
-    }
+    if (!fromStep) viewerStep.takeBack()
   }
   nextTick(() => {
     tripMap.value?.applyView(view)
@@ -573,7 +521,7 @@ watch(
     fullMapSelection.value = null
     // The overlays are gone with the day; their steps are not ours to take back.
     mapStepPushed = false
-    viewerStepPushed = false
+    viewerStep.forgetStep()
     // Another day carries its own link, or none at all.
     answered = undefined
     // The anchor named an element of the note just left.
@@ -607,6 +555,32 @@ const linkOpen = computed(() => mediaLink.link.value.open)
 /** The file already answered for, so the same one is not answered for twice. */
 let answered
 
+/*
+  The viewer's own history step, shared with the search page and the trip map. A
+  step closes the viewer through its own close; a remembered line is returned to,
+  and the full-screen map waits for the next step. See docs/features/media-viewer.md.
+*/
+const viewerStep = useViewerHistoryStep({
+  index: lightboxIndex,
+  idAt: (i) => media.value[i]?.id ?? null,
+  addressHasStep: () => mediaLink.link.value.open,
+  push: (id) => mediaLink.push(id),
+  replace: (id) => mediaLink.write(id, true),
+  clear: () => mediaLink.clear(),
+  close: () => viewer.value?.close(),
+  otherStep: () => {
+    // The map in front closes on its own step; the note is the other return.
+    if (mapFullscreen.value) {
+      closeMapFullscreen({ fromStep: true })
+      return
+    }
+    if (!textAnchor.value) return
+    returningToText = true
+    returnToTextAnchor()
+    nextTick(() => (returningToText = false))
+  },
+})
+
 watch(
   [media, () => mediaLink.link.value],
   ([list, link]) => {
@@ -633,7 +607,7 @@ watch(
 
     if (link.open) {
       // A history step never opens the viewer; only a load or a press does.
-      if (!historyStep) lightboxIndex.value = index
+      if (!viewerStep.isHistoryStep()) lightboxIndex.value = index
       return
     }
     // The viewer covers the wall, so a link must not scroll the page out from
@@ -645,38 +619,6 @@ watch(
 
 // Files deleted through the app-level toolbar; the page cannot hear its events.
 watch(() => editor.lastDelete, () => load(true))
-
-/**
- * Opening the viewer gives it a step of its own - the pair **pushed** rather than
- * replaced - so Back closes it; closing takes that step back, so neither Back is
- * left standing on it nor Forward returns to it. A turn replaces, never pushes.
- * See docs/features/media-viewer.md.
- */
-watch(lightboxIndex, (index) => {
-  // A popstate is answering for the address; a write here would cancel the step.
-  if (answeringPop) return
-
-  const opened = index == null ? null : media.value[index]
-  if (opened) {
-    // A turn replaces the entry; a deep link already brought its own.
-    if (viewerStepPushed) {
-      mediaLink.write(opened.id, true)
-      return
-    }
-    if (mediaLink.link.value.open) return
-    viewerStepPushed = true
-    mediaLink.push(opened.id)
-    return
-  }
-
-  if (viewerStepPushed) {
-    viewerStepPushed = false
-    consumingStep = true
-    history.back()
-    return
-  }
-  mediaLink.clear()
-})
 
 /**
  * Left/right arrows step between days. Ignored while typing and while **anything**
@@ -708,8 +650,6 @@ function onKeydown(event) {
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 onBeforeUnmount(() => (document.body.style.overflow = ''))
-onMounted(() => window.addEventListener('popstate', onPopState))
-onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
 // Seeing the reference again is the one thing that spends the way back. A
 // settled scroll answers it, and `scrollend` answers at once where it exists.
 onMounted(() => window.addEventListener('scroll', onScrollCheck, { passive: true }))

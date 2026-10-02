@@ -11,6 +11,7 @@ import { useDaysStore } from '@/stores/days'
 import { useUiStore } from '@/stores/ui'
 import { useTripMedia, routeFromMedia } from '@/composables/useTripMedia'
 import { withMediaLink } from '@/composables/useMediaLink'
+import { useViewerHistoryStep } from '@/composables/useViewerHistoryStep'
 import { hasCoordinates } from '@/services/mapLinks'
 import { hasOverlay } from '@/services/overlayStack'
 import { MAP_COLLAPSE, MAP_EXPAND } from '@/services/mapIcons'
@@ -76,9 +77,6 @@ const fullSelection = ref(null)
 /* A history step of this page's own, so Back closes an overlay rather than
    leaving the page. The step changes **nothing**: the address is the page's. */
 let expandedStep = false
-let viewerStep = false
-/** True while this page is taking back a step it pushed for an overlay it closed. */
-let consumingStep = false
 
 /** Adds the step itself - one location, so vue-router must be told to push it. */
 function pushStep() {
@@ -110,10 +108,7 @@ function closeFullscreen({ fromStep = false } = {}) {
   if (expandedStep) {
     expandedStep = false
     // A step the browser already popped is not taken back twice.
-    if (!fromStep) {
-      consumingStep = true
-      history.back()
-    }
+    if (!fromStep) viewerSteps.takeBack()
   }
   nextTick(() => {
     inlineMap.value?.applyView(view)
@@ -169,27 +164,23 @@ function onKeydown(event) {
   if (event.key === 'Escape' && expanded.value && !hasOverlay()) closeFullscreen()
 }
 
-/**
- * The browser's own Back and Forward. A step closes whatever is in front - the
- * viewer through its **own** close, so the picture flies back into its card - and
- * a step never opens an overlay. See docs/features/media-viewer.md.
- */
-function onPopState() {
-  const tookBack = consumingStep
-  consumingStep = false
-  if (tookBack) return
-
-  // The viewer in front closes first; the map under it waits for the next step.
-  if (lightboxIndex.value != null) {
-    viewer.value?.close()
-    viewerStep = false
-    return
-  }
-  if (expanded.value) closeFullscreen({ fromStep: true })
-}
-
-onMounted(() => window.addEventListener('popstate', onPopState))
-onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
+/*
+  The viewer's own history step, shared with the day page and the search page.
+  The viewer closes through its own close, so the picture flies back into its
+  card; the map's full-screen step is the page's own. See docs/features/media-viewer.md.
+*/
+const viewerSteps = useViewerHistoryStep({
+  index: lightboxIndex,
+  idAt: (i) => media.value[i]?.id ?? null,
+  addressHasStep: () => false,
+  push: pushStep,
+  replace: () => {},
+  clear: () => {},
+  close: () => viewer.value?.close(),
+  otherStep: () => {
+    if (expanded.value) closeFullscreen({ fromStep: true })
+  },
+})
 
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => {
@@ -208,24 +199,6 @@ onMounted(refresh)
 watch([from, to, () => days.orderedDates.length], reload)
 watch(() => ui.locale, refresh)
 
-/**
- * The viewer's own step - the page's address, so a step onto it opens nothing.
- * Closing by hand takes it back, so Back then leaves the page.
- * See docs/features/media-viewer.md.
- */
-watch(lightboxIndex, (index) => {
-  if (index == null) {
-    if (viewerStep) {
-      viewerStep = false
-      consumingStep = true
-      history.back()
-    }
-    return
-  }
-  if (viewerStep) return
-  viewerStep = true
-  pushStep()
-})
 </script>
 
 <template>
