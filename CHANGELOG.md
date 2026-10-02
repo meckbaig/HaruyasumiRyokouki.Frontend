@@ -21,6 +21,7 @@ it was.
 
 - The browser's Back closes the picture instead of leaving the page
 - On a full-screen map, Back closes the picture first and the map on the next press
+- Going to the map from the viewer frames the pin in one movement, with no second pan
 - Back again, onto the note a reference was followed from, returns to the line
 - Forward walks back through the file and the line the address names
 - Turning a page in the viewer no longer adds a history entry

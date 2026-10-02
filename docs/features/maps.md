@@ -601,11 +601,14 @@ because a viewer can also leave with no close event. A flag in the view went sta
 address was rewritten for the `?i=` pair, which is why a close from a card did nothing. `MapView`
 needs no such gate: every viewer it opens comes from a pin.
 
-**The action re-frames the album it did not open.** A card already standing is not re-mounted, so
-its own unfold hooks cannot re-frame it; the zoomed `showMedia` therefore waits for the view to
-settle - with a fallback, because a view already at its target fires no `moveend` - and then asks
-for the frame. That leaves the **preview** centred, rather than the point centred with the preview
-hanging above it.
+**The action re-frames the album it did not open, in one movement.** A card already standing is
+not re-mounted, so its own unfold hooks cannot re-frame it. Its height is measured **before** the
+move, and the zoom and the frame are then a single `easeTo`: the file's ground is given an `offset`
+below the middle by half the card's height, which puts the card's own centre at the middle.
+Centring the point and panning for the card after read as two movements - the point centred, then
+the card jumping up by half its height - so the offset is what makes it one. The settle it still
+waits for (with a fallback, because a view already at its target fires no `moveend`) now catches
+only a card whose height changed while the view moved.
 
 ## The trip page
 
@@ -894,7 +897,9 @@ which rooftop.
     keyboard first. `applyView` brings the view back with it. A close moves the map only when the
     map's **own card** opened the viewer: the map records that itself and answers through
     `syncViewerClose`, so the answer cannot go stale as a flag in a view did. The action re-frames
-    a card that was already standing, because such a card is never re-mounted.
+    a card that was already standing - in the **same** movement as its zoom, by offsetting the
+    ground below centre by half the card's height, because such a card is never re-mounted and a
+    separate pan for it read as a second movement.
 31. Every map builds its own markers, so two maps live at once never share a DOM node; and
     while a card stands, the markers its rectangle covers take no press, or the press would
     move the album to a pin under it.

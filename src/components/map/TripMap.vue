@@ -393,6 +393,15 @@ function showMedia(id, { zoom = false } = {}) {
     center: lngLat([point.latitude, point.longitude]),
     zoom: Math.max(map.value.getZoom(), FOCUS_ZOOM),
   }
+  /*
+    A card already standing is measured here, so its own centre is brought to the
+    middle of the box **in this one movement**: the ground is offset below centre
+    by half the card's height, instead of centring the point and panning after.
+  */
+  if (wasOpen) {
+    const cardHeight = cardRef.value?.element()?.offsetHeight ?? 0
+    target.offset = [0, cardHeight / 2]
+  }
   // One movement, one gate: `motionReduced()` decides and the animation is
   // marked essential, so MapLibre cannot drop what the app chose to play.
   map.value.easeTo({ ...target, duration: FOCUS_EASE_MS, ...cameraMotion() })
@@ -406,7 +415,8 @@ function showMedia(id, { zoom = false } = {}) {
   if (wasOpen) {
     // The frame is measured on the settled view and grouping, so it waits for
     // the movement - with a fallback for a view already at its target, which
-    // fires no `moveend` at all.
+    // fires no `moveend` at all. The offset above already centres the card, so
+    // this is a no-op unless the card's own height changed while the view moved.
     let settled = false
     const frame = () => {
       if (settled) return
