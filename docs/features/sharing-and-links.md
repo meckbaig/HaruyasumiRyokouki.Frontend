@@ -49,10 +49,10 @@ a search resolves against its *matched* files, not the remainders a reader can u
 Anything unresolvable is dropped from the address bar and the page opens as if nothing had
 been asked for - a file may have moved to another day, or the search may no longer match it.
 
-**Writing runs the other way.** Opening, paging or closing the viewer replaces the pair,
-so the share button always copies a link to the picture on screen. Closing keeps `i` and
-drops `o`: the reader is back at the list, looking at the file they just left. The
-viewer's "open day" button carries `i` alone for the same reason.
+**Opening a picture adds a step of its own.** It **pushes** the pair (`?i=`, `?o=1`) rather
+than replacing the entry, so Back returns to the address before it and closes the viewer;
+closing by hand takes that step back, so Back then leaves the page. The Share button carries
+the same pair, and a shared link still opens the picture on arrival.
 
 **The front page is deliberately outside this.** Its wall is shuffled and capped by the
 backend, so an `i` into it would mean nothing on the next visit. `copyMediaUrl` therefore
@@ -82,15 +82,15 @@ address for a page change reads that as the reader being taken somewhere else. T
 opening a file came to close the viewer in the same instant. Anything that wants "did the
 reader actually move?" must compare `pageIdentity`, never `route.fullPath`.
 
-`write()` replaces rather than pushes: paging through a day would otherwise bury the
-arrival page under one history entry per picture. It also skips writes that would not
-change anything, because vue-router treats navigating to the same place as a reportable
-error.
+`write()` replaces rather than pushes: a single file singled out inside a page would otherwise
+bury that page under one history entry per change. It also skips writes that would not change
+anything, because vue-router treats navigating to the same place as a reportable error.
 
-`push()` and `depart()` are the two exceptions, both for leaving a note: `push(ids)` writes
-the pair and adds an entry, `depart()` adds an entry and changes **nothing**. `depart` passes
-`force`, because vue-router skips a push to the location already standing as a duplicate - and
-the map follow needs the step without the `?i=` that would outline the block.
+`push()` and `depart()` are the two exceptions, both adding an entry. `push(ids, open)` writes
+the pair: following a note reference (no `o`) and opening the viewer (`o=1`). `depart()` adds
+an entry and changes **nothing**, for a step that must not write the pair - the map follow, and
+the day's full-screen map. `depart` passes `force`, because vue-router skips a push to the
+location already standing as a duplicate - the step is the whole point.
 
 The outline is dismissed by a **tap** that is not about it, with these carve-outs:
 

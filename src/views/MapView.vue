@@ -73,24 +73,48 @@ const fullMap = ref(null)
 const fullView = ref(null)
 const fullSelection = ref(null)
 
+/* A history step of this page's own, so Back closes an overlay rather than
+   leaving the page. The step changes **nothing**: the address is the page's. */
+let expandedStep = false
+let viewerStep = false
+/** True while this page is taking back a step it pushed for an overlay it closed. */
+let consumingStep = false
+
+/** Adds the step itself - one location, so vue-router must be told to push it. */
+function pushStep() {
+  router.push({ path: route.path, query: route.query, hash: route.hash, force: true })
+}
+
 function openFullscreen() {
   // The view and the album are **moved**, not copied: a second card left standing
   // on the map behind answers the keyboard and the card's own gestures first.
   fullView.value = inlineMap.value?.getView() ?? null
   fullSelection.value = inlineMap.value?.getSelection() ?? null
   expanded.value = true
+  // A step of its own, so Back collapses the map; the close takes it back.
+  expandedStep = true
+  pushStep()
   nextTick(() => inlineMap.value?.showMedia(null))
 }
 
 /**
  * Collapsing hands both back to the inline map - the album the reader had open,
  * and the ground they left - once the overlay has let go, so the two never hold
- * the same card at once. See docs/features/maps.md.
+ * the same card at once. By hand it also takes the map's own history step back,
+ * so Back leaves the page rather than standing on it. See docs/features/maps.md.
  */
-function closeFullscreen() {
+function closeFullscreen({ fromStep = false } = {}) {
   const view = fullMap.value?.getView() ?? null
   const selection = fullMap.value?.getSelection() ?? null
   expanded.value = false
+  if (expandedStep) {
+    expandedStep = false
+    // A step the browser already popped is not taken back twice.
+    if (!fromStep) {
+      consumingStep = true
+      history.back()
+    }
+  }
   nextTick(() => {
     inlineMap.value?.applyView(view)
     inlineMap.value?.showMedia(selection?.id ?? null)
@@ -99,6 +123,8 @@ function closeFullscreen() {
 
 /* The album a pin opens: the viewer walks the same list the map is drawn from. */
 const lightboxIndex = ref(null)
+/** The viewer itself, so Back can run its own close - the flight back included. */
+const viewer = ref(null)
 
 const openMedia = computed(() =>
   lightboxIndex.value == null ? null : (media.value[lightboxIndex.value] ?? null),
@@ -143,6 +169,28 @@ function onKeydown(event) {
   if (event.key === 'Escape' && expanded.value && !hasOverlay()) closeFullscreen()
 }
 
+/**
+ * The browser's own Back and Forward. A step closes whatever is in front - the
+ * viewer through its **own** close, so the picture flies back into its card - and
+ * a step never opens an overlay. See docs/features/media-viewer.md.
+ */
+function onPopState() {
+  const tookBack = consumingStep
+  consumingStep = false
+  if (tookBack) return
+
+  // The viewer in front closes first; the map under it waits for the next step.
+  if (lightboxIndex.value != null) {
+    viewer.value?.close()
+    viewerStep = false
+    return
+  }
+  if (expanded.value) closeFullscreen({ fromStep: true })
+}
+
+onMounted(() => window.addEventListener('popstate', onPopState))
+onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
+
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown)
@@ -159,6 +207,25 @@ onMounted(refresh)
 // The range comes from the trip bounds, so react once the day list has loaded too.
 watch([from, to, () => days.orderedDates.length], reload)
 watch(() => ui.locale, refresh)
+
+/**
+ * The viewer's own step - the page's address, so a step onto it opens nothing.
+ * Closing by hand takes it back, so Back then leaves the page.
+ * See docs/features/media-viewer.md.
+ */
+watch(lightboxIndex, (index) => {
+  if (index == null) {
+    if (viewerStep) {
+      viewerStep = false
+      consumingStep = true
+      history.back()
+    }
+    return
+  }
+  if (viewerStep) return
+  viewerStep = true
+  pushStep()
+})
 </script>
 
 <template>
@@ -248,7 +315,7 @@ watch(() => ui.locale, refresh)
             class="btn-ghost map-float-control absolute right-4 top-4 z-[1000] !px-3 !py-2"
             :title="t('map.collapse')"
             :aria-label="t('map.collapse')"
-            @click="closeFullscreen"
+            @click="closeFullscreen()"
           >
             <svg
               class="h-5 w-5"
@@ -293,6 +360,7 @@ watch(() => ui.locale, refresh)
     <!-- Opened from a pin's album; the card says there is no tile to fly from,
          so the viewer plays its plain fade. See docs/features/maps.md. -->
     <MediaLightbox
+      ref="viewer"
       v-model:index="lightboxIndex"
       :items="media"
       :can-show-on-map="openOnMap"

@@ -668,7 +668,7 @@ map: the reader is leaving the map, not returning to it.
 | --- | --- |
 | Open on the map | A link to the trip page with `?from=<date>&to=<date>`, so the day becomes the range there. |
 | Taller / shorter | Swaps the height between `min(360px, 100vh)` and `min(900px, calc(100vh - 12rem))`. Both are `min()` expressions of the same shape, which is what lets the height interpolate; the icon changes to say which way the next press goes. A taller map also takes a bare wheel, so it zooms without the modifier. |
-| Full screen | A **second** map in a `Teleport`, exactly as the trip page builds one. The page stays where it is underneath. Both the viewer's close and its map action go to whichever map is in front, which is what makes the full-screen one answer at all. |
+| Full screen | A **second** map in a `Teleport`, exactly as the trip page builds one. The page stays where it is underneath. Both the viewer's close and its map action go to whichever map is in front, which is what makes the full-screen one answer at all. Opening adds a history step of the **same address**, so Back collapses it; collapsing by hand takes that step back; and a step onto it never opens it again. |
 
 **The page search is stood down on the map's own flights.** The day page tells the viewer the page
 is covered while its map fills the window, and, inline, while the viewer was opened from the map's
@@ -961,6 +961,10 @@ which rooftop.
     to the active record's measured box, played over `SLIDE_MS`. It is read before the unfold
     measures the card, so the open is sized on the record too, and on every step from the
     neighbour already in the DOM.
+49. A full-screen map - the day's and the trip page's - opens onto a history step of the
+    **same address**. Back collapses it, collapsing by hand takes the step back, and a step
+    onto it opens nothing, so neither Back nor Forward returns to a closed map. The trip
+    page's viewer takes a step the same way, closed through its own `close()`.
 
 ## Related
 

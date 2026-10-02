@@ -59,6 +59,8 @@ const MAP_HIDDEN_KEY = 'haruyasumi.dayMapHidden'
 const loading = ref(false)
 const error = ref(null)
 const lightboxIndex = ref(null)
+/** The viewer itself, so Back can run its own close - the flight back included. */
+const viewer = ref(null)
 /** True while the viewer in front was opened from the map's own album. */
 const viewerFromMap = ref(false)
 const editing = ref(null)
@@ -251,6 +253,8 @@ function activateMapMedia(id) {
     return
   }
   mapFullscreen.value = false
+  // The map's own step is left standing for the follow's own write to replace.
+  mapStepPushed = false
   window.setTimeout(() => {
     mediaLink.write(id, false)
     scrollToMedia([id])
@@ -261,24 +265,49 @@ function activateMapMedia(id) {
 let answeringPop = false
 /** True while a popstate is returning to the note, so the link does not scroll. */
 let returningToText = false
+/** True while this page is taking back a step it pushed for an overlay it closed. */
+let consumingStep = false
+/** True while a full-screen map's own step stands in history. */
+let mapStepPushed = false
+/** True while the viewer's own step stands in history. */
+let viewerStepPushed = false
+/** True while a popstate step is being answered, when no address may open. */
+let historyStep = false
 
 /**
- * The browser's own Back and Forward. A step onto an entry that does not ask for
- * the viewer closes it, and if a line is remembered that step **is** the return
- * to the note. One that asks for the viewer keeps it open.
- * See docs/features/rich-text-and-links.md.
+ * The browser's own Back and Forward. A step closes whatever is in front, and a
+ * remembered line makes it the return to the note. **A step never opens** the
+ * viewer: the pair in the address opens it on load, and a press opens it by hand.
+ * See docs/features/media-viewer.md and docs/features/maps.md.
  */
 function onPopState() {
-  const wanted = new URLSearchParams(window.location.search).get('o') === '1'
-  if (wanted) return
+  // A step this page took itself, closing an overlay by hand: nothing to answer.
+  const tookBack = consumingStep
+  consumingStep = false
 
-  // The address is the browser's to settle now; a write from the close would
-  // cancel the very step it is making.
-  if (lightboxIndex.value != null) {
-    answeringPop = true
-    lightboxIndex.value = null
-    nextTick(() => (answeringPop = false))
+  if (!tookBack) {
+    // The step is the browser's: no address it lands on opens an overlay.
+    historyStep = true
+    nextTick(() => (historyStep = false))
+    // A step onto a link that asked for the viewer by name keeps it open.
+    if (new URLSearchParams(window.location.search).get('o') === '1') return
   }
+
+  // The viewer in front closes first; the map under it waits for the next step.
+  if (lightboxIndex.value != null) {
+    // The address is the browser's to settle now; a write from the close would
+    // cancel the very step it is making. The viewer's **own** close runs, so the
+    // picture flies back to the tile, card or album it came from.
+    answeringPop = true
+    viewer.value?.close()
+    viewerStepPushed = false
+    nextTick(() => (answeringPop = false))
+  } else if (!tookBack && mapFullscreen.value) {
+    closeMapFullscreen({ fromStep: true })
+    return
+  }
+
+  if (tookBack) return
 
   if (!textAnchor.value) return
   // The link's own scroll must not fight the return to the note.
@@ -320,6 +349,9 @@ function openMapFullscreen() {
   fullMapView.value = tripMap.value?.getView() ?? null
   fullMapSelection.value = tripMap.value?.getSelection() ?? null
   mapFullscreen.value = true
+  // A step of its own, so Back collapses the map; the close takes it back.
+  mapStepPushed = true
+  mediaLink.depart()
   nextTick(() => tripMap.value?.showMedia(null))
 }
 
@@ -331,12 +363,21 @@ function activeMap() {
 /**
  * Collapsing hands both back to the inline map - the album the reader had open,
  * and the ground they left - once the overlay has let go, so the two never hold
- * the same card at once. See docs/features/maps.md.
+ * the same card at once. By hand it also takes the map's own history step back,
+ * so Back leaves the page rather than standing on it. See docs/features/maps.md.
  */
-function closeMapFullscreen() {
+function closeMapFullscreen({ fromStep = false } = {}) {
   const view = fullScreenMap.value?.getView() ?? null
   const selection = fullScreenMap.value?.getSelection() ?? null
   mapFullscreen.value = false
+  if (mapStepPushed) {
+    mapStepPushed = false
+    // A step the browser already popped is not taken back twice.
+    if (!fromStep) {
+      consumingStep = true
+      history.back()
+    }
+  }
   nextTick(() => {
     tripMap.value?.applyView(view)
     tripMap.value?.showMedia(selection?.id ?? null)
@@ -530,6 +571,9 @@ watch(
     mapExpanded.value = false
     mapFullscreen.value = false
     fullMapSelection.value = null
+    // The overlays are gone with the day; their steps are not ours to take back.
+    mapStepPushed = false
+    viewerStepPushed = false
     // Another day carries its own link, or none at all.
     answered = undefined
     // The anchor named an element of the note just left.
@@ -587,8 +631,14 @@ watch(
       return
     }
 
-    if (link.open) lightboxIndex.value = index
-    else scrollToMedia(link.ids)
+    if (link.open) {
+      // A history step never opens the viewer; only a load or a press does.
+      if (!historyStep) lightboxIndex.value = index
+      return
+    }
+    // The viewer covers the wall, so a link must not scroll the page out from
+    // under the full screen while the viewer is the one being opened.
+    if (lightboxIndex.value == null) scrollToMedia(link.ids)
   },
   { immediate: true },
 )
@@ -597,18 +647,35 @@ watch(
 watch(() => editor.lastDelete, () => load(true))
 
 /**
- * Opening or paging a file replaces the address; closing drops the pair. **The
- * only entry of its own is the one a follow leaves behind**, so a picture turned
- * to or a viewer closed never buries the note under another step.
- * See docs/features/rich-text-and-links.md.
+ * Opening the viewer gives it a step of its own - the pair **pushed** rather than
+ * replaced - so Back closes it; closing takes that step back, so neither Back is
+ * left standing on it nor Forward returns to it. A turn replaces, never pushes.
+ * See docs/features/media-viewer.md.
  */
 watch(lightboxIndex, (index) => {
   // A popstate is answering for the address; a write here would cancel the step.
   if (answeringPop) return
 
   const opened = index == null ? null : media.value[index]
-  if (opened) mediaLink.write(opened.id, true)
-  else mediaLink.clear()
+  if (opened) {
+    // A turn replaces the entry; a deep link already brought its own.
+    if (viewerStepPushed) {
+      mediaLink.write(opened.id, true)
+      return
+    }
+    if (mediaLink.link.value.open) return
+    viewerStepPushed = true
+    mediaLink.push(opened.id)
+    return
+  }
+
+  if (viewerStepPushed) {
+    viewerStepPushed = false
+    consumingStep = true
+    history.back()
+    return
+  }
+  mediaLink.clear()
 })
 
 /**
@@ -1123,7 +1190,7 @@ function onNoteSaved() {
             class="btn-ghost map-float-control absolute right-4 top-4 z-[1000] !px-3 !py-2"
             :title="t('day.exitFullscreen')"
             :aria-label="t('day.exitFullscreen')"
-            @click="closeMapFullscreen"
+            @click="closeMapFullscreen()"
           >
             <svg
               class="h-5 w-5"
@@ -1146,6 +1213,7 @@ function onNoteSaved() {
 
     <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
     <MediaLightbox
+      ref="viewer"
       v-model:index="lightboxIndex"
       :items="media"
       :can-return-to-text="hasTextAnchor"

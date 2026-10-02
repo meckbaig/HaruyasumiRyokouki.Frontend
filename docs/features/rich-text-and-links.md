@@ -265,8 +265,9 @@ copied address names the whole block.
 - **Only a departure pushes a history entry.** A follow that scrolls calls `departFromText`,
   which records the anchor and pushes `?i=<ids>`; that entry is the note's, and the browser's
   Back returns to it. The map follow is a departure too, but pushes the location **unchanged**
-  (`depart`), so a way back exists with nothing singled out. Opening and paging the viewer
-  **replace** the same entry, so a picture turned to never buries the note under one more step.
+  (`depart`), so a way back exists with nothing singled out. The viewer **pushes** the pair as
+  a step of its own and takes it back on close, so Back closes the picture rather than burying
+  the note under one more step. See [media-viewer.md](media-viewer.md).
 - **The way back is kept until the line is readable again.** Closing the viewer, paging, or a
   press elsewhere must not take it away; a settled scroll on which the reference reaches the
   band a reader actually reads - clear of the sticky header and of the bottom edge,
@@ -439,6 +440,9 @@ mirror came and went on its own, and nothing ever read it.
     reference's blur must not put the card away: it would leave with `pointer-events: none`
     and the click would miss. The card goes only when the focus leaves the reference and the
     card together - the same hold a field already gives its caret.
+41. Opening the viewer **pushes** the `?i=`/`?o=` pair as a history step of its own; Back closes
+    the picture and a step onto it opens nothing. Closing by hand takes the step back, so
+    neither Back nor Forward returns to a closed picture.
 
 ## Related
 

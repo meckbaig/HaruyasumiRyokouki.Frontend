@@ -185,6 +185,10 @@ Details that look arbitrary and are not:
 - **Mouse hit-testing uses `isOnPicture(x, y)`, not `event.target`.** The frame captures
   the pointer so a pan survives the cursor leaving it, and capture retargets every later
   event to the frame - so the target is never the image.
+- **Only the primary pointer button acts.** `onPointerDown` returns on any `event.button`
+  other than 0, so a right, middle or back/forward press - the browser's own navigation
+  gestures - neither toggles the chrome nor closes the viewer. Touch and pen contact both
+  report button 0, so a tap is unaffected.
 - **`pictureRect()` measures the preview while the full-size image is still loading.**
   The full-size element has no proportions yet and its box is flat, which put every tap
   beside the picture.
@@ -471,6 +475,23 @@ either expanded - so their height is measured, not assumed, and fed back into th
 - The picture needs no animation of its own: it reads from the bars, and the observer
   reports every frame.
 
+## Back and Forward
+
+Opening a picture **pushes** its pair (`?i=`, `?o=1`) as a step of its own, rather than
+replacing the entry. Back therefore returns to the address before it and closes the viewer;
+closing by hand - the cross, a swipe, a press beside the picture, the map action - takes that
+step back with `history.back()`, so Back then leaves the page. Paging **replaces** the entry,
+never pushes, so a picture turned to is not a step of its own.
+
+A step **never opens** the viewer: only the address the page loaded with, or a press, does. So
+Forward cannot return to a picture this session has closed, and a shared `?i=` / `?o=1` link
+still opens it on arrival.
+
+**A Back-close runs the viewer's own `close()`** - `defineExpose`d for the page that owns the
+index - never a plain clearing of the index. That is what plays the flight back into the tile,
+the note's card or the album's picture, and what emits `close` so the map's album follows the
+file that was on screen.
+
 ## Rendering cost
 
 The picture is one transformed cell, so a magnified one is a screenful of image at 4x or
@@ -600,6 +621,9 @@ Do not "fix" these:
     `services/mediaType.js`, keyed on the field rather than the provider name.
 26. The preview stays over an embedded video until the iframe's `load`, then fades, and it
     is `pointer-events-none` throughout so the player is live from the first frame.
+27. Opening the viewer **pushes** the `?i=`/`?o=1` pair as a step of its own; Back closes the
+    picture, and a step never opens one. Closing by hand takes the step back, so Back then
+    leaves the page. Paging replaces the entry; only the loaded pair opens a viewer.
 
 ## Related
 

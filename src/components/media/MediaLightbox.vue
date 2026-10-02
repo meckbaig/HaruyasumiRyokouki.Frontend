@@ -780,6 +780,10 @@ function onPointerDown(event) {
   // Cleared before the press may be handed to the player, whose own click a
   // lingering flag would eat.
   suppressClick = false
+  /* Only the primary button takes part: a right, middle or back/forward press
+     belongs to the browser, and must neither toggle the chrome nor close.
+     See docs/features/media-viewer.md. */
+  if (event.button !== 0) return
   if (onPlayer(event.target)) return
 
   frame.value?.setPointerCapture?.(event.pointerId)
@@ -1139,6 +1143,11 @@ function close({ fly = true } = {}) {
   emit('update:index', null)
   emit('close', id)
 }
+
+/* The page that owns the index closes the viewer the same way its own controls
+   do - flight back to the tile or card included - when the browser's Back asks.
+   See docs/features/media-viewer.md. */
+defineExpose({ close })
 
 /**
  * The way back to the note a reference was followed from. Offered on **any**
