@@ -29,7 +29,7 @@ searchable regions. Read this document before editing it.
 | `src/services/mapLinks.js` | `MAP_SERVICES` - the one place a map-service URL is built. |
 | `src/composables/useDelayed.js` | `miniatureRetired` - when the miniature has done its job. |
 | `src/composables/useMediaLink.js` | `pageIdentity` - used to close on real navigation. |
-| `src/composables/useViewerHistoryStep.js` | The viewer's own history step: push, replace, Back-close. |
+| `src/composables/useMediaRouteViewer.js` | The viewer driven by the address pair: open, turn, close. |
 | `src/assets/main.css` | `.fit-media`, `lightbox-*` transitions, `[data-lightbox-flying]`. |
 
 ## Interface
@@ -484,24 +484,26 @@ either expanded - so their height is measured, not assumed, and fed back into th
 
 ## Back and Forward
 
-Opening a picture **pushes** its pair (`?i=`, `?o=1`) as a step of its own, rather than
-replacing the entry. Back therefore returns to the address before it and closes the viewer;
-closing by hand - the cross, a swipe, a press beside the picture, the map action - takes that
-step back with `history.back()`, so Back then leaves the page. Paging **replaces** the entry,
-never pushes, so a picture turned to is not a step of its own.
+**The pair in the address is the source of truth.** The page derives the open index from
+`?i=`/`?o=1` and its own file list, and the router is the only writer of history:
 
-All of it lives once, in `src/composables/useViewerHistoryStep.js`. The day page, the search
-page and the trip map each call it with their own way to add a step - the `?i=`/`?o=1` pair, or
-the page's own address - so the four rules above cannot drift between them.
+- Opening a picture - a press, a tag, a note card - **pushes** the pair as a step of its own,
+  so Back lands on the address before it and closes the viewer.
+- A turn **replaces** the entry, so a picture turned to is not a step of its own.
+- Closing by hand **drops the pair**: `router.back()` when this session pushed the step,
+  `replace` when the address brought it. Back then leaves the page, and Forward does not
+  reopen a picture the reader closed.
+- Back and Forward are otherwise ordinary route changes. An entry carrying `o=1` opens the
+  viewer however it was reached, so a step restores the file last seen as well as a load.
 
-A step **never opens** the viewer: only the address the page loaded with, or a press, does. So
-Forward cannot return to a picture this session has closed, and a shared `?i=` / `?o=1` link
-still opens it on arrival.
+All of it lives once, in `src/composables/useMediaRouteViewer.js`. The lightbox still needs a
+synchronous `index` for a held arrow, so the composable keeps that as a mirror of the route:
+the route sets it, and it writes the route only when the two disagree - no echo, no second
+navigation. The day page, the search page and the trip map each call it with their own file
+list and nothing else, so the rules cannot drift between them.
 
-**A Back-close runs the viewer's own `close()`** - `defineExpose`d for the page that owns the
-index - never a plain clearing of the index. That is what plays the flight back into the tile,
-the note's card or the album's picture, and what emits `close` so the map's album follows the
-file that was on screen.
+The viewer plays its departure from `watch(open)` going false, whichever way it closed, so a
+Back-close flies the picture home exactly as the cross does.
 
 ## Rendering cost
 
@@ -632,16 +634,29 @@ Do not "fix" these:
     `services/mediaType.js`, keyed on the field rather than the provider name.
 26. The preview stays over an embedded video until the iframe's `load`, then fades, and it
     is `pointer-events-none` throughout so the player is live from the first frame.
-27. Opening the viewer **pushes** the `?i=`/`?o=1` pair as a step of its own; Back closes the
-    picture, and a step never opens one. Closing by hand takes the step back, so Back then
-    leaves the page. Paging replaces the entry; only the loaded pair opens a viewer.
+27. The pair in the address is the source of truth, and the router is the only writer of
+    history: open **pushes**, a turn **replaces**, close-by-hand drops the pair (`back` for a
+    pushed step, `replace` for one the address brought). An entry carrying `o=1` opens the
+    viewer however it was reached. No page keeps a `popstate` handler or `history.back()` for
+    the viewer; the page's own overlays keep their own. A hand-close marks the step it takes
+    back (`consumeHandClose`), so a page's `popstate` never mistakes its own close for the
+    reader's Back and answers it as a return to the note. An entry opened from a note
+    reference carries that reference's `#note=` fragment, so the arrow returns to the line;
+    Back there closes the picture and the next Back, onto the entry with no accent, returns to
+    it.
 28. The open/close watcher is `immediate`. A page holding a cached day can set its index
     during `setup`, before this component exists, so the viewer mounts already open. Without
     the setup pass the overlay token and keydown listener were never registered, and an
-    arrow press paged the day behind the still-open picture.
-29. A page never keeps its own `popstate` handler or `history.back()` for the viewer: the
-    step is `useViewerHistoryStep`, so Back behaves the same on the day, search and map
-    pages. A page's remaining overlays pass `otherStep`.
+    arrow press paged the day behind the still-open picture. `useMediaRouteViewer`'s
+    `openIndex` watcher is immediate for the same reason: a cached page resolves the pair
+    during setup, and a late watcher never heard it, so a Back-return never reopened.
+29. `index` is a mirror of the route, reconciled by `useMediaRouteViewer`: the route sets it,
+    and it writes the route only when the two disagree. The lightbox still needs it, because
+    a held arrow reads `props.index` synchronously in `step` and `page`.
+30. `scrollBehavior` tests `to.path === from.path` **before** `savedPosition`. The viewer
+    writes the pair into the query on the same path, so closing it is a same-path step: the
+    page must keep its own scroll, or the entry's saved viewport is restored and the page
+    jumps.
 
 ## Module layout and code regions
 

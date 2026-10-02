@@ -11,7 +11,7 @@ import { useDaysStore } from '@/stores/days'
 import { useUiStore } from '@/stores/ui'
 import { useTripMedia, routeFromMedia } from '@/composables/useTripMedia'
 import { withMediaLink } from '@/composables/useMediaLink'
-import { useViewerHistoryStep } from '@/composables/useViewerHistoryStep'
+import { useMediaRouteViewer } from '@/composables/useMediaRouteViewer'
 import { hasCoordinates } from '@/services/mapLinks'
 import { hasOverlay } from '@/services/overlayStack'
 import { MAP_COLLAPSE, MAP_EXPAND } from '@/services/mapIcons'
@@ -108,7 +108,10 @@ function closeFullscreen({ fromStep = false } = {}) {
   if (expandedStep) {
     expandedStep = false
     // A step the browser already popped is not taken back twice.
-    if (!fromStep) viewerSteps.takeBack()
+    if (!fromStep) {
+      consumingStep = true
+      history.back()
+    }
   }
   nextTick(() => {
     inlineMap.value?.applyView(view)
@@ -117,18 +120,13 @@ function closeFullscreen({ fromStep = false } = {}) {
 }
 
 /* The album a pin opens: the viewer walks the same list the map is drawn from. */
-const lightboxIndex = ref(null)
-/** The viewer itself, so Back can run its own close - the flight back included. */
-const viewer = ref(null)
-
 const openMedia = computed(() =>
   lightboxIndex.value == null ? null : (media.value[lightboxIndex.value] ?? null),
 )
 const openOnMap = computed(() => hasCoordinates(openMedia.value))
 
 function openMapMedia(id) {
-  const index = media.value.findIndex((item) => item.id === id)
-  if (index >= 0) lightboxIndex.value = index
+  viewer.openAt(id)
 }
 
 /** The map the reader is looking at: the expanded one stands over the inline. */
@@ -144,8 +142,9 @@ function onViewerClose(id) {
   activeMap()?.showMedia(id ?? null)
 }
 
-/** The viewer's own action: the same close, plus the framing it is for. */
+/** The viewer's own action: drop the pair in place, then frame the pin. */
 function showMediaOnMap(id) {
+  viewer.dismiss()
   activeMap()?.showMedia(id, { zoom: true })
 }
 
@@ -165,22 +164,32 @@ function onKeydown(event) {
 }
 
 /*
-  The viewer's own history step, shared with the day page and the search page.
-  The viewer closes through its own close, so the picture flies back into its
-  card; the map's full-screen step is the page's own. See docs/features/media-viewer.md.
+  The viewer, driven by the pair in the address. Opening pushes its pair, a turn
+  replaces it, and the address answers a Back - the viewer is not a step of its
+  own. See docs/features/media-viewer.md.
 */
-const viewerSteps = useViewerHistoryStep({
-  index: lightboxIndex,
-  idAt: (i) => media.value[i]?.id ?? null,
-  addressHasStep: () => false,
-  push: pushStep,
-  replace: () => {},
-  clear: () => {},
-  close: () => viewer.value?.close(),
-  otherStep: () => {
-    if (expanded.value) closeFullscreen({ fromStep: true })
-  },
-})
+const viewer = useMediaRouteViewer({ items: media })
+/** The viewer's index, at the top level so `v-model` can write it back. */
+const lightboxIndex = viewer.index
+
+/** True while this page is taking back the step it pushed for the full-screen map. */
+let consumingStep = false
+
+/**
+ * The browser's Back for the page's **own** overlay: the full-screen map. The
+ * viewer is not here - the address closes it. See docs/features/maps.md.
+ */
+function onPopState() {
+  const tookBack = consumingStep
+  consumingStep = false
+  if (tookBack) return
+  // A step that closes the viewer belongs to it.
+  if (lightboxIndex.value != null) return
+  if (expanded.value) closeFullscreen({ fromStep: true })
+}
+
+onMounted(() => window.addEventListener('popstate', onPopState))
+onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
 
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => {
@@ -333,7 +342,6 @@ watch(() => ui.locale, refresh)
     <!-- Opened from a pin's album; the card says there is no tile to fly from,
          so the viewer plays its plain fade. See docs/features/maps.md. -->
     <MediaLightbox
-      ref="viewer"
       v-model:index="lightboxIndex"
       :items="media"
       :can-show-on-map="openOnMap"

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MediaGrid from '@/components/media/MediaGrid.vue'
 import MediaLightbox from '@/components/media/MediaLightbox.vue'
@@ -24,7 +24,7 @@ import { formatLongDate, formatWeekday } from '@/services/dates'
 import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
 import { useMediaLink } from '@/composables/useMediaLink'
-import { useViewerHistoryStep } from '@/composables/useViewerHistoryStep'
+import { useMediaRouteViewer } from '@/composables/useMediaRouteViewer'
 import { scrollToMedia, scrollTargetFor } from '@/services/scrollToMedia'
 import { tileFor } from '@/services/mediaTiles'
 import { routeFromMedia } from '@/composables/useTripMedia'
@@ -35,13 +35,7 @@ import { chromeInsets } from '@/services/pageChrome'
 import { followBoxScroll } from '@/services/pageScroll'
 import { useHiddenRecords } from '@/composables/useHiddenRecords'
 import { useGridReadonly } from '@/composables/useGridReadonly'
-import {
-  useTextAnchor,
-  setTextAnchor,
-  clearTextAnchor,
-  returnToTextAnchor,
-  anchorSelector,
-} from '@/services/textAnchor'
+import { readNoteAnchor, anchorSelector, scrollToTextAnchor } from '@/services/textAnchor'
 import { resolvePick } from '@/services/mediaPick'
 
 const props = defineProps({
@@ -50,6 +44,7 @@ const props = defineProps({
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const days = useDaysStore()
 const auth = useAuthStore()
 const ui = useUiStore()
@@ -59,9 +54,6 @@ const MAP_HIDDEN_KEY = 'haruyasumi.dayMapHidden'
 
 const loading = ref(false)
 const error = ref(null)
-const lightboxIndex = ref(null)
-/** The viewer itself, so Back can run its own close - the flight back included. */
-const viewer = ref(null)
 /** True while the viewer in front was opened from the map's own album. */
 const viewerFromMap = ref(false)
 const editing = ref(null)
@@ -71,13 +63,12 @@ const contextTarget = ref(null)
 
 /*
   The note's own references. A click brings the file's tile into view and singles
-  it out; the card's thumbnail opens it full screen. Following one is a step away
-  from the line, so it is remembered and given a history entry of its own - but
-  only when the jump scrolled the page at all.
-  See docs/features/rich-text-and-links.md.
+  it out; the card's thumbnail opens it full screen. Following one leaves the
+  line in the address as `#note=id:index`, so Back walks up to it and the round
+  button restores it. See docs/features/rich-text-and-links.md.
 */
-const textAnchor = useTextAnchor()
-const hasTextAnchor = computed(() => Boolean(textAnchor.value))
+const noteAnchor = computed(() => readNoteAnchor(route.hash))
+const hasTextAnchor = computed(() => noteAnchor.value != null)
 /*
   Not a fact about the trip, and not part of what is remembered: all the files
   the reference did not name dim for a second, so a block that is out of sight
@@ -158,14 +149,16 @@ function referenceReadable(reference) {
 }
 
 /**
- * Remembers the line a reference was followed from and gives the step an entry
- * of its own, so the browser's Back returns to the note. Written by **any**
- * follow that scrolled the page, however little; the memory is spent the moment
- * the line is readable again. See docs/features/rich-text-and-links.md.
+ * Writes the line a reference was followed from into the address and pushes a
+ * step of its own, so the browser's Back walks up to it. Written by **any**
+ * follow that scrolled the page; the memory is spent the moment the line is
+ * readable again. See docs/features/rich-text-and-links.md.
  */
 function departFromText(reference) {
-  setTextAnchor(reference)
-  mediaLink.push(reference.ids ?? [reference.mediaId], false)
+  mediaLink.followNote(reference.ids ?? [reference.mediaId], {
+    mediaId: reference.mediaId,
+    index: reference.index,
+  })
 }
 
 /* A settled scroll decides whether the line is back in the band; during a smooth
@@ -173,14 +166,21 @@ function departFromText(reference) {
 let scrollSettleTimer = null
 
 function onScrollCheck() {
-  if (!textAnchor.value) return
+  if (!noteAnchor.value) return
   clearTimeout(scrollSettleTimer)
   scrollSettleTimer = setTimeout(settleAnchor, 160)
 }
 
 function settleAnchor() {
-  if (!textAnchor.value) return
-  if (referenceReadable(textAnchor.value)) clearTextAnchor()
+  if (!noteAnchor.value) return
+  if (referenceReadable(noteAnchor.value)) mediaLink.clearNote()
+}
+
+/** The way back: scrolls to the line the address remembers. The settle spends it. */
+function returnToText() {
+  const anchor = noteAnchor.value
+  if (!anchor) return
+  scrollToTextAnchor(anchor)
 }
 
 /**
@@ -198,6 +198,8 @@ function activateNoteMedia(reference) {
     mediaLink.write(reference.ids, false)
   }
   flashEmphasis()
+  // Always scrolls: a second press on the same reference must move again, which
+  // the address alone cannot signal when it does not change.
   scrollToMedia(reference.ids?.length ? reference.ids : reference.mediaId)
 }
 
@@ -207,8 +209,7 @@ function activateNoteMedia(reference) {
  * it, and a way back only stands if a follow put one there.
  */
 function openNoteMedia(reference) {
-  const index = media.value.findIndex((item) => item.id === reference.mediaId)
-  if (index >= 0) lightboxIndex.value = index
+  viewer.openAt(reference.mediaId)
 }
 
 /**
@@ -219,8 +220,7 @@ function openNoteMedia(reference) {
  * See docs/features/rich-text-and-links.md.
  */
 function followNoteMap(reference) {
-  setTextAnchor({ mediaId: reference.ids?.[0] ?? reference.mediaId, index: reference.index })
-  mediaLink.depart()
+  mediaLink.departNote({ mediaId: reference.ids?.[0] ?? reference.mediaId, index: reference.index })
   onScrollCheck()
   showMediaOnMap(reference.mediaId)
 }
@@ -228,17 +228,14 @@ function followNoteMap(reference) {
 /** A tile press. While a reference is being picked the id goes to the field. */
 function onGridOpen(item) {
   if (resolvePick(item?.id)) return
-  const index = media.value.indexOf(item)
-  if (index >= 0) lightboxIndex.value = index
+  viewer.openAt(item?.id)
 }
 
 /** A pin's album opening full screen. Its card says there is no tile to fly from. */
 function openMapMedia(id) {
-  const index = media.value.findIndex((item) => item.id === id)
-  if (index < 0) return
   // Opened from the album: its own picture is the mark a flight leaves towards.
   viewerFromMap.value = true
-  lightboxIndex.value = index
+  viewer.openAt(id)
 }
 
 /**
@@ -266,6 +263,37 @@ function activateMapMedia(id) {
 let returningToText = false
 /** True while a full-screen map's own step stands in history. */
 let mapStepPushed = false
+/** True while this page is taking back a step it pushed for the map it closed. */
+let consumingStep = false
+
+/**
+ * The browser's own Back and Forward for the page's **own** overlays: the
+ * full-screen map, and the return to the note. The viewer is address-driven, so a
+ * step closes it through the route; its own hand-close marks that step and is
+ * skipped here. See docs/features/media-viewer.md and docs/features/maps.md.
+ */
+function onPopState() {
+  // A step this page took itself, closing the map by hand: nothing to answer.
+  const tookBack = consumingStep
+  consumingStep = false
+  if (tookBack) return
+  // The viewer's own hand-close is a step it takes back itself; only the reader's
+  // Back and the two UI buttons return to the note.
+  if (viewer.consumeHandClose()) return
+  // The full-screen map in front closes on its own step.
+  if (mapFullscreen.value) {
+    closeMapFullscreen({ fromStep: true })
+    return
+  }
+  // A step that still names a file is the viewer's own, or a look at one: Back
+  // closes the picture and stops there. Only a step that leaves the accent is
+  // the return to the note, which the hash names.
+  if (new URLSearchParams(window.location.search).get('i') != null) return
+  if (!noteAnchor.value) return
+  returningToText = true
+  scrollToTextAnchor(noteAnchor.value)
+  nextTick(() => (returningToText = false))
+}
 
 // Persisted preference: some visitors find the day map distracting, so it can be
 // hidden by default. When on, the map starts collapsed and a show/hide button
@@ -324,7 +352,10 @@ function closeMapFullscreen({ fromStep = false } = {}) {
   if (mapStepPushed) {
     mapStepPushed = false
     // A step the browser already popped is not taken back twice.
-    if (!fromStep) viewerStep.takeBack()
+    if (!fromStep) {
+      consumingStep = true
+      history.back()
+    }
   }
   nextTick(() => {
     tripMap.value?.applyView(view)
@@ -338,7 +369,7 @@ function closeMapFullscreen({ fromStep = false } = {}) {
  * See docs/features/maps.md.
  */
 const openMedia = computed(() =>
-  lightboxIndex.value == null ? null : (media.value[lightboxIndex.value] ?? null),
+  viewer.index.value == null ? null : (media.value[viewer.index.value] ?? null),
 )
 const openOnMap = computed(() => hasCoordinates(openMedia.value))
 
@@ -352,18 +383,6 @@ function onViewerClose(id) {
   activeMap()?.syncViewerClose(id ?? null)
 }
 
-/*
-  A viewer can also leave with no `close` event - the browser's Back answers for
-  the address - so the map's record of it is dropped whenever the lightbox is
-  gone. A close has already spent it. See docs/features/maps.md.
-*/
-watch(lightboxIndex, (index) => {
-  if (index == null) {
-    activeMap()?.forgetViewerClose()
-    viewerFromMap.value = false
-  }
-})
-
 /**
  * Following the viewer onto the map: the viewer has already closed and synced
  * the album, so only the map's own two extras are left - make sure the inline
@@ -371,6 +390,9 @@ watch(lightboxIndex, (index) => {
  * A full-screen map is already in front of the reader and needs neither.
  */
 async function showMediaOnMap(id) {
+  // Drop the pair in place, not with a step back: a back would restore the
+  // previous entry's scroll position over the scroll to the map.
+  viewer.dismiss()
   if (!mapFullscreen.value) {
     // A wall that keeps revealing chunks would push the map down as the glide
     // passes it, so it is settled before the scroll is aimed.
@@ -519,13 +541,8 @@ watch(
     mapExpanded.value = false
     mapFullscreen.value = false
     fullMapSelection.value = null
-    // The overlays are gone with the day; their steps are not ours to take back.
+    // The overlay is gone with the day; its step is not ours to take back.
     mapStepPushed = false
-    viewerStep.forgetStep()
-    // Another day carries its own link, or none at all.
-    answered = undefined
-    // The anchor named an element of the note just left.
-    clearTextAnchor()
     noteEmphasis.value = false
   },
 )
@@ -552,70 +569,44 @@ const highlightedIds = computed(() => mediaLink.link.value.ids)
    it behind the full screen. See docs/features/media-grid-and-selection.md. */
 const linkOpen = computed(() => mediaLink.link.value.open)
 
-/** The file already answered for, so the same one is not answered for twice. */
-let answered
+/*
+  The viewer, driven by the pair in the address. The route is the only writer of
+  history: opening pushes, a turn replaces, closing drops the pair. Back and
+  Forward are ordinary route changes, so a step closes the viewer exactly as a
+  press opens it. See docs/features/media-viewer.md.
+*/
+const viewer = useMediaRouteViewer({
+  items: media,
+  // A return to the note owns the page's scroll; the selection must not pull.
+  suppressScroll: () => returningToText,
+})
+/** The viewer's index, at the top level so `v-model` can write it back. */
+const lightboxIndex = viewer.index
 
 /*
-  The viewer's own history step, shared with the search page and the trip map. A
-  step closes the viewer through its own close; a remembered line is returned to,
-  and the full-screen map waits for the next step. See docs/features/media-viewer.md.
+  A viewer can also leave with no `close` event - the address answers for it - so
+  the map's record of it is dropped whenever the lightbox is gone. A close has
+  already spent it. See docs/features/maps.md.
 */
-const viewerStep = useViewerHistoryStep({
-  index: lightboxIndex,
-  idAt: (i) => media.value[i]?.id ?? null,
-  addressHasStep: () => mediaLink.link.value.open,
-  push: (id) => mediaLink.push(id),
-  replace: (id) => mediaLink.write(id, true),
-  clear: () => mediaLink.clear(),
-  close: () => viewer.value?.close(),
-  otherStep: () => {
-    // The map in front closes on its own step; the note is the other return.
-    if (mapFullscreen.value) {
-      closeMapFullscreen({ fromStep: true })
-      return
-    }
-    if (!textAnchor.value) return
-    returningToText = true
-    returnToTextAnchor()
-    nextTick(() => (returningToText = false))
-  },
-})
-
 watch(
-  [media, () => mediaLink.link.value],
-  ([list, link]) => {
-    // A return to the note owns the page's scroll; the link must not pull to
-    // the wall underneath it. See docs/features/rich-text-and-links.md.
-    if (returningToText) {
-      answered = link.id
-      return
+  () => viewer.index.value,
+  (index) => {
+    if (index == null) {
+      activeMap()?.forgetViewerClose()
+      viewerFromMap.value = false
     }
-    if (!list.length || answered === link.id) return
-    answered = link.id
-    if (link.id == null) return
-
-    const index = list.findIndex((item) => item.id === link.id)
-    if (index < 0) {
-      // Not this day's file: a stale link, or one shared from somewhere else.
-      // Only once the day has settled, though - a reload leaves the previous
-      // day's files standing until the new ones arrive, and a link answered
-      // against those would be thrown away for the wrong reason.
-      if (!loading.value) mediaLink.clear()
-      else answered = undefined
-      return
-    }
-
-    if (link.open) {
-      // A history step never opens the viewer; only a load or a press does.
-      if (!viewerStep.isHistoryStep()) lightboxIndex.value = index
-      return
-    }
-    // The viewer covers the wall, so a link must not scroll the page out from
-    // under the full screen while the viewer is the one being opened.
-    if (lightboxIndex.value == null) scrollToMedia(link.ids)
   },
-  { immediate: true },
 )
+
+/*
+  A pair naming a file this day does not hold is dropped, once the day has
+  settled - a reload leaves the previous day's files standing until the new ones
+  arrive. See docs/features/sharing-and-links.md.
+*/
+watch([() => mediaLink.link.value.id, media], ([id, list]) => {
+  if (returningToText || id == null || loading.value || !list.length) return
+  if (!list.some((item) => item.id === id)) mediaLink.clear()
+})
 
 // Files deleted through the app-level toolbar; the page cannot hear its events.
 watch(() => editor.lastDelete, () => load(true))
@@ -649,6 +640,8 @@ function onKeydown(event) {
 
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
+onMounted(() => window.addEventListener('popstate', onPopState))
+onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
 onBeforeUnmount(() => (document.body.style.overflow = ''))
 // Seeing the reference again is the one thing that spends the way back. A
 // settled scroll answers it, and `scrollend` answers at once where it exists.
@@ -658,7 +651,6 @@ onMounted(() => window.addEventListener('scroll', onEmphasisScroll, { passive: t
 onBeforeUnmount(() => window.removeEventListener('scroll', onEmphasisScroll))
 onMounted(() => document.addEventListener('scrollend', settleAnchor))
 onBeforeUnmount(() => document.removeEventListener('scrollend', settleAnchor))
-onBeforeUnmount(() => clearTextAnchor())
 onBeforeUnmount(() => clearTimeout(emphasisTimer))
 onBeforeUnmount(() => clearTimeout(scrollSettleTimer))
 onBeforeUnmount(() => stopHeightFollow())
@@ -1081,7 +1073,7 @@ function onNoteSaved() {
         class="fixed bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-ink/50 text-paper shadow-lg backdrop-blur transition hover:bg-ink/85"
         :title="t('richText.returnToText')"
         :aria-label="t('richText.returnToText')"
-        @click="returnToTextAnchor"
+        @click="returnToText"
       >
         <svg
           class="h-5 w-5"
@@ -1153,13 +1145,12 @@ function onNoteSaved() {
 
     <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
     <MediaLightbox
-      ref="viewer"
       v-model:index="lightboxIndex"
       :items="media"
       :can-return-to-text="hasTextAnchor"
       :can-show-on-map="openOnMap"
       :page-covered="mapFullscreen || viewerFromMap"
-      @return="returnToTextAnchor"
+      @return="returnToText"
       @close="onViewerClose"
       @show-on-map="showMediaOnMap"
     />

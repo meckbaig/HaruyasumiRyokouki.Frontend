@@ -142,12 +142,15 @@ watch(mapMenuOpen, (open) => {
 // A menu opened for the last file would be answering about the wrong one.
 watch(() => props.index, () => (mapMenuOpen.value = false))
 
-/** The page's own map takes over: the viewer closes, and the page frames it. */
+/**
+ * The page's own map takes over: the page drops the pair itself, so the close
+ * stays on the page and the scroll to the map is not fought by a back-step's
+ * saved position. See docs/features/maps.md.
+ */
 function chooseSiteMap() {
   const id = current.value?.id ?? null
   mapMenuOpen.value = false
   if (id == null) return
-  close()
   emit('show-on-map', id)
 }
 
@@ -997,12 +1000,18 @@ watch(fullLoaded, (loaded) => {
  * @param {{ fly?: boolean }} options `fly` is false when the reader has already
  *   thrown the picture somewhere themselves - see `settleDismiss`.
  */
+/** The file on show before it was let go, so a route-driven close can fly it home. */
+let lastItem = null
+/** True once a close has started, so two routes to the same close fly once. */
+let closing = false
+
 function close({ fly = true } = {}) {
-  // Captured before the file is let go of: `current` is about to be null, and
-  // with it every proportion the picture's box is worked out from - and the id
-  // the page's map is handed, so its album follows the file that closed.
-  const id = current.value?.id ?? null
-  const item = current.value
+  // A close already under way - from the cross, or from the route - runs once.
+  if (closing) return
+  closing = true
+  // `current` is already null when the route closed it, so the last file stands in.
+  const item = current.value ?? lastItem
+  const id = item?.id ?? null
   if (fly) {
     /*
       Chosen **once**: `resetGestures` clears `originTile` the moment the index
@@ -1029,11 +1038,6 @@ function close({ fly = true } = {}) {
   emit('update:index', null)
   emit('close', id)
 }
-
-/* The page that owns the index closes the viewer the same way its own controls
-   do - flight back to the tile or card included - when the browser's Back asks.
-   See docs/features/media-viewer.md. */
-defineExpose({ close })
 
 //#endregion
 
@@ -1137,6 +1141,8 @@ watch(
 )
 
 watch(current, () => {
+  // Remembered before it goes null on a close, so the flight has a file to fly.
+  if (current.value) lastItem = current.value
   fullLoaded.value = false
   fullFailed.value = false
   previewLoaded.value = false
@@ -1621,6 +1627,7 @@ watch(
   open,
   async (isOpen) => {
     if (isOpen) {
+      closing = false
       pushOverlay(overlayToken)
       // Read now, with the page below still laid out as the reader left it.
       // Searching by id is the fallback only - a file can be on the page twice.
@@ -1646,6 +1653,10 @@ watch(
       dialog.value?.focus()
       observeChrome()
     } else {
+      // The route closed it - a step back, or the pair dropped. The same
+      // departure as the cross, so a Back-close flies the picture home too.
+      // Skipped at mount, where there was no open to close.
+      if (lastItem) close()
       popOverlay(overlayToken)
       chromeObserver?.disconnect()
       chromeObserver = null

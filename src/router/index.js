@@ -63,9 +63,15 @@ export const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) return savedPosition
-    // Switching search tabs or map ranges should not jump back to the top.
+    /*
+      A same-path step is never a page change: the viewer writes `?i=`/`?o=1` into
+      the query, a tab or a range changes beside it, and the page keeps its own
+      scroll (a link's own scroll, the reference follow). So this is tested before
+      `savedPosition`, or closing the viewer would restore the entry's viewport and
+      move the page. See docs/features/media-viewer.md.
+    */
     if (to.path === from.path) return false
+    if (savedPosition) return savedPosition
     return { top: 0 }
   },
 })

@@ -19,7 +19,7 @@ the viewer to the text.
 | `src/components/layout/SteppedScrollbar.vue` | The card's bar: one record per step, draggable, drawn like the page's own. |
 | `src/components/common/RichTextArea.vue` | The editor field: a textarea with the markup highlighted behind it, a bubble under a marked run, a pick's hint cloud above that same run, and a report of where the caret stands. |
 | `src/components/editor/MarkupToolbar.vue` | The three field controls - take the embed off, media, link - worn by both the note and the description, above and below the note. |
-| `src/services/textAnchor.js` | The remembered reference, `anchorSelector`, `returnToTextAnchor`. |
+| `src/services/textAnchor.js` | The note hash: `noteHash`, `readNoteAnchor`, `anchorSelector`, `scrollToTextAnchor`. |
 | `src/services/mediaPick.js` | The fleeting mode where a tile click fills a media template. |
 | `src/composables/useTemplateInsert.js` | `insertTemplate` - writes a template at a caret and returns its range. |
 | `src/composables/useReferenceCaret.js` | `useReferenceCaret` - the reference under a field's caret, and the way to take one off. |
@@ -240,7 +240,7 @@ That map follow is **not** the pile follow. The line is remembered and the step 
 history entry of its own, so the page's back button and the browser's Back both return to the
 note. But **no `?i=` is written**: nothing is outlined in the wall and nothing scrolls to it,
 the page going to the map. The entry is a **forced push of the location already standing** -
-`depart()` in `useMediaLink` - because vue-router skips a push to the same address as a duplicate
+`departNote()` in `useMediaLink` - because vue-router skips a push to the same address as a duplicate
 and would otherwise leave the step no place to return from. The anchor is built from the
 reference's **own** first id, not the file on show, or a reference naming several files could not
 be found again, while the map itself is framed on the file on show.
@@ -252,6 +252,18 @@ may be referenced more than once - and the page decides what to do with it.
 **The address carries every id, not just the first**, so the outline and the link agree and a
 copied address names the whole block.
 
+### The hash names the line
+
+The way back is the fragment `#note=<mediaId>:<index>`, in the address rather than in a module
+ref. `readNoteAnchor` and `noteHash` in `services/textAnchor.js` are the only parse and format,
+so a reload, a Forward and a copied link all carry the line.
+
+| Channel | Meaning |
+| --- | --- |
+| `?i=<ids>` | The accent. View state, always a `replace`. |
+| `?o=1` | The viewer open. A place: open pushes, a turn replaces, a close pops. |
+| `#note=<id>:<index>` | The line the reader followed from. The way back. |
+
 - **A way back is kept when the jump scrolls and carries the line out of the band a reader
   reads.** `followLeavesLine` works out where the block will land (the page may run out of
   room first) and where the line ends up after that scroll; a nudge that leaves the line in
@@ -262,38 +274,42 @@ copied address names the whole block.
   the dim's fixed window, so it lifted before the block arrived. Every scroll while the dim
   stands pushes its end back, and it is spent on arrival rather than en route.
   See [media-grid-and-selection.md](media-grid-and-selection.md).
-- **Only a departure pushes a history entry.** A follow that scrolls calls `departFromText`,
-  which records the anchor and pushes `?i=<ids>`; that entry is the note's, and the browser's
-  Back returns to it. The map follow is a departure too, but pushes the location **unchanged**
-  (`depart`), so a way back exists with nothing singled out. The viewer **pushes** the pair as
-  a step of its own and takes it back on close, so Back closes the picture rather than burying
-  the note under one more step. See [media-viewer.md](media-viewer.md).
-- **The way back is kept until the line is readable again.** Closing the viewer, paging, or a
-  press elsewhere must not take it away; a settled scroll on which the reference reaches the
-  band a reader actually reads - clear of the sticky header and of the bottom edge,
-  `referenceReadable` - is the one thing that spends it. A word peeking at the very top is
-  not the line being back.
+- **A follow writes the line onto the entry it leaves and the accent onto the step above.**
+  `followNote` replaces the entry being left so it carries the hash and **no accent**, then
+  pushes the accent step. Back lands on an entry that names no file, drops the accent from the
+  address and scrolls to the line. The map follow does the same without the accent
+  (`departNote`). The viewer **pushes** its pair as a step of its own, so Back closes the
+  picture rather than returning to the note. See [media-viewer.md](media-viewer.md).
+- **The hash is spent when the line is readable again.** Closing the viewer, paging, or a press
+  elsewhere must not drop it; a settled scroll on which the reference reaches the band a reader
+  actually reads - clear of the sticky header and of the bottom edge, `referenceReadable` -
+  clears it. A word peeking at the very top is not the line being back.
 - **The way back also stands in the page.** While a line is remembered, a translucent round
   button sits bottom-right with the viewer's own arrow and does the same thing, so the way up
   is not reachable only from inside the full-screen viewer.
-- **The browser's Back is the same way back as the arrow.** A `popstate` onto an entry with
-  no `o=1` closes the viewer, and if an anchor is remembered that step also scrolls to the
-  reference. A step that does ask for the viewer leaves it open. `onPopState` holds off the
-  writes it would otherwise cause - the close's own write on that step, and the link's own
-  scroll while the note is being restored - because either would fight the step itself.
+- **The viewer carries the hash too**, so its arrow returns to the line. Back there closes the
+  picture and stops; the line survives for the next Back, which lands on the entry with no
+  accent. A viewer opened without a follow carries none, and its close is silent.
+- **Back returns to the note only when it leaves the accent.** A press on a tile does **not**
+  drop the accent: the tile is about to open the viewer, and clearing it there would leave the
+  entry under the viewer identical to the note, so nothing could tell the two apart. So that
+  entry still names the file, `onPopState` skips it, and Back only closes the picture; the next
+  Back, onto an entry with no `?i=`, scrolls to the line. The composable marks the step a
+  hand-close takes back (`consumeHandClose`) and the page skips it too.
 - **The arrow stays while paging.** The anchor names a place in the text, not the picture it
   opened, so paging away does not lose it.
-- **Returning scrolls, lights and clears.** `returnToTextAnchor` scrolls the chip to the
-  middle, adds `.text-anchor-flash` for 1.6s, and drops the anchor - after which the arrow is
-  gone from the UI. The flash is a static background, not an animation, so it survives
-  reduced motion.
-- **The anchor is cleared when the day changes and on unmount**, because in each case it
-  named a note the reader is no longer looking at. **Closing the viewer does not clear it**:
-  the memory is what lets the browser's Back reach the note after a look at a picture.
+- **Returning scrolls and lights; the settle spends it.** `returnToText` - the viewer's arrow
+  and the page's round button - calls `scrollToTextAnchor`, which scrolls the chip to the
+  middle and adds `.text-anchor-flash` for 1.6s. That scroll settles and clears the hash, so
+  the arrow and the button go. The flash is a static background, not an animation, so it
+  survives reduced motion.
+- **The hash is dropped when the day changes**, because it names a note the reader is no longer
+  looking at. A navigation to another day writes no hash, so it goes with the address.
+  **Closing the viewer does not drop it**: the memory is what lets the browser's Back reach the
+  note after a look at a picture.
 
-The anchor lives in one module ref in `services/textAnchor.js` and nowhere else. It is **not**
-mirrored into `history.state`: vue-router rewrites that state on every navigation, so a
-mirror came and went on its own, and nothing ever read it.
+The hash is the only record of the line: no module ref, and no `history.state` mirror.
+vue-router rewrites that state on every navigation, so a mirror came and went on its own.
 
 ## The editor
 
@@ -356,14 +372,17 @@ mirror came and went on its own, and nothing ever read it.
 1. Rendering is token-based; `v-html` is never used for note or description text.
 2. `raw` on a token is the exact source; the editor layer and the field must agree
    character for character.
-3. The anchor is kept only when the reference is off screen.
-4. Only a follow that takes the line off screen pushes; every other write replaces.
-5. The anchor lives in one module ref and nowhere else; there is no `history.state` mirror.
+3. The note hash is written only when the jump takes the line off screen.
+4. A follow that takes the line off screen replaces the entry it leaves, which carries the hash
+   and **no accent**, and pushes the accent step. The accent is never on the entry a follow
+   leaves.
+5. The line lives in the address as `#note=id:index` and nowhere else; there is no module ref
+   and no `history.state` mirror.
 6. A media reference is resolved against the page's own list, and a miss is shown, not
    dropped.
 7. The card is positioned in document coordinates so it scrolls with the page.
 8. A tile click while picking must not open the viewer.
-9. The viewer closes on any step onto an entry without `o=1`, anchor or not.
+9. The viewer closes on any step onto an entry without `o=1`, hash or not.
 10. A selection in the editor field must stay translucent.
 11. A hover belongs to a mouse: a touch enter or focus must not open the card, or the click
     the tap invents lands on the card's own picture.
@@ -373,9 +392,9 @@ mirror came and went on its own, and nothing ever read it.
     button follows it instead.
 14. The address names **every** id of a reference; the outline is the link's state, so the
     two agree and a copied address carries the whole block.
-15. A follow that takes the line off screen pushes a history entry, so Back returns to the
-    text. The map follow is one of these: it pushes the location unchanged, not `?i=`, so it
-    adds a step to return from without singling anything out.
+15. A follow that takes the line off screen writes the line onto the entry it leaves and pushes
+    the accent step, so Back drops the accent, lands on the matching entry and scrolls to the
+    line. The map follow writes no `?i=`, so both of its entries name no file.
 16. The way back is spent **only** by seeing the reference again; closing the viewer or
     paging never clears it.
 17. The card steps with a real scroll. Two records are never cross-faded.
@@ -443,6 +462,14 @@ mirror came and went on its own, and nothing ever read it.
 41. Opening the viewer **pushes** the `?i=`/`?o=` pair as a history step of its own; Back closes
     the picture and a step onto it opens nothing. Closing by hand takes the step back, so
     neither Back nor Forward returns to a closed picture.
+42. A hand-close of the viewer never scrolls to the note. `useMediaRouteViewer` marks the step
+    it takes back itself, so `onPopState` answers only the reader's Back and the two return
+    buttons - the viewer's arrow and the page's round button.
+43. The way back is the fragment `#note=<id>:<index>`, written on the entry being left and on
+    the viewer entry, and cleared only when the line is read again.
+44. A press on a tile does **not** dismiss the accent, so the entry under the viewer still names
+    the file and Back there only closes the picture; the next Back, onto an entry with no accent,
+    returns to the line.
 
 ## Related
 

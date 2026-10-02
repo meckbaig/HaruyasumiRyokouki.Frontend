@@ -19,8 +19,7 @@ import { useEditorStore } from '@/stores/editor'
 import { useUiStore } from '@/stores/ui'
 import { useTagsStore } from '@/stores/tags'
 import { useMediaLink } from '@/composables/useMediaLink'
-import { useViewerHistoryStep } from '@/composables/useViewerHistoryStep'
-import { scrollToMedia } from '@/services/scrollToMedia'
+import { useMediaRouteViewer } from '@/composables/useMediaRouteViewer'
 import { hasOverlay } from '@/services/overlayStack'
 import { cascadeDelay } from '@/services/cascade'
 import { captionForSlug } from '@/services/tags'
@@ -40,9 +39,6 @@ const tags = useTagsStore()
 const TABS = ['media', 'notes']
 
 const lightboxItems = ref([])
-const lightboxIndex = ref(null)
-/** The viewer itself, so Back can run its own close - the flight back included. */
-const viewer = ref(null)
 const editing = ref(null)
 /** `{ media, x, y }` of the file right-clicked in a result group. */
 const contextTarget = ref(null)
@@ -124,57 +120,36 @@ const mediaLink = useMediaLink({ suspended: () => hasOverlay() })
 const highlightedId = computed(() => mediaLink.link.value.id)
 
 /*
-  The viewer's own history step, shared with the day page and the trip map. Back
-  closes the viewer through its own close; a new question is a navigation, so the
-  step is forgotten rather than taken back. See docs/features/media-viewer.md.
+  The viewer, driven by the pair in the address. The lightbox walks one group's
+  matched files, so `lightboxItems` is the group the named file belongs to; it is
+  kept after a close, so the picture still has a list to fly out of.
+  See docs/features/media-viewer.md.
 */
-const viewerStep = useViewerHistoryStep({
-  index: lightboxIndex,
-  idAt: (i) => lightboxItems.value[i]?.id ?? null,
-  addressHasStep: () => mediaLink.link.value.open,
-  push: (id) => mediaLink.push(id),
-  replace: (id) => mediaLink.write(id, true),
-  clear: () => mediaLink.clear(),
-  close: () => viewer.value?.close(),
-})
+const viewer = useMediaRouteViewer({ items: lightboxItems })
+/** The viewer's index, at the top level so `v-model` can write it back. */
+const lightboxIndex = viewer.index
 
-let linkResolved = false
-watch([query, tagSlug], () => {
-  linkResolved = false
-  // A new question is a navigation: the viewer's own step is left where it is.
-  viewerStep.forgetStep()
-})
-
-// The store replaces its whole result object once per completed run - cached or
-// fetched, hit or miss - which makes it the one signal that says "these are the
-// results now". Counting groups would fire early, when there are none yet.
-watch(
-  () => search.results,
-  () => {
-    if (linkResolved) return
-    linkResolved = true
-
-    const { id, open } = mediaLink.link.value
-    if (id == null) return
-
-    for (const group of mediaDays.value) {
-      const index = group.matched.findIndex((item) => item.id === id)
-      if (index < 0) continue
-
-      if (open) {
-        lightboxItems.value = group.matched
-        // A history step never opens the viewer; only a load or a press does.
-        if (!viewerStep.isHistoryStep()) lightboxIndex.value = index
-      } else {
-        scrollToMedia(id)
-      }
+// The group the named file belongs to; a close keeps the last one standing.
+watch([() => mediaLink.link.value.id, mediaDays], ([id]) => {
+  if (id == null) return
+  for (const group of mediaDays.value) {
+    if (group.matched.some((item) => item.id === id)) {
+      lightboxItems.value = group.matched
       return
     }
+  }
+})
 
-    // Nothing in these results is that file.
+/*
+  A pair naming a file these results do not hold is dropped, once the answer has
+  arrived. See docs/features/sharing-and-links.md.
+*/
+watch([() => mediaLink.link.value.id, () => search.results], ([id]) => {
+  if (id == null || !mediaDays.value.length) return
+  if (!mediaDays.value.some((group) => group.matched.some((item) => item.id === id))) {
     mediaLink.clear()
-  },
-)
+  }
+})
 
 // Files deleted through the app-level toolbar; the page cannot hear its events.
 watch(
@@ -192,7 +167,7 @@ function selectTab(next) {
 
 function openLightbox({ items, index }) {
   lightboxItems.value = items
-  lightboxIndex.value = index
+  viewer.openAt(items[index]?.id)
 }
 
 /** Same as the day page: the file in the results was written to in place. */
@@ -328,7 +303,7 @@ async function removeMedia(list) {
     </template>
 
     <MediaContextMenu :target="contextTarget" @close="contextTarget = null" />
-    <MediaLightbox ref="viewer" v-model:index="lightboxIndex" :items="lightboxItems" />
+    <MediaLightbox v-model:index="lightboxIndex" :items="lightboxItems" />
     <MediaEditDialog
       :open="Boolean(editing)"
       :media="editing"

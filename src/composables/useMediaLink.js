@@ -1,5 +1,7 @@
 import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { noteHash } from '@/services/textAnchor'
+import { MEDIA_ID_ATTR } from '@/services/mediaTiles'
 
 /**
  * Pointing a link at files inside a page: `i=<media ids>` singles them out, `o=1`
@@ -57,10 +59,9 @@ function sameIds(link, query) {
 }
 
 /**
- * Reads and writes the pair for the current route. Writes **replace**, never
- * push - except the two ways out of the text: `push` singles the files out,
- * `depart` leaves the address alone. Each is a place of its own, so the
- * browser's Back returns to the note. See docs/features/sharing-and-links.md.
+ * Reads and writes the pair for the current route. The accent always **replaces**;
+ * only a step of its own, `followNote`, `departNote` and `depart`, pushes, so
+ * Back returns to the line the reader left. See docs/features/sharing-and-links.md.
  *
  * @param {{ suspended?: () => boolean }} [options] holds dismissal off while the
  *   viewer is open - the outline is behind it.
@@ -82,16 +83,6 @@ export function useMediaLink({ suspended = () => false } = {}) {
   }
 
   /**
-   * Adds an entry rather than replacing one. Only for following the text: the
-   * reader came from a note somewhere above, and paging would otherwise bury the
-   * page under a history entry per picture.
-   */
-  function push(ids, open = true) {
-    const query = withMediaLink(route.query, ids, open)
-    return router.push({ path: route.path, query, hash: route.hash })
-  }
-
-  /**
    * Adds an entry for a departure that changes **nothing** in the address - the
    * map follow, which remembers a way back without singling files out. `force`
    * is what makes vue-router push the location rather than skip it as a
@@ -99,6 +90,36 @@ export function useMediaLink({ suspended = () => false } = {}) {
    */
   function depart() {
     return router.push({ path: route.path, query: route.query, hash: route.hash, force: true })
+  }
+
+  /**
+   * The line goes on the entry the reader leaves, which carries **no accent**, and
+   * the accent goes on a step pushed above it. So Back lands on an entry that names
+   * no file: it drops the accent from the address and scrolls to the line.
+   * See docs/features/rich-text-and-links.md.
+   */
+  function stepForNote(ids, anchor) {
+    const hash = noteHash(anchor)
+    const at = { path: route.path, query: withMediaLink(route.query, null), hash }
+    const to =
+      ids == null ? at : { path: route.path, query: withMediaLink(route.query, ids, false), hash }
+    return router.replace(at).then(() => router.push({ ...to, force: true }))
+  }
+
+  /** A follow that singles files out and leaves the line behind it. */
+  function followNote(ids, anchor) {
+    return stepForNote(ids, anchor)
+  }
+
+  /** A follow that singles nothing out and only marks the line, for the map. */
+  function departNote(anchor) {
+    return stepForNote(null, anchor)
+  }
+
+  /** Spends the way back: drops the note hash from the entry the reader is on. */
+  function clearNote() {
+    if (!route.hash) return
+    return router.replace({ path: route.path, query: route.query, hash: '' })
   }
 
   function clear() {
@@ -114,7 +135,12 @@ export function useMediaLink({ suspended = () => false } = {}) {
 
   function dismiss(event) {
     if (link.value.id == null || suspended()) return
-    if (event.target?.closest?.('a[href]')) return
+    /*
+      A press on a tile is about a file, not "elsewhere": the tile is about to
+      open the viewer, and clearing the accent here would leave the entry under
+      the viewer identical to the note, so Back could not tell them apart.
+    */
+    if (event.target?.closest?.(`a[href], [${MEDIA_ID_ATTR}]`)) return
     clear()
   }
 
@@ -151,5 +177,5 @@ export function useMediaLink({ suspended = () => false } = {}) {
     document.removeEventListener('pointercancel', onPointerCancel)
   })
 
-  return { link, write, push, depart, clear }
+  return { link, write, depart, followNote, departNote, clearNote, clear }
 }

@@ -192,12 +192,11 @@ matched files only**. The rest of a day appears solely because a reader unfolded
 reaching into folded days to find a file would mean fetching every one of them on the
 chance it is there.
 
-The resolve watcher fires on `search.results` - the store replaces that whole object once
-per completed run, cached or fetched, hit or miss, which makes it the one signal meaning
-"these are the results now". Watching group counts would fire early, when there are none.
-
-`linkResolved` is reset when the query or tag changes, so a link belonging to an old
-result set is resolved again from scratch and dropped if it no longer belongs anywhere.
+The viewer is `useMediaRouteViewer`: it derives the open index from the pair and the group's
+matched files, and owns the scroll for a plain `?i=`. The group the named file belongs to is
+picked from `mediaDays` whenever the pair or the answer changes; a close keeps the last group
+standing, so the picture still has a list to fly out of. A pair that matches nothing once the
+answer has arrived is dropped.
 
 `MediaResultGroup` hands the viewer `[...matched, ...rest]` in render order, because the
 viewer walks a single flat list.
@@ -230,9 +229,9 @@ the day map's own default; see [media-grid-and-selection.md](media-grid-and-sele
 3. A tag search passes `''` as the query so tokens stay empty.
 4. Highlight ranges are in original coordinates; nothing renders through `v-html`.
 5. Search-page `?i=` resolves against matched files only.
-9. The viewer takes a history step of its own through `useViewerHistoryStep`, the same
-   one the day page uses: Back closes it, a turn replaces the step, and a tag link from
-   inside the viewer is a navigation that forgets the step rather than taking it back.
+9. The viewer is driven by the address pair through `useMediaRouteViewer`, the same one the
+   day page uses: a tag link from inside it is an ordinary navigation, and returning to the
+   pair restores the file last seen. No `popstate` handler or `history.back()`.
 6. The chip is drawn only when `route.name === 'search'`.
 7. `AbortError` from a superseded request is swallowed, not shown.
 8. A note's snippet edges fall on markup token boundaries, so the slice re-parses whole;

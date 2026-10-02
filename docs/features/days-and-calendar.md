@@ -67,14 +67,12 @@ reserved the space while the day was loading.
 
 ### Answering a `?i=` link
 
-The watcher on `[media, mediaLink.link]` resolves the linked file against **this day's**
-files, then either opens the viewer (`?o=1`) or scrolls to it. The grid is told which of the
-two it is (`linkOpen`): a plain `?i=` opens a paged wall whole so the scroll can reach the
-block, while an `o=1` link leaves it paged, since the viewer covers the page.
+The page hands the viewer `useMediaRouteViewer` over **this day's** files: it derives whether
+the link opens the viewer (`?o=1`) or only singles a file out, and it owns the scroll for a
+plain `?i=` - on arrival and on Back alike. The grid is told which of the two it is
+(`linkOpen`): a plain `?i=` opens a paged wall whole so the scroll can reach the block, while
+an `o=1` link leaves it paged, since the viewer covers the page.
 
-- `answered` guards against answering the same file twice, and is reset when the date
-  changes - the day's own map links back into the day it is on, changing nothing but the
-  parameter, and a one-shot read left that link outlining nothing.
 - An unresolvable id is cleared **only when `loading` is false**. A reload leaves the
   previous day's files standing until the new ones arrive, and a link answered against
   those would be discarded for the wrong reason.
@@ -175,8 +173,8 @@ put them there.
    every open page must refetch.
 3. Day-stepping guards check `hasOverlay()`, never a local "is the viewer open" flag.
 4. `TripCalendar` never uses `scrollIntoView`.
-5. `answered` is reset on date change, and an unresolved `?i=` is only cleared once
-   loading has settled.
+5. A plain `?i=` always scrolls to the file, on arrival and on Back; an unresolvable `?i=` is
+   only cleared once loading has settled.
 6. Cache `Map`s are replaced, not mutated in place.
 
 ## Related

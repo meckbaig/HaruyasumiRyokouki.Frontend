@@ -39,6 +39,7 @@ was being looked at. Two parameters do:
 | `i=<media id>` | Single this file out, outlined among the rest. |
 | `i=<id,id,...>` | A note reference may name several files at once; the address carries **every** id, comma-separated, and the whole block is outlined. |
 | `o=1` | And open the first file full screen at once. |
+| `#note=<id>:<index>` | On a day, the line a reference was followed from. A fragment, so it never reaches the server. |
 
 `o` never travels alone - it is only ever written beside `i`. It also leaves a **paged** wall
 paged: nothing scrolls to the file behind a full-screen viewer, so the wall is not opened
@@ -53,6 +54,11 @@ been asked for - a file may have moved to another day, or the search may no long
 than replacing the entry, so Back returns to the address before it and closes the viewer;
 closing by hand takes that step back, so Back then leaves the page. The Share button carries
 the same pair, and a shared link still opens the picture on arrival.
+
+A viewer the **link itself** opened adopts the entry rather than pushing one: the entry tracks
+the file, so a turn rewrites its `i` and returning to the entry restores the file last seen.
+The pair is the source of truth - an `o=1` entry opens the viewer, Back and Forward included.
+See [media-viewer.md](media-viewer.md).
 
 **The front page is deliberately outside this.** Its wall is shuffled and capped by the
 backend, so an `i` into it would mean nothing on the next visit. `copyMediaUrl` therefore
@@ -75,21 +81,23 @@ rather than offering a link that would single out nothing.
 | `readMediaLink(query)` | `{ ids, id, open }`. `id` is the first id, null unless the value is an integer. |
 | `withMediaLink(query, ids, open)` | The same query with the pair set, or removed when there are no ids. |
 | `pageIdentity(route)` | The address **with the pair removed** and the rest sorted. |
-| `useMediaLink({ suspended })` | `{ link, write, push, depart, clear }` for the current route. |
+| `useMediaLink({ suspended })` | `{ link, write, depart, followNote, departNote, clearNote, clear }` for the current route. |
 
 `pageIdentity` exists because writing `i` changes the address, and anything watching the
 address for a page change reads that as the reader being taken somewhere else. That is how
-opening a file came to close the viewer in the same instant. Anything that wants "did the
+opening a file came to close the viewer in the same instant. It **ignores the fragment** too:
+the note hash changes the address without moving the reader. Anything that wants "did the
 reader actually move?" must compare `pageIdentity`, never `route.fullPath`.
 
 `write()` replaces rather than pushes: a single file singled out inside a page would otherwise
 bury that page under one history entry per change. It also skips writes that would not change
 anything, because vue-router treats navigating to the same place as a reportable error.
 
-`push()` and `depart()` are the two exceptions, both adding an entry. `push(ids, open)` writes
-the pair: following a note reference (no `o`) and opening the viewer (`o=1`). `depart()` adds
-an entry and changes **nothing**, for a step that must not write the pair - the map follow, and
-the day's full-screen map. `depart` passes `force`, because vue-router skips a push to the
+`followNote`, `departNote` and `depart` are the exceptions, each adding an entry. `followNote`
+replaces the entry it leaves so it carries the note hash and **no accent**, then pushes the
+accent step; Back lands on the no-accent entry and walks up to the line. `departNote` does the
+same for the map follow and writes no `?i=`. `depart` adds an entry and changes **nothing**, for
+the day's full-screen map. All three pass `force`, because vue-router skips a push to the
 location already standing as a duplicate - the step is the whole point.
 
 The outline is dismissed by a **tap** that is not about it, with these carve-outs:
@@ -98,6 +106,9 @@ The outline is dismissed by a **tap** that is not about it, with these carve-out
   underneath it cancels it.
 - `suspended()` holds dismissal off while the viewer is open; the outline is behind it,
   and the click that opened it must not take it away.
+- A press inside a media tile (`[data-media-id]`) is left alone too: the tile is about to
+  open the viewer, and clearing the accent there left the entry under the viewer identical to
+  the note, so Back could not tell a viewer close from a return to the note.
 - A press only dismisses when it does not travel (`TAP_SLOP`, 10px). A vertical swipe is
   how a phone scrolls a wall of tiles, and answering it took the outline away from a reader
   who was only scrolling towards the block.

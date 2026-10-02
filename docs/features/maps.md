@@ -722,9 +722,10 @@ offers "open on the map" for the file on show when it carries coordinates, and t
 answers it with the same `showMediaOnMap`, so the map is revealed, scrolled to and framed on
 that file exactly as the viewer's own action does. The step remembers the line it was followed
 from **and pushes a history entry**, so the page's own back button and the browser's Back both
-return to the note. It writes **nothing into the address**, though: the files are not outlined in
-the wall and the page is not scrolled to it, since the reader is going to the map. Only a follow
-into the pile carries a `?i=`. See [rich-text-and-links.md](rich-text-and-links.md).
+return to the note. It writes **no `?i=`**, though: the files are not outlined in the wall and
+the page is not scrolled to it, since the reader is going to the map. The `#note=` line is
+written the same way a pile follow writes it. Only a follow into the pile also carries a `?i=`.
+See [rich-text-and-links.md](rich-text-and-links.md).
 
 Long days are **paged** so the map is not a long scroll away: the day's grid opens on four
 rows and keeps the rest behind one button. With "hide the map by default" the page assumes
@@ -963,8 +964,8 @@ which rooftop.
     neighbour already in the DOM.
 49. A full-screen map - the day's and the trip page's - opens onto a history step of the
     **same address**. Back collapses it, collapsing by hand takes the step back, and a step
-    onto it opens nothing, so neither Back nor Forward returns to a closed map. The trip
-    page's viewer takes a step the same way, closed through its own `close()`.
+    onto it opens nothing, so neither Back nor Forward returns to a closed map. The viewer is
+    not a step: on every page it is `useMediaRouteViewer`, driven by the `?i=`/`?o=1` pair.
 
 ## Related
 
