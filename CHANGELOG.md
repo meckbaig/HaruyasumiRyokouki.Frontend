@@ -4,6 +4,28 @@ Feature releases only. The third segment carries fixes and small changes that a
 visitor would not notice; they are gathered under the feature release they follow.
 Major zero said the site was still finding its shape; it has found it.
 
+## 2.5.0 - back button in the viewer
+
+The address now owns everything the viewer does. Opening a picture from a day or a search is
+a step of its own, so the browser's Back closes the picture instead of leaving the page, and
+Forward opens what the address names. Turning a page inside the viewer replaces the file in
+that step rather than adding one, so a long look no longer buries the page under a history
+entry per picture.
+
+Following a reference in a day note puts the line it was followed from into the fragment of
+the address, beside the file it points at. A step back onto that fragment returns to the line,
+on the browser's Back, on the viewer's own arrow, and on the round button the page carries.
+The accent a reference raises is view state and is never a step of its own, so Back never
+restores an old selection, and the cross or a press beside the picture leaves the note where
+it was.
+
+- The browser's Back closes the picture instead of leaving the page
+- Back again, onto the note a reference was followed from, returns to the line
+- Forward walks back through the file and the line the address names
+- Turning a page in the viewer no longer adds a history entry
+- The accent a reference raises is never a history entry
+- A shared address carries the file and the line at once
+
 ## 2.4.0 - map fixes
 
 A pass over the map's own marks and furniture: where the dots under a pile stand, when a pin is
@@ -31,6 +53,10 @@ on a phone the day map's buttons stand under it, with a gutter beside it a thumb
 - The day map's toolbar hides with the map, having nothing to act on without it
 - A taller day map takes a bare wheel to zoom; the narrow one still asks for Ctrl
 - A picture opened from a reference's hover card flies back into the card, which stays up until a press outside it or its cross
+- A tap is answered from the touch everywhere, so a control pressed straight after a swipe is not left dead and a picture closes at once on a touch device
+- The map's album card takes the height of the record on show, not of the tallest neighbour beside it
+- A press on a hover card's own picture opens it, instead of putting the card away on the way
+- A full-screen map collapses on the browser's Back, and collapsing it by hand takes that step back
 
 ## 2.3.0 - embedded youtube video
 
