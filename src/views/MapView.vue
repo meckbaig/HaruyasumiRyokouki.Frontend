@@ -10,7 +10,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { useDaysStore } from '@/stores/days'
 import { useUiStore } from '@/stores/ui'
 import { useTripMedia, routeFromMedia } from '@/composables/useTripMedia'
-import { withMediaLink } from '@/composables/useMediaLink'
+import { withMediaLink, OPEN_PARAM } from '@/composables/useMediaLink'
 import { useMediaRouteViewer } from '@/composables/useMediaRouteViewer'
 import { hasCoordinates } from '@/services/mapLinks'
 import { hasOverlay } from '@/services/overlayStack'
@@ -183,8 +183,22 @@ function onPopState() {
   const tookBack = consumingStep
   consumingStep = false
   if (tookBack) return
-  // A step that closes the viewer belongs to it.
-  if (lightboxIndex.value != null) return
+  // A hand-close already took its own step back; it is not the reader's Back.
+  if (viewer.consumeHandClose()) return
+  /*
+    The viewer and the full-screen map are separate overlays, so one Back closes
+    one of them. This runs after the router settled, so the viewer's own `held`
+    flag - not the route - says whether the step is the viewer's.
+  */
+  if (new URLSearchParams(window.location.search).get(OPEN_PARAM) === '1') {
+    viewer.held.value = true
+    return
+  }
+  if (viewer.held.value) {
+    // This Back closed the viewer; the map waits for the next one.
+    viewer.held.value = false
+    return
+  }
   if (expanded.value) closeFullscreen({ fromStep: true })
 }
 

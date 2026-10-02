@@ -668,7 +668,7 @@ map: the reader is leaving the map, not returning to it.
 | --- | --- |
 | Open on the map | A link to the trip page with `?from=<date>&to=<date>`, so the day becomes the range there. |
 | Taller / shorter | Swaps the height between `min(360px, 100vh)` and `min(900px, calc(100vh - 12rem))`. Both are `min()` expressions of the same shape, which is what lets the height interpolate; the icon changes to say which way the next press goes. A taller map also takes a bare wheel, so it zooms without the modifier. |
-| Full screen | A **second** map in a `Teleport`, exactly as the trip page builds one. The page stays where it is underneath. Both the viewer's close and its map action go to whichever map is in front, which is what makes the full-screen one answer at all. Opening adds a history step of the **same address**, so Back collapses it; collapsing by hand takes that step back; and a step onto it never opens it again. |
+| Full screen | A **second** map in a `Teleport`, exactly as the trip page builds one. The page stays where it is underneath. Both the viewer's close and its map action go to whichever map is in front, which is what makes the full-screen one answer at all. Opening adds a history step of the **same address**, so Back collapses it; collapsing by hand takes that step back; and a step onto it never opens it again. A viewer opened over it is a step of its own: Back closes the viewer and leaves the map standing, and the next Back collapses it. |
 
 **The page search is stood down on the map's own flights.** The day page tells the viewer the page
 is covered while its map fills the window, and, inline, while the viewer was opened from the map's
@@ -966,6 +966,13 @@ which rooftop.
     **same address**. Back collapses it, collapsing by hand takes the step back, and a step
     onto it opens nothing, so neither Back nor Forward returns to a closed map. The viewer is
     not a step: on every page it is `useMediaRouteViewer`, driven by the `?i=`/`?o=1` pair.
+50. The viewer and the full-screen map are **separate overlays**, so one Back closes one of
+    them: closing the viewer leaves the map standing, and the next Back collapses it. A page
+    cannot ask the route which one a `popstate` closed: the browser runs a microtask
+    checkpoint between `popstate` listeners, so vue-router's navigation finishes and flushes
+    its watchers before the page's own handler runs. The viewer therefore keeps `held` - a
+    flag its open and close actions write directly - and the page reads that (plus `o=1` in
+    `window.location` for a forward reopen) to tell a viewer step from the map's.
 
 ## Related
 

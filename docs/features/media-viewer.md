@@ -495,6 +495,9 @@ either expanded - so their height is measured, not assumed, and fed back into th
   reopen a picture the reader closed.
 - Back and Forward are otherwise ordinary route changes. An entry carrying `o=1` opens the
   viewer however it was reached, so a step restores the file last seen as well as a load.
+- A full-screen map opened under the viewer is a **separate** overlay, so a Back that closes
+  the viewer leaves the map standing; the next Back collapses it. See
+  [maps.md](maps.md) invariant 50.
 
 All of it lives once, in `src/composables/useMediaRouteViewer.js`. The lightbox still needs a
 synchronous `index` for a held arrow, so the composable keeps that as a mirror of the route:

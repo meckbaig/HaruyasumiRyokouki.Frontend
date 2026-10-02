@@ -23,7 +23,7 @@ import { useEditorStore } from '@/stores/editor'
 import { formatLongDate, formatWeekday } from '@/services/dates'
 import { isFallbackLanguage } from '@/services/translations'
 import { useHorizontalSwipe } from '@/composables/useHorizontalSwipe'
-import { useMediaLink } from '@/composables/useMediaLink'
+import { useMediaLink, MEDIA_PARAM, OPEN_PARAM } from '@/composables/useMediaLink'
 import { useMediaRouteViewer } from '@/composables/useMediaRouteViewer'
 import { scrollToMedia, scrollTargetFor } from '@/services/scrollToMedia'
 import { tileFor } from '@/services/mediaTiles'
@@ -280,15 +280,27 @@ function onPopState() {
   // The viewer's own hand-close is a step it takes back itself; only the reader's
   // Back and the two UI buttons return to the note.
   if (viewer.consumeHandClose()) return
-  // The full-screen map in front closes on its own step.
-  if (mapFullscreen.value) {
+  /*
+    The viewer and the full-screen map are separate overlays, so one Back closes
+    one of them. This runs after the router settled, so the viewer's own `held`
+    flag - not the route - says whether the step is the viewer's.
+  */
+  const params = new URLSearchParams(window.location.search)
+  if (params.get(OPEN_PARAM) === '1') {
+    viewer.held.value = true
+    return
+  }
+  if (viewer.held.value) {
+    // This Back closed the viewer; the map behind it waits for the next one.
+    viewer.held.value = false
+  } else if (mapFullscreen.value) {
     closeMapFullscreen({ fromStep: true })
     return
   }
   // A step that still names a file is the viewer's own, or a look at one: Back
   // closes the picture and stops there. Only a step that leaves the accent is
   // the return to the note, which the hash names.
-  if (new URLSearchParams(window.location.search).get('i') != null) return
+  if (params.get(MEDIA_PARAM) != null) return
   if (!noteAnchor.value) return
   returningToText = true
   scrollToTextAnchor(noteAnchor.value)

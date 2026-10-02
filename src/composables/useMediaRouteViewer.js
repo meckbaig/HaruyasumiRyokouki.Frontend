@@ -39,6 +39,13 @@ export function useMediaRouteViewer({ items, suppressScroll = () => false }) {
 
   /** The lightbox's synchronous index. Bound with `v-model:index`. */
   const index = ref(null)
+  /*
+    True while this viewer holds a history step a Back should close. Written by
+    the viewer's own opens and closes, never read from the route: a page's
+    `popstate` runs **after** the router has already moved the address and flushed
+    its watchers, so route state cannot say what the step is closing.
+  */
+  const held = ref(false)
   /** This session pushed the current pair, so a hand-close leaves the entry. */
   let pushed = false
   /**
@@ -85,6 +92,7 @@ export function useMediaRouteViewer({ items, suppressScroll = () => false }) {
   function openAt(id) {
     if (id == null) return
     pushed = true
+    held.value = true
     handClosing = false
     return router.push({ path: route.path, query: withMediaLink(route.query, id, true), hash: route.hash })
   }
@@ -104,6 +112,7 @@ export function useMediaRouteViewer({ items, suppressScroll = () => false }) {
     if (selectedId.value == null && !isOpen.value) return
     const leave = pushed
     pushed = false
+    held.value = false
     if (leave) {
       // Our own step, so its popstate must not be answered as the reader's Back.
       handClosing = true
@@ -136,6 +145,7 @@ export function useMediaRouteViewer({ items, suppressScroll = () => false }) {
   function dismiss() {
     if (selectedId.value == null && !isOpen.value) return
     pushed = false
+    held.value = false
     return router.replace({
       path: route.path,
       query: withMediaLink(route.query, null),
@@ -171,6 +181,7 @@ export function useMediaRouteViewer({ items, suppressScroll = () => false }) {
     close,
     dismiss,
     consumeHandClose,
+    held,
     isOpen,
     selectedIds,
     selectedId,
