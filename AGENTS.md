@@ -86,6 +86,11 @@ doc yet, read the code and then write one.
 - **Don't sacrifice clarity for brevity.** Readable, well-commented code is preferred
   over clever one-liners. The rule above applies to *infrastructure* — use what already
   exists instead of reinventing it — not to making code harder to understand.
+- **Large components are regioned for search.** `MediaLightbox.vue` marks its parts with
+  `//#region Name` and `<!-- #region Name -->`, and its pure maths and separable subsystems
+  live in `src/services/lightbox/` and `src/composables/lightbox/`. Search for a marker and
+  slice to `#endregion` instead of loading the whole file. See
+  [docs/features/media-viewer.md](docs/features/media-viewer.md).
 - **The interface is fluid.** Every movement and every change of state is played as an
   animation - a record scrolling past, an outline arriving, a bar sliding away, a
   warning dimming the wall - never a jump between two states. Something that only

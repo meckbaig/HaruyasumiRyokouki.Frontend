@@ -4,14 +4,20 @@ Full-screen viewing of one file among a list: image layers, a draggable filmstri
 pinch/double-tap zoom, pull-to-dismiss, a flight to and from the tile that opened it, and
 two floating bars whose height the picture has to be fitted around.
 
-`MediaLightbox.vue` is ~2400 lines and by far the densest component in the project. Most
-of its complexity is timing, not logic. Read this document before editing it.
+`MediaLightbox.vue` is by far the densest component in the project, and most of its
+complexity is timing, not logic. Its pure maths and separable subsystems live in
+`src/services/lightbox/` and `src/composables/lightbox/`, and what remains is cut into
+searchable regions. Read this document before editing it.
 
 ## Files
 
 | File | Role |
 | --- | --- |
-| `src/components/media/MediaLightbox.vue` | Everything below except the flight. |
+| `src/components/media/MediaLightbox.vue` | The viewer: state, gestures, chrome, flight wiring. Cut into `//#region` blocks. |
+| `src/services/lightbox/fit.js` | Pure placement and zoom maths: `fitWithin`, `exactBand`, `tapZoomScale`, `slideMs`, `overflows`, `isOnPicture`, `toFramePoint`. |
+| `src/services/lightbox/layers.js` | Cache probes: `isCached`, `fullPaintable`. |
+| `src/composables/lightbox/useLightboxLayers.js` | Session cache: preview and full-size warming, `stripSrc`, `heroSource`. |
+| `src/composables/lightbox/useLightboxTagSwipe.js` | The lower bar's tag swipe. |
 | `src/components/media/HeroFlight.vue` | The flight between a tile and the picture. |
 | `src/components/common/MediaStrip.vue` | The turn on its own: the same filmstrip mechanism, for anything that is not the viewer. |
 | `src/services/motion.js` | `motionReduced()`, shared by both. |
@@ -624,6 +630,26 @@ Do not "fix" these:
 27. Opening the viewer **pushes** the `?i=`/`?o=1` pair as a step of its own; Back closes the
     picture, and a step never opens one. Closing by hand takes the step back, so Back then
     leaves the page. Paging replaces the entry; only the loaded pair opens a viewer.
+
+## Module layout and code regions
+
+The viewer is too large to read whole, so two conventions keep it navigable.
+
+| Where | Holds |
+| --- | --- |
+| `src/services/lightbox/` | Pure, framework-free maths and cache probes. |
+| `src/composables/lightbox/` | Reactive wrappers whose state leaves the component. |
+| `src/components/media/MediaLightbox.vue` | The coupled core: gestures, chrome fit, flight, session. |
+
+What stays in the component is cut into named regions, `//#region Name` in the script and
+`<!-- #region Name -->` in the template. **To read one subsystem, search for its region
+marker and read only the lines to its `#endregion`; never load the whole file.** The script
+regions are Props and setup, Map menu, Derived sources, Share, Layer loading, Gestures and
+fit, Animation and wheel, Pointer machine, Click suppression, Flight and close, Paging and
+navigation, Watchers, Chrome refs and overflow, Fit and resting placement, Chrome
+measurement and expansion, Lower bar swipe, Keyboard and focus, Session and lifecycle. The
+template regions are Filmstrip, Spinner, Explicit reveal, Chrome header, Arrows, Chrome
+footer, and Map menu.
 
 ## Related
 

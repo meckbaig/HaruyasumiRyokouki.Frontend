@@ -1,4 +1,4 @@
-t<script setup>
+<script setup>
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -31,7 +31,21 @@ import { boxOf, tileFor } from '@/services/mediaTiles'
 import TagChip from './TagChip.vue'
 import RichText from '@/components/common/RichText.vue'
 import { hasCoordinates, MAP_SERVICES, mapServiceUrl } from '@/services/mapLinks'
+import {
+  MAX_SCALE,
+  exactBand,
+  fitWithin,
+  isOnPicture,
+  overflows,
+  slideMs,
+  tapZoomScale,
+  toFramePoint,
+} from '@/services/lightbox/fit'
+import { isCached } from '@/services/lightbox/layers'
+import { useLightboxLayers } from '@/composables/lightbox/useLightboxLayers'
+import { useLightboxTagSwipe } from '@/composables/lightbox/useLightboxTagSwipe'
 
+//#region Props and setup
 const props = defineProps({
   items: { type: Array, default: () => [] },
   /** Index of the open file, or null when the lightbox is closed. */
@@ -91,6 +105,9 @@ const caption = computed(() => text.value.description)
 const hasPrev = computed(() => open.value && props.index > 0)
 const hasNext = computed(() => open.value && props.index < props.items.length - 1)
 
+//#endregion
+
+//#region Map menu
 /*
   The way out of the viewer onto a map: the day's own map where the page has one,
   or an outside service. The icon only appears for a file that carries
@@ -134,97 +151,15 @@ function chooseSiteMap() {
   emit('show-on-map', id)
 }
 
+//#endregion
+
+//#region Derived sources
 /** Neighbours ride along in the filmstrip, shown as the previews the grid cached. */
 const prevItem = computed(() => (hasPrev.value ? props.items[props.index - 1] : null))
 const nextItem = computed(() => (hasNext.value ? props.items[props.index + 1] : null))
 
-/* Full-size images this session has held, so a file already seen slides past
-   sharp. A record, not a probe - probing an uncached URL issues a request.
-   See docs/features/media-viewer.md. */
-const inHand = new Set()
-
-/*
-  How far ahead to warm. The strip mounts only the two neighbours, and the page
-  underneath loads its thumbnails lazily, so a file further down a long day has
-  no preview cached. Fetch the next few now, not when the reader turns to one.
-  See docs/features/media-viewer.md.
-*/
-const PREVIEW_WARM_AHEAD = 5
-
-/** Preview URLs this session already asked to be fetched ahead of need. */
-const warmedPreviews = new Set()
-
-/**
- * Fetches the previews of the next few files into the browser cache, off-DOM,
- * so the file the reader is about to turn to settles in instead of loading
- * while the strip is sliding.
- */
-function warmPreviews() {
-  if (!open.value) return
-  const last = Math.min(props.items.length, props.index + PREVIEW_WARM_AHEAD + 1)
-  for (let i = props.index + 1; i < last; i += 1) {
-    const item = props.items[i]
-    if (!item) continue
-    const url = previewSrc(item)
-    if (!url || warmedPreviews.has(url)) continue
-    warmedPreviews.add(url)
-    // No paint and no layout: a detached Image only fills the cache, which is
-    // what the layers and the strip read when the file arrives.
-    const image = new Image()
-    image.src = url
-  }
-}
-
-/** Full-size URLs this session has already asked the browser to fetch ahead. */
-const warmedFullSize = new Set()
-
-/* Full-size URLs whose bytes have actually arrived, so a layer can be settled
-   before its own <img> has ever been rendered. Reactive: the filmstrip's
-   neighbours switch to the full image the moment it is ready.
-   See docs/features/media-viewer.md. */
-const fullCached = ref(new Set())
-
 /** Which way the reader last paged, so the neighbour ahead of them is warmed. */
 let pageDirection = 1
-
-/**
- * Fetches a neighbour's full-size image, off-DOM, so a page turn shows it sharp
- * from the first frame instead of loading. Opening warms both sides; a turn warms
- * only the way the reader is heading. **Skipped in the mobile layout**, where the
- * swap is invisible and the file is a heavy download.
- */
-function warmFullSize(delta) {
-  if (!open.value) return
-  // Not on a phone: the swap is invisible there and the file is a heavy download.
-  if (isMobileLayout()) return
-  const item = props.items[props.index + delta]
-  if (!item) return
-  const url = fullScreenSrc(item)
-  if (!url || inHand.has(url) || warmedFullSize.has(url)) return
-  warmedFullSize.add(url)
-  const image = new Image()
-  // The completed fetch is what lets the layer settle the moment it is reached.
-  image.onload = () => {
-    const next = new Set(fullCached.value)
-    next.add(url)
-    fullCached.value = next
-  }
-  image.src = url
-}
-
-/** Whether this file's full-size image can be drawn with no request at all. */
-function haveFullSize(item) {
-  const full = fullScreenSrc(item)
-  return Boolean(full) && (inHand.has(full) || fullCached.value.has(full))
-}
-
-function stripSrc(item) {
-  // A covered neighbour turns past as its blurred miniature too, so a slide
-  // never flashes the file it is hiding.
-  if (isCovered(item)) return miniatureSrc(item)
-  if (haveFullSize(item)) return fullScreenSrc(item)
-  return previewSrc(item) || miniatureSrc(item)
-}
 
 /**
  * The preview is the very image the grid tile already downloaded - the API
@@ -259,6 +194,9 @@ const shareable = computed(
     (canResolveLink.value || Boolean(dayDate.value)),
 )
 
+//#endregion
+
+//#region Share
 const { feedback: shareFeedback, run: runShare } = useCopyFeedback()
 
 function share() {
@@ -270,6 +208,9 @@ function share() {
   )
 }
 
+//#endregion
+
+//#region Layer loading
 const fullLoaded = ref(false)
 const fullFailed = ref(false)
 /** The preview has painted, so the miniature under it has done its job. */
@@ -399,16 +340,6 @@ async function onPreviewLoaded(event) {
    be painted**, not painted and then faded out. So each is asked about before
    the first render. See docs/features/media-viewer.md. */
 
-/** Whether the browser can paint this URL with no request of its own. */
-function isCached(url) {
-  if (!url) return false
-  // A detached element answers straight away for anything in the memory cache.
-  // Anything it does not know about simply keeps its stand-in, which is the
-  // conservative way round.
-  const probe = new Image()
-  probe.src = url
-  return probe.complete && probe.naturalWidth > 0
-}
 
 /*
  * A layer the browser already holds is marked ready before this file's first
@@ -463,17 +394,16 @@ function onFullFailed() {
   stopSpinner()
 }
 
+//#endregion
+
+//#region Gestures and fit
 /* Gestures. One pointer surface for all of them, because their meanings overlap
    and deciding between them needs the whole picture of what is pressed.
    See docs/features/media-viewer.md. */
-const MAX_SCALE = 6
-const TAP_ZOOM = 2
 const TAP_WINDOW = 210
 const TAP_SLOP = 40
 const DRAG_SLOP = 8
 const ANIM_MS = SLIDE_MS
-/** Floor for a velocity-shortened slide, so a fast fling is not a snap. */
-const MIN_SLIDE_MS = 70
 /**
  * Share of the frame a sideways drag must cross to turn the page. Short on
  * purpose: an unwanted turn costs one swipe back, a refused one costs the
@@ -486,6 +416,11 @@ const DISMISS_DISTANCE = 120
 const frame = ref(null)
 /** The full-size image element, used to hit-test taps against the picture. */
 const picture = ref(null)
+
+/* The session's cache of previews and full-size images, and the source each
+   layer or the filmstrip draws from. See composables/lightbox/useLightboxLayers.js. */
+const { inHand, warmPreviews, warmFullSize, haveFullSize, stripSrc, heroSource } =
+  useLightboxLayers({ props, open, picture, isCovered })
 const scale = ref(1)
 const offsetX = ref(0)
 const offsetY = ref(0)
@@ -580,37 +515,6 @@ function pictureRect() {
   return rect?.width && rect?.height ? rect : null
 }
 
-/** Whether a screen point lands on the picture itself rather than beside it. */
-function isOnPicture(clientX, clientY) {
-  const rect = pictureRect()
-  if (!rect) return false
-  return (
-    clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
-  )
-}
-
-/** A point in frame coordinates, measured from its centre. */
-function toFramePoint(clientX, clientY) {
-  const { rect } = frameSize()
-  if (!rect) return { x: 0, y: 0 }
-  return {
-    x: clientX - rect.left - rect.width / 2,
-    y: clientY - rect.top - rect.height / 2,
-  }
-}
-
-/**
- * What a double tap magnifies to: `TAP_ZOOM` at the least, and further when the
- * file is wider than the window, so a panorama on a tall phone ends against the
- * top and bottom edges. A file at or under the window's own ratio already meets
- * them at rest, where the sum falls below `TAP_ZOOM`. See media-viewer.md.
- */
-function tapZoomScale() {
-  const { width, height } = frameSize()
-  const ratio = knownAspect()
-  if (!ratio || width <= 0) return TAP_ZOOM
-  return Math.max(TAP_ZOOM, (ratio * height) / width)
-}
 
 /**
  * Rescales around a fixed point: whatever sits under the cursor or between the
@@ -641,6 +545,9 @@ function zoomTo(next, point) {
   }
 }
 
+//#endregion
+
+//#region Animation and wheel
 let animationTimer = null
 /** How long the strip's current slide runs, read by `stripStyle`. */
 let stripMs = ANIM_MS
@@ -683,16 +590,6 @@ function withAnimation(change, done, duration = ANIM_MS) {
   animationTimer = setTimeout(settleAnimation, duration)
 }
 
-/**
- * Slide length from release speed: a swipe fast enough to cross the frame in
- * less than one `ANIM_MS` shortens the turn, so a fast fling is not left
- * running at full length once the reader is already starting the next.
- */
-function slideMs(speed, width) {
-  const neutral = width / ANIM_MS
-  const ms = (ANIM_MS * neutral) / Math.max(speed, neutral / 4)
-  return Math.round(Math.min(ANIM_MS, Math.max(MIN_SLIDE_MS, ms)))
-}
 
 /* Wheel zoom holds the transition on a moment after each notch, so discrete
    steps read as one continuous movement. */
@@ -708,12 +605,18 @@ function onWheel(event) {
   const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY
 
   animating.value = true
-  zoomTo(scale.value * Math.exp(-delta * 0.0015), toFramePoint(event.clientX, event.clientY))
+  zoomTo(
+    scale.value * Math.exp(-delta * 0.0015),
+    toFramePoint(frameSize().rect, event.clientX, event.clientY),
+  )
 
   clearTimeout(wheelTimer)
   wheelTimer = setTimeout(() => (animating.value = false), 180)
 }
 
+//#endregion
+
+//#region Pointer machine
 const pointers = new Map()
 let drag = null
 let pinch = null
@@ -748,7 +651,7 @@ function beginPinch() {
   dragY.value = 0
   pinch = {
     distance: Math.hypot(a.x - b.x, a.y - b.y),
-    point: toFramePoint((a.x + b.x) / 2, (a.y + b.y) / 2),
+    point: toFramePoint(frameSize().rect, (a.x + b.x) / 2, (a.y + b.y) / 2),
     scale: scale.value,
     offsetX: offsetX.value,
     offsetY: offsetY.value,
@@ -763,7 +666,7 @@ function updatePinch() {
   const next = Math.min(MAX_SCALE, Math.max(1, (pinch.scale * distance) / pinch.distance))
   // The midpoint may travel as well, which pans at the same time - the motion a
   // maps app makes when the pinch and the hand move together.
-  const centre = toFramePoint((a.x + b.x) / 2, (a.y + b.y) / 2)
+  const centre = toFramePoint(frameSize().rect, (a.x + b.x) / 2, (a.y + b.y) / 2)
   const ratio = next / pinch.scale
   offsetX.value = centre.x - (pinch.point.x - pinch.offsetX) * ratio
   offsetY.value = centre.y - (pinch.point.y - pinch.offsetY) * ratio
@@ -932,7 +835,7 @@ function onPointerUp(event) {
   // frame. A finger only ever toggles the chrome.
   // See docs/features/media-viewer.md.
   if (pointerType === 'mouse') {
-    if (isOnPicture(event.clientX, event.clientY)) toggleUi()
+    if (isOnPicture(pictureRect(), event.clientX, event.clientY)) toggleUi()
     else close()
     return
   }
@@ -950,10 +853,14 @@ function onPointerUp(event) {
     // The second of the pair: call off the toggle the first one queued, or the
     // picture would magnify and the bars would leave in the same breath.
     clearTimeout(uiTapTimer)
+    const { width, height, rect } = frameSize()
     withAnimation(() =>
       zoomed.value
         ? resetZoom()
-        : zoomTo(tapZoomScale(), toFramePoint(event.clientX, event.clientY)),
+        : zoomTo(
+            tapZoomScale(width, height, knownAspect()),
+            toFramePoint(rect, event.clientX, event.clientY),
+          ),
     )
     lastTapAt = 0
     suppressClick = true
@@ -979,7 +886,9 @@ function onPointerCancel(event) {
     }
   }
 }
+//#endregion
 
+//#region Click suppression
 /*
   Nothing in here answers a click made before the viewer was open: it belongs to
   the tap that opened it. See docs/features/media-grid-and-selection.md.
@@ -999,6 +908,9 @@ function onFrameClickCapture(event) {
   suppressClick = false
 }
 
+//#endregion
+
+//#region Flight and close
 /* Growing out of the tile that was clicked, and shrinking back into it. Boxes
    come from the numbers that place the picture, never measured off the element,
    so a flight can run before it exists and after it is gone.
@@ -1056,32 +968,6 @@ function pictureBox() {
   }
 }
 
-/**
- * A full the browser can paint with no request of its own: the detached probe
- * answers for the memory cache, and the element about to replace the flight also
- * reports `complete` for a disk-cached one the probe cannot see. The probe alone
- * flew the preview while the strip settled that full. See docs/features/media-viewer.md.
- */
-function fullPaintable(url) {
-  if (isCached(url)) return true
-  const element = picture.value
-  return Boolean(element?.complete && element.naturalWidth && element.getAttribute('src') === url)
-}
-
-/**
- * The sharpest image the browser can paint right now. The preview is always
- * present here, and the full is overlaid the moment it decodes.
- */
-function heroSource(item) {
-  // A covered file flies as its blurred miniature: the preview and the full-size
-  // layer are exactly what must not be shown. Including it keeps the picture in
-  // the opening and closing flight without spending a second layer on a file
-  // whose sharper one is already on show. See docs/features/explicit-content.md.
-  if (isCovered(item)) return miniatureSrc(item)
-  const full = fullScreenSrc(item)
-  if (full && fullPaintable(full)) return full
-  return previewSrc(item) || miniatureSrc(item)
-}
 
 /**
  * A full the strip has already settled but the probes cannot confirm (a record
@@ -1149,6 +1035,9 @@ function close({ fly = true } = {}) {
    See docs/features/media-viewer.md. */
 defineExpose({ close })
 
+//#endregion
+
+//#region Paging and navigation
 /**
  * The way back to the note a reference was followed from. Offered on **any**
  * file: the anchor names a place in the text, not the picture it opened, so
@@ -1236,6 +1125,9 @@ function page(delta, duration = ANIM_MS) {
   slideOneFrame(delta, duration)
 }
 
+//#endregion
+
+//#region Watchers
 // Registered before the `current` watcher, which reads the direction it sets.
 watch(
   () => props.index,
@@ -1329,6 +1221,9 @@ watch(uiVisible, () => {
   }, ANIM_MS)
 })
 
+//#endregion
+
+//#region Chrome refs and overflow
 /* Chrome measurements. The bars grow with their contents, so their heights are
    measured and fed back as the padding of the filmstrip cells. The same observer
    answers whether the contents overflow. See docs/features/media-viewer.md. */
@@ -1362,10 +1257,6 @@ function knownAspect() {
   return aspect.value ?? previewAspect()
 }
 
-/** Whether a bar's contents run past the height it is allowed. */
-function overflows(element, expanded) {
-  return Boolean(element) && (expanded || element.scrollHeight > element.clientHeight + 1)
-}
 
 /**
  * Records the tag row's overflow, and writes its margin class by hand.
@@ -1393,59 +1284,9 @@ function readBand() {
   bandTop.value = Math.round(rect.top)
   bandBottom.value = Math.round(window.innerHeight - rect.bottom)
 }
+//#endregion
 
-/**
- * Insets, but **only when the bars actually bind** - a landscape file runs out of
- * width first and never meets them. Null hands the caller back to the
- * approximate route. See docs/features/media-viewer.md.
- */
-function exactBand(ratio) {
-  if (!ratio) return null
-
-  const top = bandTop.value
-  const bottom = bandBottom.value
-  if (top + bottom <= 0) return null
-
-  const barsDifference = Math.abs(top - bottom)
-  const available = window.innerHeight - (top + bottom) - barsDifference
-  if (available <= 0) return null
-  if (ratio >= window.innerWidth / available) return null
-
-  return { top, bottom }
-}
-
-/**
- * The scale and the shift that put a file of these proportions where it rests:
- * pulled back far enough to clear the bars, and moved into the middle of what
- * they leave. Pure - nothing but the ratio and the bars decides it - which is
- * what lets the neighbours in the filmstrip be placed by the very same sum.
- */
-function fitWithin(insets, ratio) {
-  const top = insets?.top ?? 0
-  const bottom = insets?.bottom ?? 0
-
-  const height = window.innerHeight
-  const width = window.innerWidth
-  const band = height - top - bottom
-
-  if (!ratio || band <= 0) return { scale: 1, offsetY: 0 }
-
-  // Widths of the picture fitted to the window and fitted to the band; their
-  // ratio is what the bars cost.
-  const toWindow = Math.min(width, height * ratio)
-  const toBand = Math.min(width, band * ratio)
-
-  return {
-    scale: toWindow > 0 ? toBand / toWindow : 1,
-    offsetY: (top - bottom) / 2,
-  }
-}
-
-/** The resting fit of a file, from its proportions alone. */
-function restingFitFor(ratio) {
-  return fitWithin(exactBand(ratio), ratio)
-}
-
+//#region Fit and resting placement
 const chromeReady = ref(false)
 
 /* Where the picture rests, and the far end of the zoom. The cell is the whole
@@ -1466,7 +1307,7 @@ function measureBand() {
   // The preview knows its proportions before `aspect` has been told them, and
   // at the moment this first runs that is usually the only place to ask.
   const ratio = knownAspect()
-  const insets = exactBand(ratio)
+  const insets = exactBand(bandTop.value, bandBottom.value, ratio)
 
   // Only when the bars actually bind: the expander's margin is part of the
   // footer's height, so this settles the height that is about to be read again.
@@ -1484,7 +1325,9 @@ function measureBand() {
  */
 function neighbourFit(item) {
   if (!uiVisible.value) return undefined
-  const { scale, offsetY } = restingFitFor(mediaAspect(item))
+  const ratio = mediaAspect(item)
+  const insets = exactBand(bandTop.value, bandBottom.value, ratio)
+  const { scale, offsetY } = fitWithin(insets, ratio)
   if (scale === 1 && offsetY === 0) return undefined
   return { transform: `translate(0px, ${offsetY}px) scale(${scale})` }
 }
@@ -1518,6 +1361,9 @@ function applyRestingFit() {
   atInitialFit = true
 }
 
+//#endregion
+
+//#region Chrome measurement and expansion
 /* Bars easing from one height to another, run on the elements themselves: a bar
    has no height of its own to transition between, and a keyframe can be given
    the two numbers where a stylesheet cannot. See docs/features/media-viewer.md. */
@@ -1629,68 +1475,21 @@ function toggleDescription() {
   settleChrome()
 }
 
-/*
-  The whole lower bar answers the drag, not just the little grab handle: a swipe
-  is not a control to be aimed at, and the tags under it are not hurt by the
-  overlap. A tap still toggles only from the handle - anywhere else the bar is
-  tags and buttons. See docs/features/media-viewer.md.
-*/
-const TAGS_SWIPE_MIN = 12
-let tagDrag = null
+//#endregion
 
-function finishTagDrag(y) {
-  const drag = tagDrag
-  tagDrag = null
-  if (!drag) return
-  const dy = y - drag.y
-  if (Math.abs(dy) < TAGS_SWIPE_MIN) return
-  tagsExpanded.value = dy < 0
-  settleChrome()
-}
+//#region Lower bar swipe
+/* The lower bar's swipe. See composables/lightbox/useLightboxTagSwipe.js. */
+const {
+  onTagPointerDown,
+  onTagPointerUp,
+  onTagTouchStart,
+  onTagTouchMove,
+  onTagTouchEnd,
+  onTagDragCancel,
+} = useLightboxTagSwipe({ tagsOverflow, tagsExpanded, onSettle: settleChrome })
+//#endregion
 
-/** Mouse only: the drag ends wherever the cursor is, well past the bar. */
-function onTagPointerDown(event) {
-  if (!tagsOverflow.value) return
-  if (event.pointerType !== 'mouse' || event.button > 0) return
-  tagDrag = { y: event.clientY }
-  document.addEventListener('pointerup', onTagPointerUp)
-}
-
-function onTagPointerUp(event) {
-  document.removeEventListener('pointerup', onTagPointerUp)
-  finishTagDrag(event.clientY)
-}
-
-/**
- * Touch takes its own path: pointer events stop the moment a browser claims the
- * gesture for a scroll, so a real phone never sends the pointerup that would end
- * the swipe. Touch events keep coming, and a touchend fires on the element the
- * touch began on wherever the finger ends.
- */
-function onTagTouchStart(event) {
-  if (!tagsOverflow.value) return
-  const touch = event.touches[0]
-  if (touch) tagDrag = { y: touch.clientY }
-}
-
-function onTagTouchMove(event) {
-  const touch = event.touches[0]
-  if (!tagDrag || !touch) return
-  // Claimed once the travel says "swipe": a tap that barely drifts keeps its click.
-  if (Math.abs(touch.clientY - tagDrag.y) < TAGS_SWIPE_MIN) return
-  if (event.cancelable) event.preventDefault()
-}
-
-function onTagTouchEnd(event) {
-  const touch = event.changedTouches[0]
-  if (touch) finishTagDrag(touch.clientY)
-}
-
-function onTagDragCancel() {
-  tagDrag = null
-  document.removeEventListener('pointerup', onTagPointerUp)
-}
-
+//#region Keyboard and focus
 /** Keeps Tab inside the dialog while it is open. */
 function trapFocus(event) {
   const focusable = dialog.value?.querySelectorAll(
@@ -1738,6 +1537,9 @@ function onKeydown(event) {
   }
 }
 
+//#endregion
+
+//#region Session and lifecycle
 function resetGestures() {
   heroOrigin = null
   originTile = null
@@ -1865,6 +1667,7 @@ onBeforeUnmount(() => {
   chromeObserver = null
   clearTimeout(chromeSettleTimer)
 })
+//#endregion
 </script>
 
 <template>
@@ -1908,6 +1711,7 @@ onBeforeUnmount(() => {
                and lose its scrubbing. -->
           <div v-if="video" class="absolute inset-0 touch-none" aria-hidden="true" />
 
+          <!-- #region Filmstrip -->
           <!-- The neighbours sit one frame away on either side, drawn from the
                previews the grid already cached. **Keyed by the file**: an `img`
                given a new `src` goes on painting the old one until it loads. -->
@@ -2129,6 +1933,9 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <!-- #endregion -->
+
+          <!-- #region Spinner -->
           <!-- Outside the strip, so neither dragging nor zooming moves it. -->
           <!-- Keyframe classes, not utilities: the wheel fades in on its own
                clock once `spinnerShown` lets it in. See `.lb-spinner-*`. -->
@@ -2148,6 +1955,9 @@ onBeforeUnmount(() => {
           </Transition>
         </div>
 
+        <!-- #endregion -->
+
+        <!-- #region Explicit reveal -->
         <!--
           An 18+ file's own reveal, standing in the middle of the room: the
           picture stays behind its miniature until it is pressed. Above the
@@ -2171,6 +1981,8 @@ onBeforeUnmount(() => {
           </div>
         </Transition>
 
+        <!-- #endregion -->
+
         <!--
         Chrome floating over the picture. The bars **slide, never fade** - a
         backdrop filter and an opacity transition do not co-operate. The wrapper
@@ -2178,6 +1990,7 @@ onBeforeUnmount(() => {
         See docs/features/media-viewer.md.
       -->
         <div class="pointer-events-none absolute inset-0 flex flex-col overflow-hidden">
+          <!-- #region Chrome header -->
           <div
             ref="header"
             class="lightbox-bar lightbox-bar-top flex items-start justify-between gap-4 overflow-hidden px-3 py-2 transition-transform duration-200"
@@ -2282,6 +2095,9 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <!-- #endregion -->
+
+          <!-- #region Arrows -->
           <!-- Positioned against the window, not laid out between the bars, and
                sliding rather than fading for the same reason they do.
                See docs/features/media-viewer.md. -->
@@ -2339,6 +2155,9 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
+          <!-- #endregion -->
+
+          <!-- #region Chrome footer -->
           <!-- In flow between the two bars, so it *is* the space left for the
                picture - `readBand()` asks it where it ended up. -->
           <div ref="band" class="flex-1" />
@@ -2513,6 +2332,9 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <!-- #endregion -->
+
+          <!-- #region Map menu -->
           <!--
             The menu stands **outside** the bar on purpose: a backdrop filter
             nested inside another one frosts its parent's backdrop rather than
@@ -2546,6 +2368,7 @@ onBeforeUnmount(() => {
               </a>
             </div>
           </Transition>
+          <!-- #endregion -->
           </div>
         </div>
       </div>
