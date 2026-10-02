@@ -630,6 +630,10 @@ Do not "fix" these:
 27. Opening the viewer **pushes** the `?i=`/`?o=1` pair as a step of its own; Back closes the
     picture, and a step never opens one. Closing by hand takes the step back, so Back then
     leaves the page. Paging replaces the entry; only the loaded pair opens a viewer.
+28. The open/close watcher is `immediate`. A page holding a cached day can set its index
+    during `setup`, before this component exists, so the viewer mounts already open. Without
+    the setup pass the overlay token and keydown listener were never registered, and an
+    arrow press paged the day behind the still-open picture.
 
 ## Module layout and code regions
 

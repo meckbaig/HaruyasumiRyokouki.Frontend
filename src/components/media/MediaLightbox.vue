@@ -1611,49 +1611,60 @@ function unlockScroll({ now = false } = {}) {
   }, UNLOCK_DELAY)
 }
 
-watch(open, async (isOpen) => {
-  if (isOpen) {
-    pushOverlay(overlayToken)
-    // Read now, with the page below still laid out as the reader left it.
-    // Searching by id is the fallback only - a file can be on the page twice.
-    const source = takeOpenedFrom()
-    // Read once, for the whole session: a close drops the flag in the page, and
-    // the flight re-reads its destination every frame.
-    coveredAtOpen = props.pageCovered
-    // A page the map covers is not searched: a tile beneath it is not reachable.
-    const from = source ?? (coveredAtOpen ? null : tileFor(current.value?.id, { visible: true }))
-    originTile = from ? { el: from, id: current.value?.id } : null
-    heroOrigin = from ? boxOf(from) : null
-    openedAt = performance.now()
-    // Opened on a file: the reader may flip either way, so warm both sides. A
-    // turn after this warms only the direction it travels - see `watch(current)`.
-    warmFullSize(1)
-    warmFullSize(-1)
-    chromeReady.value = false
-    lastFocused = document.activeElement
-    document.addEventListener('keydown', onKeydown)
-    // Locking the body keeps the page behind from scrolling under the overlay.
-    lockScroll()
-    await nextTick()
-    dialog.value?.focus()
-    observeChrome()
-  } else {
-    popOverlay(overlayToken)
-    chromeObserver?.disconnect()
-    chromeObserver = null
-    clearTimeout(chromeSettleTimer)
-    chromeSettling = false
-    document.removeEventListener('keydown', onKeydown)
-    unlockScroll()
-    stopSpinner()
-    resetGestures()
-    // Focus back to the tile, **never scrolling to it**: the page scrolls
-    // smoothly, and a browser discards the click of any touch that began or
-    // ended while it was moving. See docs/features/media-viewer.md.
-    lastFocused?.focus?.({ preventScroll: true })
-    lastFocused = null
-  }
-})
+/*
+  `immediate`: a page can hand the viewer an index it already had. Back onto a
+  cached day mounts this component already open, and without the setup pass the
+  overlay token and keydown listener were never registered - so the arrows paged
+  the day behind the picture. See docs/features/media-viewer.md.
+*/
+watch(
+  open,
+  async (isOpen) => {
+    if (isOpen) {
+      pushOverlay(overlayToken)
+      // Read now, with the page below still laid out as the reader left it.
+      // Searching by id is the fallback only - a file can be on the page twice.
+      const source = takeOpenedFrom()
+      // Read once, for the whole session: a close drops the flag in the page, and
+      // the flight re-reads its destination every frame.
+      coveredAtOpen = props.pageCovered
+      // A page the map covers is not searched: a tile beneath it is not reachable.
+      const from = source ?? (coveredAtOpen ? null : tileFor(current.value?.id, { visible: true }))
+      originTile = from ? { el: from, id: current.value?.id } : null
+      heroOrigin = from ? boxOf(from) : null
+      openedAt = performance.now()
+      // Opened on a file: the reader may flip either way, so warm both sides. A
+      // turn after this warms only the direction it travels - see `watch(current)`.
+      warmFullSize(1)
+      warmFullSize(-1)
+      chromeReady.value = false
+      lastFocused = document.activeElement
+      document.addEventListener('keydown', onKeydown)
+      // Locking the body keeps the page behind from scrolling under the overlay.
+      lockScroll()
+      await nextTick()
+      dialog.value?.focus()
+      observeChrome()
+    } else {
+      popOverlay(overlayToken)
+      chromeObserver?.disconnect()
+      chromeObserver = null
+      clearTimeout(chromeSettleTimer)
+      chromeSettling = false
+      document.removeEventListener('keydown', onKeydown)
+      unlockScroll()
+      stopSpinner()
+      resetGestures()
+      // Focus back to the tile, **never scrolling to it**: the page scrolls
+      // smoothly, and a browser discards the click of any touch that began or
+      // ended while it was moving. See docs/features/media-viewer.md.
+      lastFocused?.focus?.({ preventScroll: true })
+      lastFocused = null
+    }
+  },
+  // An index handed over before mount must run the setup pass above.
+  { immediate: true },
+)
 
 onBeforeUnmount(() => {
   popOverlay(overlayToken)
