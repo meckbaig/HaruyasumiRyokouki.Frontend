@@ -136,8 +136,10 @@ The ribbon carries **no paging arrows**. They were `absolute` buttons over the e
 on a phone one month fills the box, so they sat on the very days they pointed past and
 swallowed the taps. Two things stand in their place, and neither ever takes a press:
 
-- A **dot row** under the ribbon: one quiet bar a month, the centred one a shade darker. It
-  says how much of the trip there is, and it never covers a day.
+- A **dot row** under the ribbon: one quiet bar a month, lit for the months in view. On a
+  phone one month fills the ribbon, so exactly one bar is lit (the centred one). On the
+  desktop every month on screen is lit, and the row is dropped once the whole trip fits the
+  ribbon and nothing scrolls. It says how much of the trip there is, and it never covers a day.
 - **Bare edge chevrons** (no button, no disc) that come up on the page's own **vertical
   scroll while the ribbon is on screen**, and fade `HINTS_MS` after the scrolling stops. They
   are `pointer-events-none`, so a press falls through to the day cell under them, and each
@@ -201,6 +203,11 @@ put them there.
    dot row below it plus bare `pointer-events-none` chevrons, raised by any vertical page
    scroll while the ribbon is on screen and faded `HINTS_MS` after it stops; the chevrons
    report direction, the dots position.
+9. The dot row is **mobile-only in spirit**: it lights one bar when one month fills the
+   ribbon, lights every month in view on the desktop, and is hidden (not merely emptied)
+   once the desktop shows every month at once.
+   "One month fills the ribbon" is read from the first column's width, not a media query, so
+   it tracks the `w-full sm:w-64` column rule.
 
 ## Related
 

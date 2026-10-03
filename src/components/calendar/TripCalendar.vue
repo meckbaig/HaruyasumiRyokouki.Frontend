@@ -26,6 +26,10 @@ const activeMonth = ref(0)
 /** Which ends there is still something to scroll to. */
 const canLeft = ref(false)
 const canRight = ref(false)
+/** Months overlapping the ribbon's viewport; lit in the dot row on the desktop. */
+const visibleMonths = ref(new Set())
+/** True while one month fills the ribbon: the phone layout. */
+const oneMonthFills = ref(false)
 /** Whether the ribbon is on screen; the page's vertical scroll reads this. */
 const ribbonVisible = ref(false)
 /** The edge chevrons, up while the page is scrolled over a visible ribbon. */
@@ -63,6 +67,25 @@ const months = computed(() => {
   return result
 })
 
+/** True when the whole trip fits the ribbon, so nothing scrolls. */
+const allVisible = computed(() => !canLeft.value && !canRight.value)
+
+/**
+ * The dot row is a phone affordance: dropped on the desktop once every month is
+ * on screen, since then it says nothing. See docs/features/days-and-calendar.md.
+ */
+const showDots = computed(() => {
+  if (months.value.length <= 1) return false
+  if (oneMonthFills.value) return true
+  return !allVisible.value
+})
+
+/** Bars to light: the centred month on a phone, every month in view on the desktop. */
+const litMonths = computed(() => {
+  if (oneMonthFills.value) return new Set([activeMonth.value])
+  return visibleMonths.value
+})
+
 /**
  * Where the ribbon is: which month is centred, and which ends have more to
  * scroll to. Run on a scroll, a resize, and once the anchor is placed.
@@ -73,12 +96,17 @@ function updateEdges() {
   canLeft.value = el.scrollLeft > 4
   canRight.value = el.scrollLeft < el.scrollWidth - el.clientWidth - 4
 
-  // The month nearest the ribbon's middle is the one the dot row lights.
-  const centre = el.scrollLeft + el.clientWidth / 2
+  // A phone lights the month nearest the middle; the desktop lights every month
+  // overlapping the viewport, and the row hides once all months fit at once.
+  const left = el.scrollLeft
+  const right = left + el.clientWidth
+  const centre = left + el.clientWidth / 2
+  const shown = new Set()
   let nearest = 0
   let best = Infinity
   for (let i = 0; i < el.children.length; i += 1) {
     const child = el.children[i]
+    if (child.offsetLeft < right && child.offsetLeft + child.clientWidth > left) shown.add(i)
     const distance = Math.abs(child.offsetLeft + child.clientWidth / 2 - centre)
     if (distance < best) {
       best = distance
@@ -86,6 +114,8 @@ function updateEdges() {
     }
   }
   activeMonth.value = nearest
+  visibleMonths.value = shown
+  oneMonthFills.value = el.children.length > 0 && el.children[0].clientWidth >= el.clientWidth - 4
 }
 
 /**
@@ -265,15 +295,20 @@ onBeforeUnmount(() => {
       </span>
     </div>
 
-    <!-- Where the ribbon is: one quiet bar a month, the centred one a shade
-         darker. The chevrons above are the arrival hint; the dots say how much
-         of the trip there is. -->
-    <ul v-if="months.length > 1" class="mt-2 flex justify-center gap-1" aria-hidden="true">
+    <!-- Where the ribbon is: one quiet bar a month, lit for the months in view.
+         A phone shows one month, so one bar; the desktop lights all it shows and
+         drops the row once the whole trip fits. It never covers a day. -->
+    <ul
+      v-if="months.length > 1"
+      class="flex justify-center gap-1 overflow-hidden transition-all duration-200"
+      :class="showDots ? 'mt-2 max-h-1 opacity-100' : 'mt-0 max-h-0 opacity-0'"
+      aria-hidden="true"
+    >
       <li
         v-for="(month, i) in months"
         :key="month.toISOString()"
-        class="h-1 w-3 rounded-full transition-colors"
-        :class="i === activeMonth ? 'bg-ink-faint' : 'bg-edge'"
+        class="h-1 w-3 shrink-0 rounded-full transition-colors"
+        :class="litMonths.has(i) ? 'bg-ink-faint' : 'bg-edge'"
       />
     </ul>
   </section>
