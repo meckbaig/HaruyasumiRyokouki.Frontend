@@ -163,9 +163,34 @@ function labelFor(part) {
   return part.label || part.media?.title || part.media?.fileName || t('richText.mediaMissing')
 }
 
-/** What the card is opened for: the reference, and where its own chip sits. */
+/**
+ * The rectangle the card is placed against: the **line fragment** the hand is
+ * over, not the whole chip. A chip that wraps spans both margins, so its union
+ * box would put the card past the whole block.
+ * See docs/features/rich-text-and-links.md.
+ */
 function payloadFor(part, event) {
-  return { part, rect: event.currentTarget.getBoundingClientRect() }
+  return { part, rect: fragmentRect(event.currentTarget, event) }
+}
+
+/** The chip's box, narrowed to the line the pointer is on when its label wraps. */
+function fragmentRect(el, event) {
+  const rects = el.getClientRects()
+  if (rects.length <= 1 || event.clientX == null) return el.getBoundingClientRect()
+  const { clientX: x, clientY: y } = event
+  let best = rects[0]
+  let bestGap = Infinity
+  for (const rect of rects) {
+    const inside = y >= rect.top && y <= rect.bottom && x >= rect.left && x <= rect.right
+    if (inside) return rect
+    // Not on a fragment: keep the one nearest the hand's line.
+    const gap = Math.max(0, rect.top - y, y - rect.bottom)
+    if (gap < bestGap) {
+      bestGap = gap
+      best = rect
+    }
+  }
+  return best
 }
 
 /** A site with no icon leaves no gap: the mark is dropped, the label stays. */

@@ -161,6 +161,12 @@ A chip may name several files, so the card is a carousel rather than a single pi
 - **The card is placed in document coordinates and lives on `<body>`.** Scroll offsets are
   added to the chip's viewport rectangle, so the card scrolls with the page instead of
   hanging over it. It flips to the left of the chip when the right would run off screen.
+- **A wrapped chip is placed against the line the hand is on.** Its union rectangle spans
+  both margins, so `right` is the last line's end and the card would land past the whole
+  block. The fragment under the pointer is taken from `getClientRects()` and the card is
+  placed against it by the same right-then-flip rule, so either line lands the card beside
+  the hand. A chip on one line has a single rect and is untouched; a keyboard focus, which
+  has no pointer, falls back to the chip's whole box.
 - **The card fades in and out.** A `Transition` named `hover-card` wraps it. It is a hint,
   not a dialog, so it only fades - no rise, no drift. The leaving card stops answering the
   pointer at once, so it cannot swallow the hand on the way back to the chip.
@@ -470,6 +476,10 @@ vue-router rewrites that state on every navigation, so a mirror came and went on
 44. A press on a tile does **not** dismiss the accent, so the entry under the viewer still names
     the file and Back there only closes the picture; the next Back, onto an entry with no accent,
     returns to the line.
+45. A wrapped chip is placed against the **line fragment the hand is on**, never against its
+    union rectangle: the union spans both margins, so `right` is the last line's end and the
+    card would land past the whole block. Every fragment keeps the right-then-flip rule, so
+    neither a left nor a right fragment opens the card over the hand or beside the other line.
 
 ## Related
 
