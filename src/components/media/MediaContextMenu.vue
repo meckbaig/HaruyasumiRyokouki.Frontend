@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { copyMediaUrl } from '@/services/share'
 import { isPrivate } from '@/services/privacy'
+import { downloadSrc } from '@/services/mediaAssets'
 import { useEditorStore } from '@/stores/editor'
 
 const props = defineProps({
@@ -16,9 +17,9 @@ const { t } = useI18n()
 const editor = useEditorStore()
 
 /*
-  What a right-click on a picture offers: one action, a link to where it sits -
-  or to the whole selection it belongs to. Placed at the click, nudged back
-  inside the window, and closed by anything at all.
+  What a right-click on a picture offers: download the file, and a link to where
+  it sits - or to the whole selection it belongs to. Placed at the click, nudged
+  back inside the window, and closed by anything at all.
   See docs/features/media-grid-and-selection.md.
 */
 const menu = ref(null)
@@ -49,6 +50,18 @@ const shareIds = computed(() => {
 
 const shareable = computed(() => shareIds.value.length > 0)
 
+/**
+ * The files a download would save: the whole selection, or the pressed tile.
+ * Private files stay in, unlike a share - an editor may save what they can see.
+ * Empty means the item is not offered. See docs/features/media-grid-and-selection.md.
+ */
+const downloadItems = computed(() => {
+  const media = props.target?.media
+  if (media?.id == null) return []
+  const list = fromSelection.value ? editor.items : [media]
+  return list.filter((item) => item?.id != null && downloadSrc(item))
+})
+
 const position = computed(() => {
   if (!props.target) return { left: '0px', top: '0px' }
   const margin = 8
@@ -76,6 +89,31 @@ async function share() {
 
 function close() {
   emit('close')
+}
+
+/*
+  One file is an anchor's job; a selection is not, since one anchor names one file
+  and the API has no archive. Every file is pulled by its own throwaway anchor,
+  spaced out so the browser does not drop the burst.
+  See docs/features/media-grid-and-selection.md.
+*/
+function download() {
+  const items = downloadItems.value
+  close()
+  items.forEach((item, i) => setTimeout(() => saveAs(downloadSrc(item)), i * 250))
+}
+
+/** One file, saved the way the lightbox's own link does it. */
+function saveAs(url) {
+  if (!url) return
+  const link = document.createElement('a')
+  link.href = url
+  link.download = ''
+  link.rel = 'noopener'
+  link.target = '_blank'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
 }
 
 /**
@@ -157,6 +195,30 @@ onBeforeUnmount(() => {
           <circle cx="14.5" cy="13.5" r="2.2" />
         </svg>
         {{ t(fromSelection ? 'media.shareSelection' : 'media.shareFile') }}
+      </button>
+
+      <button
+        v-if="downloadItems.length"
+        type="button"
+        role="menuitem"
+        class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-soft transition hover:bg-edge/50 hover:text-ink"
+        @click="download"
+      >
+        <svg
+          class="h-4 w-4 shrink-0"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          aria-hidden="true"
+        >
+          <path
+            d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4.5 15.5h11"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        {{ t(downloadItems.length > 1 ? 'media.downloadSelection' : 'media.download') }}
       </button>
     </div>
 

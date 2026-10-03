@@ -29,6 +29,21 @@ function dayOf(iso) {
   return props.index.get?.(iso) ?? props.index[iso] ?? null
 }
 
+/** A day cell is a real link, so the browser can open it in a new tab. */
+function dayHref(iso) {
+  return `/day/${iso}`
+}
+
+/**
+ * A plain click picks the date here; a modified or middle click is left to the
+ * browser, which opens the day in a new tab or window instead.
+ */
+function onDayClick(event, iso) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  emit('select', iso)
+}
+
 function edgeLabel(iso) {
   if (iso === props.rangeStart && iso === props.rangeEnd) return ''
   if (iso === props.rangeStart) return props.rangeStartLabel
@@ -70,13 +85,13 @@ function cellClass(cell) {
 
     <div class="grid grid-cols-7 gap-0.5">
       <template v-for="cell in cells" :key="cell.iso">
-        <button
+        <a
           v-if="dayOf(cell.iso) && cell.inMonth"
-          type="button"
-          class="relative aspect-square rounded text-xs transition"
+          :href="dayHref(cell.iso)"
+          class="relative flex aspect-square items-center justify-center rounded text-xs transition"
           :class="cellClass(cell)"
           :aria-current="props.selected === cell.iso ? 'date' : undefined"
-          @click="emit('select', cell.iso)"
+          @click="onDayClick($event, cell.iso)"
         >
           {{ cell.date.getDate() }}
           <!-- Inside the range, between its ends. The ends wear the solid mark
@@ -95,7 +110,7 @@ function cellClass(cell) {
           >
             {{ edgeLabel(cell.iso) }}
           </span>
-        </button>
+        </a>
         <span
           v-else
           class="relative flex aspect-square items-center justify-center rounded text-xs"

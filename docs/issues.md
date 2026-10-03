@@ -31,4 +31,10 @@ is a property of the raster rather than a fault. See **Rendering cost** in
 
 ## Open
 
-Nothing outstanding.
+- **Bulk download has no server archive** (`visible`, `medium`). The media context menu
+  saves a selection one file at a time, each by its own anchor, because the API offers only a
+  per-file `download` URL and no zip endpoint (`swagger.json`). Browsers throttle the burst,
+  and a cross-origin URL ignores the `download` attribute. The honest fix is a server-side
+  archive, e.g. `GET /v1/media/download?ids=1,2,3` returning `application/zip`, which is a
+  contract question for the backend. See
+  [media-grid-and-selection.md](features/media-grid-and-selection.md).

@@ -14,7 +14,6 @@ const props = defineProps({
   /** Words for the two ends of a range; see CalendarMonth. */
   rangeStartLabel: { type: String, default: '' },
   rangeEndLabel: { type: String, default: '' },
-  showLegend: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['select'])
@@ -22,8 +21,18 @@ const emit = defineEmits(['select'])
 const { t } = useI18n()
 
 const scroller = ref(null)
+/** The month nearest the ribbon's centre, lit in the dot row. */
+const activeMonth = ref(0)
+/** Which ends there is still something to scroll to. */
 const canLeft = ref(false)
 const canRight = ref(false)
+/** Whether the ribbon is on screen; the page's vertical scroll reads this. */
+const ribbonVisible = ref(false)
+/** The edge chevrons, up while the page is scrolled over a visible ribbon. */
+const showScrollHints = ref(false)
+const HINTS_MS = 600
+let hintsTimer = null
+let seen = null
 
 const index = computed(() => {
   const map = new Map()
@@ -54,11 +63,46 @@ const months = computed(() => {
   return result
 })
 
-function updateArrows() {
+/**
+ * Where the ribbon is: which month is centred, and which ends have more to
+ * scroll to. Run on a scroll, a resize, and once the anchor is placed.
+ */
+function updateEdges() {
   const el = scroller.value
   if (!el) return
   canLeft.value = el.scrollLeft > 4
   canRight.value = el.scrollLeft < el.scrollWidth - el.clientWidth - 4
+
+  // The month nearest the ribbon's middle is the one the dot row lights.
+  const centre = el.scrollLeft + el.clientWidth / 2
+  let nearest = 0
+  let best = Infinity
+  for (let i = 0; i < el.children.length; i += 1) {
+    const child = el.children[i]
+    const distance = Math.abs(child.offsetLeft + child.clientWidth / 2 - centre)
+    if (distance < best) {
+      best = distance
+      nearest = i
+    }
+  }
+  activeMonth.value = nearest
+}
+
+/**
+ * Shows the chevrons and restarts `HINTS_MS`, so they stay while the page keeps
+ * scrolling and fade once it stops. They are never controls - a press falls
+ * through to the day cell under them.
+ */
+function flashHints() {
+  showScrollHints.value = true
+  clearTimeout(hintsTimer)
+  hintsTimer = setTimeout(() => (showScrollHints.value = false), HINTS_MS)
+}
+
+/** Any vertical scroll of the page while the ribbon is on screen raises the
+ *  chevrons; `flashHints` fades them once the scrolling stops. */
+function onPageScroll() {
+  if (ribbonVisible.value) flashHints()
 }
 
 /** Scrolls the anchor month into view horizontally, without moving the page. */
@@ -76,18 +120,12 @@ function scrollToAnchor() {
   // Scrolled by hand, **never `scrollIntoView`** - that obliges every scrollable
   // ancestor, the page included, and drags the reader down to the calendar.
   container.scrollLeft = target.offsetLeft - (container.clientWidth - target.clientWidth) / 2
-  updateArrows()
-}
-
-/** Arrow buttons page the ribbon by roughly one screen width. */
-function page(direction) {
-  scroller.value?.scrollBy({ left: direction * scroller.value.clientWidth * 0.9, behavior: 'smooth' })
 }
 
 /**
- * Drag-to-scroll for the mouse. Touch already pans natively; on a desktop the
- * ribbon would otherwise only move via the arrows. A drag past a few pixels
- * suppresses the click so it does not also open the day under the cursor.
+ * Drag-to-scroll for the mouse. Touch already pans natively, and the mask tells
+ * the desktop there is more; a drag past a few pixels suppresses the click so it
+ * does not also open the day under the cursor.
  */
 let drag = null
 let suppressClick = false
@@ -128,7 +166,20 @@ function onClickCapture(event) {
 onMounted(async () => {
   await nextTick()
   scrollToAnchor()
-  updateArrows()
+  updateEdges()
+  window.addEventListener('resize', updateEdges)
+  window.addEventListener('scroll', onPageScroll, { passive: true })
+
+  // Track whether the ribbon is on screen; `onPageScroll` raises the chevrons
+  // only while it is. Without the observer the ribbon is taken as always visible.
+  if (typeof IntersectionObserver === 'function' && scroller.value) {
+    seen = new IntersectionObserver((entries) => {
+      ribbonVisible.value = entries.some((entry) => entry.isIntersecting)
+    })
+    seen.observe(scroller.value)
+  } else {
+    ribbonVisible.value = true
+  }
 })
 
 watch(
@@ -136,10 +187,15 @@ watch(
   async () => {
     await nextTick()
     scrollToAnchor()
+    updateEdges()
   },
 )
 
 onBeforeUnmount(() => {
+  clearTimeout(hintsTimer)
+  seen?.disconnect()
+  window.removeEventListener('resize', updateEdges)
+  window.removeEventListener('scroll', onPageScroll)
   document.removeEventListener('pointermove', onPointerMove)
   document.removeEventListener('pointerup', onPointerUp)
 })
@@ -152,7 +208,7 @@ onBeforeUnmount(() => {
         ref="scroller"
         class="no-scrollbar flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth select-none"
         :class="dragging ? 'cursor-grabbing' : 'sm:cursor-grab'"
-        @scroll="updateArrows"
+        @scroll.passive="updateEdges"
         @pointerdown="onPointerDown"
         @click.capture="onClickCapture"
       >
@@ -172,13 +228,13 @@ onBeforeUnmount(() => {
         />
       </div>
 
-      <!-- Translucent paging arrows, shown only when there is more that way. -->
-      <button
-        v-show="canLeft"
-        type="button"
-        class="absolute left-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-paper-raised/80 text-ink-soft shadow-sm ring-1 ring-edge backdrop-blur transition hover:text-ink"
-        :aria-label="t('day.prev')"
-        @click="page(-1)"
+      <!-- Bare chevrons: a hint that the ribbon moves sideways, never a control.
+           They come up as the ribbon reaches the screen and fade a moment later,
+           and a press falls through to the day cell under them. -->
+      <span
+        class="pointer-events-none absolute left-1 top-1/2 z-10 -translate-y-1/2 text-ink-faint transition-opacity duration-200"
+        :class="showScrollHints && canLeft ? 'opacity-100' : 'opacity-0'"
+        aria-hidden="true"
       >
         <svg
           class="h-5 w-5"
@@ -190,13 +246,11 @@ onBeforeUnmount(() => {
         >
           <path d="M12.5 4 6.5 10l6 6" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-      </button>
-      <button
-        v-show="canRight"
-        type="button"
-        class="absolute right-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-paper-raised/80 text-ink-soft shadow-sm ring-1 ring-edge backdrop-blur transition hover:text-ink"
-        :aria-label="t('day.next')"
-        @click="page(1)"
+      </span>
+      <span
+        class="pointer-events-none absolute right-1 top-1/2 z-10 -translate-y-1/2 text-ink-faint transition-opacity duration-200"
+        :class="showScrollHints && canRight ? 'opacity-100' : 'opacity-0'"
+        aria-hidden="true"
       >
         <svg
           class="h-5 w-5"
@@ -208,28 +262,19 @@ onBeforeUnmount(() => {
         >
           <path d="M7.5 4l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-      </button>
+      </span>
     </div>
 
-    <ul v-if="showLegend" class="mt-4 flex flex-wrap justify-center gap-4 text-xs text-ink-faint">
-      <li class="flex items-center gap-1.5">
-        <span class="h-3 w-3 rounded-sm bg-edge/70" aria-hidden="true" />
-        {{ t('calendar.ready') }}
-      </li>
-      <li class="flex items-center gap-1.5">
-        <span class="h-3 w-3 rounded-sm ring-1 ring-inset ring-edge" aria-hidden="true" />
-        {{ t('calendar.draft') }}
-      </li>
-      <li class="flex items-center gap-1.5">
-        <span class="h-3 w-3 rounded-sm bg-ink" aria-hidden="true" />
-        {{ t('calendar.hasMedia') }}
-      </li>
-      <!-- Only where one can be picked: on a day page there is no range and a
-           swatch for it would be a key to something not on the map. -->
-      <li v-if="rangeStartLabel" class="flex items-center gap-1.5">
-        <span class="h-0.5 w-3 rounded-full bg-accent" aria-hidden="true" />
-        {{ t('calendar.inRange') }}
-      </li>
+    <!-- Where the ribbon is: one quiet bar a month, the centred one a shade
+         darker. The chevrons above are the arrival hint; the dots say how much
+         of the trip there is. -->
+    <ul v-if="months.length > 1" class="mt-2 flex justify-center gap-1" aria-hidden="true">
+      <li
+        v-for="(month, i) in months"
+        :key="month.toISOString()"
+        class="h-1 w-3 rounded-full transition-colors"
+        :class="i === activeMonth ? 'bg-ink-faint' : 'bg-edge'"
+      />
     </ul>
   </section>
 </template>

@@ -2367,7 +2367,7 @@ onBeforeUnmount(() => {
             <div
               v-if="uiVisible && mapMenuOpen"
               ref="mapMenu"
-              class="lightbox-bar pointer-events-auto absolute bottom-full right-3 z-20 mb-2 flex min-w-44 flex-col items-stretch overflow-hidden rounded-md border border-[var(--lb-edge)] text-xs"
+              class="lightbox-bar pointer-events-auto absolute bottom-full right-3 z-20 mb-2 flex min-w-44 flex-col items-stretch overflow-hidden rounded-md border border-[var(--lb-edge)] text-sm"
             >
               <button
                 v-if="canShowOnMap"

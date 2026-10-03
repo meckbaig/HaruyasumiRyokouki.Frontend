@@ -198,18 +198,25 @@ tag or the download link.
 ### The context menu
 
 `MediaContextMenu` **replaces** the browser's own rather than merely suppressing it - it was
-already suppressed, since a long press here means "select". It offers one action, a link to
-the picture where it sits - or, when the tile pressed is one of a selection, to **every**
-selected file at once, since the address already knows how to name a block (`?i=1,2,3`).
-One action is still worth a menu: the alternative is a permanent button on every tile, and
-the grid is meant to be photographs. It is placed at the click and nudged back inside the
-window; anything at all closes it.
+already suppressed, since a long press here means "select". It offers two actions:
+**download**, and a link to the picture where it sits - or, when the tile pressed is one of a
+selection, to **every** selected file at once, since the address already knows how to name a
+block (`?i=1,2,3`). It is placed at the click and nudged back inside the window; anything at
+all closes it.
+
+The download saves the pressed file, or **every file of the selection**, as a share does. It
+cannot be one anchor: one anchor names one file and the API offers no archive (see
+`swagger.json`), so each file is pulled by its own throwaway anchor, 250ms apart, and the menu
+closes on the press without cancelling the burst. Browsers throttle a burst like this, and a
+cross-origin URL ignores the `download` attribute; the honest fix is a server-side archive,
+recorded in [../issues.md](../issues.md).
 
 A private file's menu still **opens and says why**. The native menu has been suppressed on
 these tiles since long before this, so a right-click producing nothing would read as a
-broken page rather than as an answer. Private files are also **left out of a shared
-selection**, and when nothing is left the menu says so rather than offering a link that
-would single out nothing.
+broken page rather than as an answer. Private files are **left out of a shared selection**,
+and when nothing is left the menu says so rather than offering a link that would single out
+nothing. The **download keeps private files in**, unlike a share: an editor may save what
+they can see, so a selection's download names every file in it.
 
 ### A tap is read from the touch, not from the click
 
@@ -399,6 +406,9 @@ exactly those.
     index in the wall: a reveal staggered from the top waits out the whole delay before its
     first tile moves, which is a pause on a page of rows already fetched. Every reveal moves
     the base up to the count it started from.
+17. The context menu's download saves the pressed file or the whole selection, one throwaway
+    anchor per file (the API has no archive), spaced out; the menu closes on the press without
+    cancelling it, and private files stay in, unlike a share.
 
 ## Related
 

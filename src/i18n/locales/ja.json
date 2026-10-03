@@ -60,11 +60,7 @@
   },
   "calendar": {
     "title": "カレンダー",
-    "hasMedia": "メディアあり",
-    "ready": "メモ完成",
-    "draft": "下書き",
-    "empty": "データなし",
-    "inRange": "選択範囲内"
+    "empty": "データなし"
   },
   "map": {
     "title": "旅の地図",
@@ -102,6 +98,7 @@
     "unfavorite": "トップページから外す",
     "shareFile": "この写真を共有",
     "shareSelection": "選択した写真を共有",
+    "downloadSelection": "選択したファイルをダウンロード",
     "hidden": "非公開",
     "hiddenNoShare": "非公開のファイルです - 共有できるリンクはありません",
     "hiddenSelectionNoShare": "選択したファイルはすべて非公開です - 共有できるリンクはありません",

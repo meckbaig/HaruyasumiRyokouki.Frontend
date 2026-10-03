@@ -81,7 +81,7 @@
 }
 
 @layer components {
-  /* Horizontal ribbons scroll without a visible scrollbar; edge arrows hint instead. */
+  /* Horizontal ribbons scroll without a visible scrollbar; dots and hints stand in. */
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;

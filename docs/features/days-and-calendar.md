@@ -132,8 +132,26 @@ phone each column fills the width, so exactly one month shows.
   `suppressClick` so releasing does not also open the day under the cursor.
 - The month loop is bounded by a `guard` of 60 iterations.
 
+The ribbon carries **no paging arrows**. They were `absolute` buttons over the edge columns:
+on a phone one month fills the box, so they sat on the very days they pointed past and
+swallowed the taps. Two things stand in their place, and neither ever takes a press:
+
+- A **dot row** under the ribbon: one quiet bar a month, the centred one a shade darker. It
+  says how much of the trip there is, and it never covers a day.
+- **Bare edge chevrons** (no button, no disc) that come up on the page's own **vertical
+  scroll while the ribbon is on screen**, and fade `HINTS_MS` after the scrolling stops. They
+  are `pointer-events-none`, so a press falls through to the day cell under them, and each
+  shows only while there is more to scroll that way.
+
 `CalendarMonth` cells carry three signals at once: whether the day exists in the timeline,
 whether its note is `isReady`, and whether it is selected or inside a range.
+
+A day cell is a **real link** to `/day/<iso>`, never a bare button. A plain click is caught
+and answered as a pick here (the day page navigates to it, the trip map uses it as a range
+end), so a modified click - Ctrl, Cmd, Shift - and a middle click are **left to the browser**
+and open the day in a new tab or window. The month ribbon carries no legend under it: the
+three fills are legible from the page that shows them, and a key beneath only said what the
+colour already did.
 
 **A calendar date can appear in two month grids** - 28 Feb is in February's cells and in
 March's leading padding. Only the owning month draws selection or range highlight, so a
@@ -176,6 +194,13 @@ put them there.
 5. A plain `?i=` always scrolls to the file, on arrival and on Back; an unresolvable `?i=` is
    only cleared once loading has settled.
 6. Cache `Map`s are replaced, not mutated in place.
+7. A calendar day cell is a real `/day/<iso>` link: a plain click is
+   `preventDefault`ed and answered as a pick, every modified or middle click is left to the
+   browser so the day opens in a new tab.
+8. Nothing may sit over the ribbon's day cells and take a press. Its scroll affordance is a
+   dot row below it plus bare `pointer-events-none` chevrons, raised by any vertical page
+   scroll while the ribbon is on screen and faded `HINTS_MS` after it stops; the chevrons
+   report direction, the dots position.
 
 ## Related
 

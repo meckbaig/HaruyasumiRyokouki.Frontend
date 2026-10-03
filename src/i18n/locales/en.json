@@ -60,11 +60,7 @@
   },
   "calendar": {
     "title": "Calendar",
-    "hasMedia": "has media",
-    "ready": "note ready",
-    "draft": "draft",
-    "empty": "no data",
-    "inRange": "in range"
+    "empty": "no data"
   },
   "map": {
     "title": "Trip map",
@@ -102,6 +98,7 @@
     "unfavorite": "Remove from the front page",
     "shareFile": "Share this file",
     "shareSelection": "Share the selected files",
+    "downloadSelection": "Download the selected files",
     "hidden": "Hidden",
     "hiddenNoShare": "This file is hidden - there is no link to share",
     "hiddenSelectionNoShare": "All selected files are hidden - there is no link to share",
