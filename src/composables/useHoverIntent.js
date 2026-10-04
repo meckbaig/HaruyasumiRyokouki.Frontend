@@ -186,14 +186,14 @@ export function useHoverIntent({ card, onOpen, onClose }) {
   }
 
   /**
-   * The pointer settled on a trigger. A card a finger already opened swaps at once, since
-   * no hand is following it; a card a hand is following is left standing until that hand
-   * comes to rest here, which `settle` decides. Otherwise the card is due after
-   * `OPEN_DELAY_MS`, a wait the hand cancels by leaving before it is up.
+   * The pointer settled on a trigger. The card is due after `OPEN_DELAY_MS`: a hand
+   * merely passing over has left by then, so a sweep opens and steals nothing. A card
+   * already shown by hand - a tap, a focus, one just back from the viewer - is replaced
+   * the same way, never at once, so a sweep past cannot take it.
+   * See docs/features/rich-text-and-links.md.
    */
   function hoverIn(next) {
     if (held) return
-    manual = false
     cancelOpen()
     /*
       A hand on its way to a card crosses other references; none of them takes the card.
@@ -205,14 +205,23 @@ export function useHoverIntent({ card, onOpen, onClose }) {
       armStop()
       return
     }
-    payload = next
-    if (state === 'open') {
+    // Only a hand already following the card takes the reference at once.
+    if (state === 'open' && !manual) {
+      payload = next
       show()
       return
     }
+    /*
+      Nothing is open yet, or a card shown by hand stands: either way the reference is
+      only due once the wait is up, and leaving before then drops it. `carried` is what
+      the timer must still find when it fires, since only a swap leaves the card open.
+    */
+    const carried = state === 'open'
     openTimer = window.setTimeout(() => {
       openTimer = null
-      if (state !== 'closed') return
+      if (state !== (carried ? 'open' : 'closed')) return
+      manual = false
+      payload = next
       listen(true)
       show()
     }, OPEN_DELAY_MS)
@@ -240,14 +249,17 @@ export function useHoverIntent({ card, onOpen, onClose }) {
   /** A card shown by hand - a tap, a keyboard focus - with no hand to follow. */
   function openNow(next) {
     if (held) return
+    // A swap the hand had pending is dropped: this one is shown at once instead.
+    cancelOpen()
     payload = next
     manual = true
     listen(true)
     show()
   }
 
-  /** The hand reached the card: kept until it leaves again. */
+  /** The hand reached the card: kept until it leaves again. A pending swap waits. */
   function cardIn() {
+    cancelOpen()
     if (manual || state === 'closed') return
     state = 'open'
     pending = null
@@ -260,6 +272,8 @@ export function useHoverIntent({ card, onOpen, onClose }) {
    */
   function hold() {
     held = true
+    // No swap may land under the viewer this card opened.
+    cancelOpen()
     // The trajectory is off until it is released: nothing follows the card now.
     state = 'open'
     clearStop()

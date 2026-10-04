@@ -197,8 +197,11 @@ A chip may name several files, so the card is a carousel rather than a single pi
   stops on one gets that one's card.
 - **The card is due after a short wait.** `OPEN_DELAY_MS` (`50ms`): a hand merely passing
   over a reference has left by then and the card is never painted, which is what keeps a
-  sweep across the text from opening cards. A card a finger or a keyboard has already
-  opened swaps at once, since no hand is following it.
+  sweep across the text from opening cards. **A card shown by hand is replaced the same
+  way, never at once**: a tap, a keyboard focus, or one just back from the viewer has no
+  hand following it, so a hover on another reference waits out the delay, and a sweep past
+  drops the wait without a swap. Only a hand already following the card takes a new
+  reference at once, and a hand reaching the card cancels the wait instead.
 - **A cross closes it by hand**, and so does a press outside a card that a tap or a keyboard
   focus opened: that card has no hand following it to keep it open. A card just back from
   the viewer is one of these - `release` drops the hold as the viewer closes, and the card
@@ -480,6 +483,9 @@ vue-router rewrites that state on every navigation, so a mirror came and went on
     union rectangle: the union spans both margins, so `right` is the last line's end and the
     card would land past the whole block. Every fragment keeps the right-then-flip rule, so
     neither a left nor a right fragment opens the card over the hand or beside the other line.
+46. A hover replaces the card only after `OPEN_DELAY_MS`. A card shown by hand - including one
+    `release` leaves when its viewer closes - is never replaced at once, so a sweep past
+    another reference cannot steal it; a hand reaching the card cancels the pending swap.
 
 ## Related
 
