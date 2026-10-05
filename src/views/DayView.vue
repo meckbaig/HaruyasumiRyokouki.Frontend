@@ -291,9 +291,12 @@ function onPopState() {
     return
   }
   if (viewer.held.value) {
-    // This Back closed the viewer; the map behind it waits for the next one.
+    // This Back closed the viewer and stops there; the map behind it, and the
+    // note a reference was followed from, both wait for the next Back.
     viewer.held.value = false
-  } else if (mapFullscreen.value) {
+    return
+  }
+  if (mapFullscreen.value) {
     closeMapFullscreen({ fromStep: true })
     return
   }

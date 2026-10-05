@@ -88,13 +88,30 @@ export function useMediaRouteViewer({ items, suppressScroll = () => false }) {
     else openAt(idAt(next))
   })
 
-  /** Open a file full screen: a step of its own, so Back closes it. */
+  /**
+   * Open a file full screen: a step of its own, so Back closes it. The reader
+   * acting on the accent **consumes** it: the standing entry is rewritten
+   * without it, a `#note=` fragment being kept.
+   * See docs/features/sharing-and-links.md.
+   */
   function openAt(id) {
     if (id == null) return
     pushed = true
     held.value = true
     handClosing = false
-    return router.push({ path: route.path, query: withMediaLink(route.query, id, true), hash: route.hash })
+
+    // A phone wall fills the width, so an accent left after a look at the
+    // picture could never be tapped away; the standing entry gives it up.
+    const base =
+      !isOpen.value && link.value.id != null
+        ? withMediaLink(route.query, null)
+        : route.query
+    const query = withMediaLink(base, id, true)
+    const open = () => router.push({ path: route.path, query, hash: route.hash })
+    if (base === route.query) return open()
+    return router
+      .replace({ path: route.path, query: base, hash: route.hash })
+      .then(open)
   }
 
   /** A turn: the step is kept, its file replaced, so Back does not unravel a page. */

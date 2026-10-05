@@ -282,6 +282,11 @@ A note reference may name several files at once, and a link carries all of them
 - **`highlightedIds` is the link's own ids**, never a second parallel state - so the address
   and the outline agree, and a press elsewhere puts both away at once. `highlightedId`
   remains for a link that names a single file.
+- **Opening a file spends the accent.** The press opens the viewer, and the standing entry is
+  rewritten without the accent, so a close lands on a wall that no longer outlines the block -
+  a full-width phone wall has no empty space to tap. A followed reference is no exception: its
+  way back is the `#note=` fragment, not the accent. See
+  [sharing-and-links.md](sharing-and-links.md).
 
 ## Hiding the hidden files
 

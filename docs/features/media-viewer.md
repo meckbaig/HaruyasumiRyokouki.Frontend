@@ -645,8 +645,8 @@ Do not "fix" these:
     back (`consumeHandClose`), so a page's `popstate` never mistakes its own close for the
     reader's Back and answers it as a return to the note. An entry opened from a note
     reference carries that reference's `#note=` fragment, so the arrow returns to the line;
-    Back there closes the picture and the next Back, onto the entry with no accent, returns to
-    it.
+    the accent is spent by the open, so `held` - not the accent - tells the viewer's step
+    apart, and Back closes the picture alone; the next Back returns to the line.
 28. The open/close watcher is `immediate`. A page holding a cached day can set its index
     during `setup`, before this component exists, so the viewer mounts already open. Without
     the setup pass the overlay token and keydown listener were never registered, and an

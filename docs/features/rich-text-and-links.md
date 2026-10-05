@@ -297,14 +297,16 @@ so a reload, a Forward and a copied link all carry the line.
   button sits bottom-right with the viewer's own arrow and does the same thing, so the way up
   is not reachable only from inside the full-screen viewer.
 - **The viewer carries the hash too**, so its arrow returns to the line. Back there closes the
-  picture and stops; the line survives for the next Back, which lands on the entry with no
-  accent. A viewer opened without a follow carries none, and its close is silent.
-- **Back returns to the note only when it leaves the accent.** A press on a tile does **not**
-  drop the accent: the tile is about to open the viewer, and clearing it there would leave the
-  entry under the viewer identical to the note, so nothing could tell the two apart. So that
-  entry still names the file, `onPopState` skips it, and Back only closes the picture; the next
-  Back, onto an entry with no `?i=`, scrolls to the line. The composable marks the step a
-  hand-close takes back (`consumeHandClose`) and the page skips it too.
+  picture and stops - the accent is already spent, so `held` is what tells the close from a
+  return; the line survives for the next Back, which scrolls to it. A viewer opened without a
+  follow carries none, and its close is silent.
+- **A press on a tile spends the accent.** The open rewrites the standing entry without it -
+  the accent is the block's outline, and the way back is the hash, so clearing the accent does
+  not lose the line. A full-width phone wall has no empty space to tap, so this is the only way
+  to put the outline away after a look at a picture. `onPopState` stops on the viewer's own step
+  (`held`), so Back closes the picture and nothing else; the next Back returns to the line. A
+  hand-close is marked (`consumeHandClose`) and stops there too. See
+  [sharing-and-links.md](sharing-and-links.md).
 - **The arrow stays while paging.** The anchor names a place in the text, not the picture it
   opened, so paging away does not lose it.
 - **Returning scrolls and lights; the settle spends it.** `returnToText` - the viewer's arrow
@@ -476,8 +478,10 @@ vue-router rewrites that state on every navigation, so a mirror came and went on
     buttons - the viewer's arrow and the page's round button.
 43. The way back is the fragment `#note=<id>:<index>`, written on the entry being left and on
     the viewer entry, and cleared only when the line is read again.
-44. A press on a tile does **not** dismiss the accent, so the entry under the viewer still names
-    the file and Back there only closes the picture; the next Back, onto an entry with no accent,
+44. Opening a file spends the accent, a followed reference's included: the standing entry is
+    rewritten without it, so a close lands on a wall that no longer outlines the block. The way
+    back is the `#note=` fragment, which the open keeps. Back still only closes the picture
+    (`held`), and a hand-close never scrolls to the note (`consumeHandClose`); the next Back
     returns to the line.
 45. A wrapped chip is placed against the **line fragment the hand is on**, never against its
     union rectangle: the union spans both margins, so `right` is the last line's end and the

@@ -106,9 +106,11 @@ The outline is dismissed by a **tap** that is not about it, with these carve-out
   underneath it cancels it.
 - `suspended()` holds dismissal off while the viewer is open; the outline is behind it,
   and the click that opened it must not take it away.
-- A press inside a media tile (`[data-media-id]`) is left alone too: the tile is about to
-  open the viewer, and clearing the accent there left the entry under the viewer identical to
-  the note, so Back could not tell a viewer close from a return to the note.
+- A press inside a media tile (`[data-media-id]`) is left alone by `dismiss`: the accent is
+  spent by the open instead. `openAt` rewrites the standing entry without it before pushing
+  the viewer step, so the entry Back returns to no longer outlines the block - a full-width
+  phone wall has no empty space to tap. This holds for a followed reference too: the accent is
+  the block's outline, and the way back is its `#note=` fragment, not the accent.
 - A press only dismisses when it does not travel (`TAP_SLOP`, 10px). A vertical swipe is
   how a phone scrolls a wall of tiles, and answering it took the outline away from a reader
   who was only scrolling towards the block.
@@ -177,6 +179,9 @@ and `AllowOverride`. On another server the rules transfer; only the syntax chang
 4. `i` may name several ids; `o=1` opens the first of them, and the rest are only outlined.
 5. The front page never writes `?i=`.
 6. A private file is never shareable, and is left out of a shared selection.
+7. Opening a file spends the accent, a followed reference's included: the standing entry is
+   rewritten without it, so a close lands on a wall that no longer outlines the block. The way
+   back is the `#note=` fragment, which the open keeps.
 
 ## Related
 
