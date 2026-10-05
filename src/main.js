@@ -9,6 +9,7 @@ import { useThemeStore } from './stores/theme'
 import { useMotionStore } from './stores/motion'
 import { useInstallManifest } from './composables/useInstallManifest'
 import { installTapActivation } from './services/tapActivation'
+import { installTouchHover } from './services/tileTouchHover'
 import './assets/main.css'
 
 const app = createApp(App)
@@ -27,6 +28,8 @@ useInstallManifest()
 installAuthRedirect()
 // A tap is answered from the touch everywhere, not only on the grid tiles.
 installTapActivation()
+// A finger over a tile stands in for the cursor: a touch screen has no hover.
+installTouchHover()
 
 app.use(router)
 

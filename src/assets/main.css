@@ -27,6 +27,16 @@
 */
 
 @layer base {
+  /*
+    The reveal strengths, written once. A control on approach is fully shown,
+    half strength when plainly not offered (read-only), and hidden otherwise.
+  */
+  :root {
+    --reveal-hidden: 0;
+    --reveal-half: 0.5;
+    --reveal-full: 1;
+  }
+
   html {
     scroll-behavior: smooth;
     /* Pre-JS default; the theme store sets color-scheme inline per theme. */
@@ -127,17 +137,17 @@
     nothing about the input. See docs/features/i18n-and-theming.md.
   */
   .hover-reveal {
-    opacity: 0;
+    opacity: var(--reveal-hidden);
   }
 
   .group:hover .hover-reveal,
   .hover-reveal:focus-visible {
-    opacity: 1;
+    opacity: var(--reveal-full);
   }
 
   @media (hover: none) {
     .hover-reveal {
-      opacity: 1;
+      opacity: var(--reveal-full);
     }
 
     /*
@@ -147,7 +157,7 @@
       The taps still land where they always did; what is gone is the chrome.
     */
     .hover-reveal-quiet {
-      opacity: 0;
+      opacity: var(--reveal-hidden);
     }
   }
 
@@ -158,12 +168,55 @@
     See docs/features/media-grid-and-selection.md.
   */
   .hover-reveal-dim {
-    opacity: 0;
+    opacity: var(--reveal-hidden);
   }
 
   .group:hover .hover-reveal-dim,
   .hover-reveal-dim:focus-visible {
-    opacity: 0.5;
+    opacity: var(--reveal-half);
+  }
+
+  /*
+    A finger takes the cursor's place on a touch screen: the tile under it shows
+    what a hover shows, without the long press that also began a selection. The
+    class, set by services/tileTouchHover.js, follows the finger across the wall.
+    See docs/features/media-grid-and-selection.md.
+  */
+  .group.touch-hover .hover-reveal,
+  .group.touch-hover .hover-reveal-quiet {
+    opacity: var(--reveal-full);
+  }
+
+  .group.touch-hover .hover-reveal-dim {
+    opacity: var(--reveal-half);
+  }
+
+  /* The clock beside a date reveals with the stamp it rides on. */
+  .hover-reveal-inline {
+    display: none;
+  }
+
+  .group:hover .hover-reveal-inline,
+  .group.touch-hover .hover-reveal-inline {
+    display: inline;
+  }
+
+  /*
+    A mark that stays on show and dims as the tile is approached, rather than
+    appearing from nothing: the read-only star. The touch class mirrors the
+    hover so a finger dims it too. See docs/features/media-grid-and-selection.md.
+  */
+  .hover-dim {
+    opacity: var(--reveal-full);
+  }
+
+  .group:hover .hover-dim,
+  .hover-dim:focus-visible {
+    opacity: var(--reveal-half);
+  }
+
+  .group.touch-hover .hover-dim {
+    opacity: var(--reveal-half);
   }
 
   /*

@@ -29,6 +29,7 @@ it was.
 - A shared address carries the file and the line at once
 - Opening a picture spends the accent, a followed reference's included, so a look at it leaves the wall unmarked with no empty space to tap
 - The selection toolbar stacks its buttons as a column on a phone, with the count on the last line beside the clear control, so the bar no longer overflows
+- A finger over a tile shows the same controls a cursor's hover does, revealed as it is crossed, so they no longer wait for a long press that also began a selection
 
 ## 2.4.0 - map fixes
 

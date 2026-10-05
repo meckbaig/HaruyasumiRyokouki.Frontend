@@ -95,7 +95,7 @@ const favorite = computed(() => props.media.favorite === true)
  *  pointed at, so the mark reads unchanged while the press is not offered. */
 const starClass = computed(() =>
   favorite.value
-    ? `text-star opacity-100 ${props.readonly ? 'group-hover:opacity-50' : ''}`
+    ? `text-star ${props.readonly ? 'hover-dim' : ''}`
     : `text-ink ${reveal.value}`,
 )
 const marking = ref(false)
@@ -235,6 +235,7 @@ function activate() {
     class="group tile-motion relative"
     :class="[dimmed ? 'dim-tile' : '', faded ? 'emphasis-dim' : '']"
     :data-media-id="media.id"
+    data-touch-hover
   >
     <!-- `touch-pan-y`, not `touch-none`: the browser must keep handling vertical
          scrolling, or a finger landing on a tile pins the page. The paint
@@ -267,7 +268,7 @@ function activate() {
           {{ stampDate }}
           <!-- Only alongside a date does the time need revealing on its own; a
                tile showing the time and nothing else reveals the whole badge. -->
-          <span v-if="stampTime" :class="stampDate ? 'hidden group-hover:inline' : ''">
+          <span v-if="stampTime" :class="stampDate ? 'hover-reveal-inline' : ''">
             {{ stampTime }}
           </span>
         </span>

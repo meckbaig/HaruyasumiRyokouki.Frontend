@@ -13,6 +13,7 @@ and the press-and-drag selection gesture shared by four different walls.
 | `src/components/media/VideoBadge.vue` | The video mark: a play glyph, or the origin's logo for an embedded video. |
 | `src/services/mediaTiles.js` | Finding the element(s) that stand for a file. |
 | `src/services/tapActivation.js` | The same touch-first tap, for every other control in the app. |
+| `src/services/tileTouchHover.js` | The finger in place of the cursor: reveals the tile under a touch. |
 | `src/services/blockOutline.js` | The singled-out block's perimeter, as one SVG path. |
 | `src/composables/useTilePaint.js` | The paint gesture, shared. |
 | `src/stores/editor.js` | Selection state, `lastSave` / `lastDelete`. |
@@ -171,6 +172,25 @@ are ignored and `aria-busy` says so.
 
 `isPrivate` tests `=== true`, not truthiness: `private` is null for anyone not signed in,
 and null means "not being told", not "no".
+
+### A finger in place of the cursor
+
+A touch screen has no hover, so the controls `.hover-reveal` keeps to approach stayed hidden
+on a day wall - whose reveal is `hover-reveal-quiet` - and the only way to bring them out was
+a long press, which also began a selection. `services/tileTouchHover.js`, installed once at
+app start, watches the finger and puts `touch-hover` on the tile root under it: the same
+reveal the cursor gives, moved as the finger crosses the wall so a page-scroll swipe lights
+each tile it passes. It is cleared when the finger lifts or a second finger joins.
+
+`@media (hover: none)` is left as it was: plain `.hover-reveal` is still on show from the
+start and `.hover-reveal-quiet` is still kept away. The touch class is what lifts the quiet
+one - on the one tile under the finger, not the whole wall, which is what kept the day a wall
+of photographs rather than a control panel. The clock beside a date (`.hover-reveal-inline`)
+and the read-only star's dim (`.hover-dim`) follow the same class, since both were written as
+`group-hover` utilities a finger could never fire.
+
+The class goes on the tile root, marked by `data-touch-hover`. A wall that renders its own
+tiles rather than `MediaTile` gets the reveal by carrying that attribute and no more.
 
 ### Badges and the tile's controls
 
@@ -419,6 +439,9 @@ exactly those.
 17. The context menu's download saves the pressed file or the whole selection, one throwaway
     anchor per file (the API has no archive), spaced out; the menu closes on the press without
     cancelling it, and private files stay in, unlike a share.
+18. A tile's root carries `data-touch-hover`; the finger's `touch-hover` class may only be set
+    on it, and never by a width test. `hover: none` still hides `.hover-reveal-quiet` on its
+    own - the touched tile's class is the sole thing that lifts it.
 
 ## Related
 
