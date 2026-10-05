@@ -262,15 +262,16 @@ function activate() {
              wall meant for reading, it would be noise. -->
         <span
           v-if="stampDate || stampTime"
-          class="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper"
+          class="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] font-medium text-paper transition-opacity"
           :class="stampDate ? '' : 'hover-reveal hover-reveal-quiet'"
         >
-          {{ stampDate }}
-          <!-- Only alongside a date does the time need revealing on its own; a
-               tile showing the time and nothing else reveals the whole badge. -->
-          <span v-if="stampTime" :class="stampDate ? 'hover-reveal-inline' : ''">
-            {{ stampTime }}
-          </span>
+          <!-- Nothing between the date and the clock: the separator is the
+               clock's own leading no-break space, so a closed clock adds no gap.
+               Time alone fades the whole badge; beside a date it widens out. -->
+          {{ stampDate }}<span
+            v-if="stampTime"
+            :class="stampDate ? 'hover-reveal-inline' : ''"
+          ><span>{{ stampTime }}</span></span>
         </span>
 
         <!-- One row in one corner: a file can be both a video and hidden. The

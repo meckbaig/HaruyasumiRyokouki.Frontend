@@ -154,6 +154,11 @@ and is left alone.
 Both stamps render as **one** badge - they land in the same corner and read as a single
 stamp anyway.
 
+The clock is revealed by **widening, not by a `display` switch**: the date's stamp is
+always there, and the time opens out of it through `grid-template-columns` 0fr to 1fr, so
+the badge grows and the clock fades exactly as the controls beside it do. A time with no
+date is the whole badge instead, which needs only its own opacity transition.
+
 ### Star and hide
 
 `toggleFavorite` and `togglePrivate` (`src/services/favorites.js`, `privacy.js`) send a

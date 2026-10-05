@@ -191,14 +191,35 @@
     opacity: var(--reveal-half);
   }
 
-  /* The clock beside a date reveals with the stamp it rides on. */
+  /*
+    The clock beside a date widens out of the stamp rather than switching on:
+    `grid-template-columns` 0fr to 1fr animates to the text's own width, which a
+    `display` switch cannot. A no-break space in front of the clock is the
+    separator, clipped away while the column is closed.
+  */
   .hover-reveal-inline {
-    display: none;
+    display: inline-grid;
+    grid-template-columns: 0fr;
+    opacity: var(--reveal-hidden);
+    transition:
+      grid-template-columns 150ms ease,
+      opacity 150ms ease;
+  }
+
+  .hover-reveal-inline > * {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .hover-reveal-inline > *::before {
+    content: '\00a0';
   }
 
   .group:hover .hover-reveal-inline,
   .group.touch-hover .hover-reveal-inline {
-    display: inline;
+    grid-template-columns: 1fr;
+    opacity: var(--reveal-full);
   }
 
   /*
