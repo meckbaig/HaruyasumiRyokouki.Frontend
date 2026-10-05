@@ -368,6 +368,11 @@ underneath never hears the toolbar's events. `editor.lastSave` and `editor.lastD
 the broadcast channel - each replaced whole so a watcher fires even when the same files
 are saved twice.
 
+The bar is a **column on a phone and a row from the small breakpoint up**: three controls
+do not fit across 360 pixels in any language, so the count drops to a footer line beside
+the clear control rather than taking a line of its own. `sm:contents` dissolves that footer
+on desktop, where the count returns to the head of the row and the cross to its tail.
+
 `editor.toggle` clears `selectionMode` when the last item is removed; leaving it on would
 strand the toolbar with nothing to act on.
 

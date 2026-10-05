@@ -84,18 +84,14 @@ function onTagged() {
       class="fixed inset-x-0 bottom-16 z-40 flex justify-center px-4"
     >
       <!--
-        Wraps between its parts rather than off the side of a phone. Three
-        controls and a count do not fit across 360 pixels in any language, and
-        the rounding is squared off a little so that a second row still reads as
-        one bar rather than as a pill that has burst.
+        A column on a phone, a row from the small breakpoint up. Three controls
+        do not fit across 360 pixels in any language, so on a phone the count
+        rides the last line beside the clear control instead of taking a line
+        of its own.
       -->
       <div
-        class="flex max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-3xl border border-edge bg-paper-raised px-4 py-2 shadow-lg"
+        class="flex w-full max-w-full flex-col items-stretch gap-2 rounded-3xl border border-edge bg-paper-raised px-4 py-3 shadow-lg sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-3 sm:gap-y-2 sm:py-2"
       >
-        <span class="whitespace-nowrap text-sm text-ink">
-          {{ t('common.selected', { count: editor.count }) }}
-        </span>
-
         <!-- Two operations, not one with a switch: editing **replaces**, tagging
              **adds**. Deleting is not a third - it lives on the edit card.
              See docs/features/tags.md. -->
@@ -107,27 +103,35 @@ function onTagged() {
           {{ t('common.edit') }}
         </button>
 
-        <!-- The longest label of the three, and the one that needs a label
-             least: a cross beside a count of what is selected says it on its
-             own. -->
-        <button
-          type="button"
-          class="rounded-full p-1.5 text-ink-faint transition hover:text-ink"
-          :title="t('common.clearSelection')"
-          :aria-label="t('common.clearSelection')"
-          @click="editor.clear()"
-        >
-          <svg
-            class="h-4 w-4"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            aria-hidden="true"
+        <!-- A footer line on a phone; `sm:contents` dissolves it on desktop, so
+             the count returns to the head of the row and the cross to its tail. -->
+        <div class="flex items-center justify-center gap-2 sm:contents">
+          <span class="text-sm text-ink sm:order-first sm:whitespace-nowrap">
+            {{ t('common.selected', { count: editor.count }) }}
+          </span>
+
+          <!-- The longest label of the three, and the one that needs a label
+               least: a cross beside a count of what is selected says it on its
+               own. -->
+          <button
+            type="button"
+            class="rounded-full p-1.5 text-ink-faint transition hover:text-ink"
+            :title="t('common.clearSelection')"
+            :aria-label="t('common.clearSelection')"
+            @click="editor.clear()"
           >
-            <path d="m6 6 8 8M14 6l-8 8" stroke-linecap="round" />
-          </svg>
-        </button>
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="m6 6 8 8M14 6l-8 8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </Transition>

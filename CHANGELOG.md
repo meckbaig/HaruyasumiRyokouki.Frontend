@@ -27,6 +27,8 @@ it was.
 - Turning a page in the viewer no longer adds a history entry
 - The accent a reference raises is never a history entry
 - A shared address carries the file and the line at once
+- Opening a picture spends the accent, a followed reference's included, so a look at it leaves the wall unmarked with no empty space to tap
+- The selection toolbar stacks its buttons as a column on a phone, with the count on the last line beside the clear control, so the bar no longer overflows
 
 ## 2.4.0 - map fixes
 
