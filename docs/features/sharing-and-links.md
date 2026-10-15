@@ -45,10 +45,12 @@ was being looked at. Two parameters do:
 paged: nothing scrolls to the file behind a full-screen viewer, so the wall is not opened
 whole for it. See [media-grid-and-selection.md](media-grid-and-selection.md).
 
-**Resolution is against what the page actually holds.** A day resolves against its files;
-a search resolves against its *matched* files, not the remainders a reader can unfold.
-Anything unresolvable is dropped from the address bar and the page opens as if nothing had
-been asked for - a file may have moved to another day, or the search may no longer match it.
+**Resolution is against what the page actually holds.** A day resolves against its files; a
+search resolves against its matched files *and* the remainders a reader has already unfolded,
+because those are in hand. A day still folded away is never reached into: finding a file there
+would mean fetching every one of them on the chance it is there. Anything unresolvable is
+dropped from the address bar and the page opens as if nothing had been asked for - a file may
+have moved to another day, or the search may no longer match it.
 
 **Opening a picture adds a step of its own.** It **pushes** the pair (`?i=`, `?o=1`) rather
 than replacing the entry, so Back returns to the address before it and closes the viewer;

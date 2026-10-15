@@ -88,6 +88,9 @@ The remainder opens on the same **four rows** a day page's wall does, so unfoldi
 day does not hand the reader the whole wall at once; its own button reveals the rest. See
 **A page of rows** in [media-grid-and-selection.md](media-grid-and-selection.md).
 
+Unfolding is also what makes a remainder file reachable by the address: the group reports what
+it pulled in, and the page then holds those files, so a pair naming one of them resolves.
+
 ## The cache
 
 Keyed by `locale::query` or `locale::#tag`. Locale is part of the key because the same
@@ -187,19 +190,25 @@ of leaving the field empty.
 
 ## Deep links on this page
 
-Same `?i=`/`?o=` contract as the day page, with one difference: **resolution is against
-matched files only**. The rest of a day appears solely because a reader unfolded it, and
-reaching into folded days to find a file would mean fetching every one of them on the
-chance it is there.
+Same `?i=`/`?o=` contract as the day page. **Resolution is against the files the page holds**:
+the matched ones, plus the remainder of any day a reader has unfolded. A day still folded away
+is never reached into - finding a file there would mean fetching every one of them on the
+chance it is there - but an unfolded remainder is already in hand and behaves like any file.
+
+`MediaResultGroup` hands the viewer `[...matched, ...rest]` in render order, because the viewer
+walks a single flat list, and reports the same remainder up through `@rest` when it arrives. The
+view keeps the remainders by day and resolves both the group to open and the "does the page hold
+this file" check against that pair of lists.
 
 The viewer is `useMediaRouteViewer`: it derives the open index from the pair and the group's
-matched files, and owns the scroll for a plain `?i=`. The group the named file belongs to is
-picked from `mediaDays` whenever the pair or the answer changes; a close keeps the last group
-standing, so the picture still has a list to fly out of. A pair that matches nothing once the
-answer has arrived is dropped.
+files, and owns the scroll for a plain `?i=`. The group the named file belongs to is picked from
+`mediaDays` whenever the pair, the answer or an unfolded remainder changes; a close keeps the
+last group standing, so the picture still has a list to fly out of. A pair that matches nothing
+once the answer has arrived is dropped.
 
-`MediaResultGroup` hands the viewer `[...matched, ...rest]` in render order, because the
-viewer walks a single flat list.
+Without `@rest` the check dropped the pair in the same tick it was written, so a file from the
+remainder opened and closed at once: the click pushed `?i=`, the answer did not hold that file,
+and the address was cleared out from under the viewer.
 
 A leading `#` is stripped from a free search. Somebody who has seen a chip written
 `#ramen` will type the hash sooner or later, expecting it to mean something. It does not -
@@ -228,7 +237,8 @@ the day map's own default; see [media-grid-and-selection.md](media-grid-and-sele
 2. Links carry the slug, never the caption.
 3. A tag search passes `''` as the query so tokens stay empty.
 4. Highlight ranges are in original coordinates; nothing renders through `v-html`.
-5. Search-page `?i=` resolves against matched files only.
+5. Search-page `?i=` resolves against the files the page holds - matched, plus the
+   remainders a reader has unfolded - and never reaches into a folded-away day.
 9. The viewer is driven by the address pair through `useMediaRouteViewer`, the same one the
    day page uses: a tag link from inside it is an ordinary navigation, and returning to the
    pair restores the file last seen. No `popstate` handler or `history.back()`.

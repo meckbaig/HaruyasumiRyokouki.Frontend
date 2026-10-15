@@ -21,7 +21,7 @@ const props = defineProps({
   highlightedId: { type: Number, default: null },
 })
 
-const emit = defineEmits(['open', 'edit', 'context'])
+const emit = defineEmits(['open', 'edit', 'context', 'rest'])
 
 const { t } = useI18n()
 const days = useDaysStore()
@@ -60,6 +60,9 @@ async function toggle() {
     try {
       const day = await days.loadDay(props.group.date)
       rest.value = restOfDay(day, props.group.matched)
+      // The page has to know what it holds, or an address naming one of these
+      // files is dropped as unresolvable. See docs/features/search.md.
+      emit('rest', { date: props.group.date, items: rest.value })
     } catch {
       rest.value = []
     } finally {

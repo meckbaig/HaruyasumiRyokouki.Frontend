@@ -38,3 +38,11 @@ is a property of the raster rather than a fault. See **Rendering cost** in
   archive, e.g. `GET /v1/media/download?ids=1,2,3` returning `application/zip`, which is a
   contract question for the backend. See
   [media-grid-and-selection.md](features/media-grid-and-selection.md).
+
+- **An unfolded remainder outlives the query that produced it** (`visible`, `small`).
+  `MediaResultGroup` computes its remainder once, against the `matched` set of the answer then
+  on screen, and keeps it. A search answered **from the cache** never sets `loading`, so the
+  groups are not unmounted between the two answers: running a second query that returns the same
+  day leaves the first query's remainder standing, its files duplicated in the remainder and
+  files that no longer match still shown. Clearing `rest` and `expanded` when `props.group`
+  changes is the fix. See [search.md](features/search.md).

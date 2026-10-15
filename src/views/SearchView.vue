@@ -111,8 +111,8 @@ watch(
 
 /*
   A link pointing at one file of these results, the same contract the day page
-  keeps. **Resolved against the matched files only** - reaching into folded-away
-  days would mean fetching every one. See docs/features/sharing-and-links.md.
+  keeps: resolved against the files the page holds - matched, or unfolded - and
+  never by fetching folded-away days. See docs/features/sharing-and-links.md.
 */
 // Any overlay, not just this page's viewer: one opened from an edit dialog
 // still covers the outline, and a press over it is not the reader dismissing it.
@@ -120,9 +120,25 @@ const mediaLink = useMediaLink({ suspended: () => hasOverlay() })
 const highlightedId = computed(() => mediaLink.link.value.id)
 
 /*
-  The viewer, driven by the pair in the address. The lightbox walks one group's
-  matched files, so `lightboxItems` is the group the named file belongs to; it is
-  kept after a close, so the picture still has a list to fly out of.
+  The remainders a reader has unfolded, by day. The page holds them, so an address
+  naming one of them resolves like any other file. See docs/features/search.md.
+*/
+const unfolded = ref({})
+
+function onRest({ date, items }) {
+  unfolded.value = { ...unfolded.value, [date]: items }
+}
+
+/** What one group is walked through: its matched files first, its remainder after. */
+function itemsOf(group) {
+  const rest = unfolded.value[group.date] ?? []
+  return [...group.matched, ...(recordsHidden.value ? withoutHidden(rest) : rest)]
+}
+
+/*
+  The viewer, driven by the pair in the address. The lightbox walks one group at a
+  time, so `lightboxItems` is the files of the group the named file belongs to; it
+  is kept after a close, so the picture still has a list to fly out of.
   See docs/features/media-viewer.md.
 */
 const viewer = useMediaRouteViewer({ items: lightboxItems })
@@ -130,23 +146,25 @@ const viewer = useMediaRouteViewer({ items: lightboxItems })
 const lightboxIndex = viewer.index
 
 // The group the named file belongs to; a close keeps the last one standing.
-watch([() => mediaLink.link.value.id, mediaDays], ([id]) => {
+watch([() => mediaLink.link.value.id, mediaDays, unfolded], ([id]) => {
   if (id == null) return
   for (const group of mediaDays.value) {
-    if (group.matched.some((item) => item.id === id)) {
-      lightboxItems.value = group.matched
+    const items = itemsOf(group)
+    if (items.some((item) => item.id === id)) {
+      lightboxItems.value = items
       return
     }
   }
 })
 
 /*
-  A pair naming a file these results do not hold is dropped, once the answer has
-  arrived. See docs/features/sharing-and-links.md.
+  A pair naming a file the page does not hold - matched, or in a remainder a reader
+  has unfolded - is dropped, once the answer has arrived.
+  See docs/features/sharing-and-links.md.
 */
-watch([() => mediaLink.link.value.id, () => search.results], ([id]) => {
+watch([() => mediaLink.link.value.id, () => search.results, unfolded], ([id]) => {
   if (id == null || !mediaDays.value.length) return
-  if (!mediaDays.value.some((group) => group.matched.some((item) => item.id === id))) {
+  if (!mediaDays.value.some((group) => itemsOf(group).some((item) => item.id === id))) {
     mediaLink.clear()
   }
 })
@@ -279,6 +297,7 @@ async function removeMedia(list) {
             :readonly="gridReadonly"
             :highlighted-id="highlightedId"
             :hide-hidden="recordsHidden"
+            @rest="onRest"
             @open="openLightbox"
             @edit="editing = $event"
             @context="contextTarget = $event"
